@@ -12,7 +12,10 @@ Description
 The "Pywinauto recorder" records user interface actions and saves them in a Python script.
 The generated Python script plays back user interface actions in the order in which the user recorded them.
 
-The "Pywinauto recorder" uses accessibility technologies via the Pywinauto library.
+The "Pywinauto recorder" uses accessibility technologies via the Pywinauto_ library.
+
+External hyperlinks, like Python_.
+.. _Pywinauto: https://github.com/pywinauto/pywinauto/
 
 Installation
 ############
@@ -45,7 +48,7 @@ The user can then click or perform another action on the user interface and the 
 Repeat this process performing a few actions on the user interface and when you're done press ALT+r to return to "Pause" mode.
 Eventually, press ALT+q to exit the recoder.
 The generated Python script is saved in the "Record files" folder.
-To replay a file, drag and drop it to Drag_n_drop_to_replay.bat.
+To replay actions of a Python script, drag and drop it to Drag_n_drop_to_replay.bat.
 
 
 Functions
