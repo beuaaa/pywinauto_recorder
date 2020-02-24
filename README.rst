@@ -14,7 +14,6 @@ The generated Python script plays back user interface actions in the order in wh
 
 The "Pywinauto recorder" uses accessibility technologies via the Pywinauto_ library.
 
-External hyperlinks, like Python_.
 .. _Pywinauto: https://github.com/pywinauto/pywinauto/
 
 Installation
