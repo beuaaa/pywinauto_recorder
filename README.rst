@@ -16,6 +16,8 @@ The "Pywinauto recorder" uses accessibility technologies via the Pywinauto libra
 
 Installation
 ############
+ pip install pywinauto
+
  pip install overlay_arrows_and_more
 
  Download https://github.com/beuaaa/pywinauto_recorder/archive/master.zip
