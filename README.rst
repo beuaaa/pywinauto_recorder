@@ -34,6 +34,7 @@ Usage
 In the folder pywinauto_recoder you will find Recorder.bat. Modify the path of the Python interpreter if necessary.
 
 Recorder.bat:
+
 .. code-block:: bat
 
     if not DEFINED IS_MINIMIZED set IS_MINIMIZED=1 && start "" /min "%~dpnx0" %* && exit
