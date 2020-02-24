@@ -9,16 +9,10 @@ This recorder is still at a very early stage of development.
 
 Description
 ###########
-The 'Pywinauto recorder' records UI actions and save them in a Python script.
-The generated Python script allows to playback the UI actions in the respective order that user recorded them.
+The "Pywinauto recorder" records user interface actions and saves them in a Python script.
+The generated Python script plays back user interface actions in the order in which the user recorded them.
 
-When the recorder is started, it is in Pause mode. To enter in Recording mode you have to press ATL+r.
-Then the recorder generates a path to the element under the mouse cursor, if this path is unique it
-paints in green the element. Then the user can click or do another action on the UI.
-To stop recording the user have to press ALT+r
-
-'Pywinauto recorder' uses accessibility technologies via Pywinauto library
-
+The "Pywinauto recorder" uses accessibility technologies via the Pywinauto library.
 
 Installation
 ############
@@ -40,7 +34,17 @@ Recorder.bat:
     if not DEFINED IS_MINIMIZED set IS_MINIMIZED=1 && start "" /min "%~dpnx0" %* && exit
     python.exe recorder.py
 
-Double click on Recorer.bat to start the recorder.
+Double click on Recorder.bat to start the recorder.
+
+When the recorder is started, it is in "Pause" mode.
+Press ALT+r to switch to "Recording" mode.
+If the item below the mouse cursor can be uniquely identified, it will turn green.
+The user can then click or perform another action on the user interface and the action is recorded in the generated Python script.
+Perform a few actions on the user interface to finish.
+Press ALT+r to return to "Pause" mode.
+Eventually, press ALT+q to exit the recoder.
+The generated Python script is generated in the "Record files" folder.
+To replay a file, drag and drop it to Drag_n_drop_to_replay.bat.
 
 
 Functions
