@@ -44,7 +44,7 @@ If the item below the mouse cursor can be uniquely identified, it will turn gree
 The user can then click or perform another action on the user interface and the action is recorded in the generated Python script.
 Repeat this process performing a few actions on the user interface and when you're done press ALT+r to return to "Pause" mode.
 Eventually, press ALT+q to exit the recoder.
-The generated Python script is generated in the "Record files" folder.
+The generated Python script is saved in the "Record files" folder.
 To replay a file, drag and drop it to Drag_n_drop_to_replay.bat.
 
 
