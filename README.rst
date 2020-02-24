@@ -27,7 +27,7 @@ Installation
 Usage
 #####
 
-In the folder pywinauto_recoder you will find Recorder.bat. Modify the path of the Python interpreter if necessary.
+In the folder pywinauto_recorder you will find Recorder.bat. Modify the path of the Python interpreter if necessary.
 
 Recorder.bat:
 
