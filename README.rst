@@ -23,15 +23,17 @@ To stop recording the user have to press ALT+r
 Installation
 ############
  pip install overlay_arrows_and_more
+
  Download https://github.com/beuaaa/pywinauto_recorder/archive/master.zip
 
+ Unzip master.zip
 
 Usage
 #####
 
-Unzip master.zip
 In the folder pywinauto_recoder you will find Recorder.bat. Modify the path of the Python interpreter if necessary.
 
+Recorder.bat:
 .. code-block:: bat
 
     if not DEFINED IS_MINIMIZED set IS_MINIMIZED=1 && start "" /min "%~dpnx0" %* && exit
