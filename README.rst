@@ -9,16 +9,20 @@ This recorder is still at a very early stage of development.
 
 Description
 ###########
-The "Pywinauto recorder" records user interface actions and saves them in a Python script.
+"Pywinauto recorder" records user interface actions and saves them in a Python script.
 The generated Python script plays back user interface actions in the order in which the user recorded them.
 
-The "Pywinauto recorder" uses accessibility technologies via the Pywinauto_ library.
+"Pywinauto recorder" uses accessibility technologies via the Pywinauto_ library.
 
 .. _Pywinauto: https://github.com/pywinauto/pywinauto/
 
 Installation
 ############
  pip install pywinauto
+
+ pip install keyboard
+
+ pip install mouse
 
  pip install overlay_arrows_and_more
 
@@ -45,10 +49,18 @@ Press ALT+r to switch to "Recording" mode.
 If the item below the mouse cursor can be uniquely identified, it will turn green.
 The user can then click or perform another action on the user interface and the action is recorded in the generated Python script.
 Repeat this process performing a few actions on the user interface and when you're done press ALT+r to return to "Pause" mode.
-Eventually, press ALT+q to exit the recoder.
+Eventually, press ALT+q to exit the recorder.
 The generated Python script is saved in the "Record files" folder.
 To replay actions of a Python script, drag and drop it to Drag_n_drop_to_replay.bat.
 
+More explanations
+#################
+
+The main of "Pywinauto recorder" is an infinite loop where, at each iteration, it:
+ - finds the path of the element under the mouse cursor
+ - if this path is unique (unambiguous), it greens the region of the element
+ - records a user action in a file involving the last recognized unique path
+ - displays an icon in the left corner of the screen every second time to create a blink. This blink allows you to see how fast the loop is running.
 
 Functions
 **********************
