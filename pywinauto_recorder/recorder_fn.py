@@ -206,6 +206,8 @@ def move(element_path, duration=0.5, mode=Move_mode.linear, button='left'):
 	w_rOLD = w_r
 	return unique_element
 
+def mouse_wheel(steps):
+	win32api.mouse_event(win32con.MOUSEEVENTF_WHEEL, 0, 0, steps)
 
 def click(element_path, duration=0.5, mode=Move_mode.linear, button='left'):
 	move(element_path, duration=duration, mode=mode, button=button)

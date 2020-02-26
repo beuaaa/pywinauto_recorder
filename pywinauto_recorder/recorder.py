@@ -183,8 +183,19 @@ def mouse_on_drag(mouse_down_pos, mouse_down_unique_rectangle):
 
 		keyboard.start_recording()
 
+
 def mouse_on_wheel(mouse_event):
-	print 'TODO'
+	global record_file
+	if record_file is not None:
+		keyboard_events = keyboard.stop_recording()
+		if keyboard_events:
+			keyboard_events = keyboard_events[:-1]
+		line = get_send_keys_strings(keyboard_events)
+		if line:
+			record_file.write("send_keys(" + line + ")\n")
+
+		record_file.write('mouse_wheel(' + str(mouse_event.delta) + ')\n')
+
 
 mouse_down_unique_rectangle = None
 mouse_down_time = 0
