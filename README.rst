@@ -33,7 +33,7 @@ Installation
 Usage
 #####
 
-In the folder pywinauto_recorder you will find Recorder.bat. Modify the path of the Python interpreter if necessary.
+In the folder pywinauto_recorder you will find "Recorder.bat". Modify the path of the Python interpreter if necessary.
 
 Recorder.bat:
 
@@ -61,7 +61,7 @@ The main of "Pywinauto recorder" is an infinite loop where, at each iteration, i
  - records a user action in a file involving the last recognized unique path
  - displays an icon in the left corner of the screen every second time to create a blink. This blink allows you to see how fast the loop is running.
 
-When it cannot find a unique path for an element it reds all the element with the same path and it searchs a unique path in the ancestors then it greens the ancestor.
+.. note:: When it cannot find a unique path for an element it reds all the elements with the same path and it searchs a unique path in the ancestors then it greens the ancestor.
 The mouse coordinates recorded are relative to the center of the element recognized with a unique path
 
 Functions

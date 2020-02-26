@@ -221,7 +221,7 @@ def main():
 	global unique_rectangle
 	global unique_element_path
 
-	send_keys("{LWIN down}""{DOWN}""{DOWN}""{LWIN up}")
+	#send_keys("{LWIN down}""{DOWN}""{DOWN}""{LWIN up}")
 
 	keyboard.hook(print_pressed_keys)
 	mouse.hook(mouse_on)
