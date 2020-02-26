@@ -228,42 +228,49 @@ def main():
 	pywinauto_desktop = pywinauto.Desktop(backend='uia', allow_magic_lookup=False)
 	wrapper_old = None
 
-	i = 0
-	_is_running = True
-	while _is_running:
-		main_overlay.clear_all()
+	try:
+		i = 0
+		_is_running = True
+		while _is_running:
+			main_overlay.clear_all()
 
-		x, y = win32api.GetCursorPos()
-		elem = pywinauto.uia_defines.IUIA().iuia.ElementFromPoint(tagPOINT(x, y))
-		element = pywinauto.uia_element_info.UIAElementInfo(elem)
-		wrapper = pywinauto.controls.uiawrapper.UIAWrapper(element)
-		if wrapper is None:
-			continue
+			x, y = win32api.GetCursorPos()
+			elem = pywinauto.uia_defines.IUIA().iuia.ElementFromPoint(tagPOINT(x, y))
+			element = pywinauto.uia_element_info.UIAElementInfo(elem)
+			wrapper = pywinauto.controls.uiawrapper.UIAWrapper(element)
+			if wrapper is None:
+				continue
 
-		element_path = get_element_path(wrapper)
-		entry_list = (element_path.decode('utf-8')).split("->")
-		unique_candidate, elements = find_element(pywinauto_desktop, entry_list, window_candidates=[])
-		if unique_candidate is not None:
-			unique_element_path = get_element_path(unique_candidate)
-			# unique_candidate.draw_outline(colour='green', thickness=2)
-			r = unique_candidate.rectangle()
-			unique_rectangle = r
-			main_overlay.add(geometry=oaam.Shape.rectangle, x=r.left, y=r.top, width=r.width(), height=r.height(),
-							 thickness=1, color=(0, 128, 0), brush=oaam.Brush.solid, brush_color=(0,255,0))
-
-			for e in elements:
-				r = e.rectangle()
+			element_path = get_element_path(wrapper)
+			entry_list = (element_path.decode('utf-8')).split("->")
+			unique_candidate, elements = find_element(pywinauto_desktop, entry_list, window_candidates=[])
+			if unique_candidate is not None:
+				unique_element_path = get_element_path(unique_candidate)
+				# unique_candidate.draw_outline(colour='green', thickness=2)
+				r = unique_candidate.rectangle()
+				unique_rectangle = r
 				main_overlay.add(geometry=oaam.Shape.rectangle, x=r.left, y=r.top, width=r.width(), height=r.height(),
-								 thickness=1, color=(255, 0, 0), brush=oaam.Brush.solid, brush_color=(255, 0, 0))
+								 thickness=1, color=(0, 128, 0), brush=oaam.Brush.solid, brush_color=(0,255,0))
 
-		if (i % 2 == 0):
-			if record_file is not None:
-				main_overlay_add_record_icon()
-			else:
-				main_overlay_add_pause_icon()
-		i = i + 1
-		main_overlay.refresh()
-		time.sleep(0.005) # main_overlay.clear_all() doit attendre la fin de main_overlay.refresh()
+				for e in elements:
+					r = e.rectangle()
+					main_overlay.add(geometry=oaam.Shape.rectangle, x=r.left, y=r.top, width=r.width(), height=r.height(),
+									 thickness=1, color=(255, 0, 0), brush=oaam.Brush.solid, brush_color=(255, 0, 0))
+
+			if (i % 2 == 0):
+				if record_file is not None:
+					main_overlay_add_record_icon()
+				else:
+					main_overlay_add_pause_icon()
+			i = i + 1
+			main_overlay.refresh()
+			time.sleep(0.005) # main_overlay.clear_all() doit attendre la fin de main_overlay.refresh()
+	except Exception as e:
+		print ('Exception raised in main loop: \n')
+		print(type(e))
+		print(e.args)
+		print(e)
+		# raise
 
 def exit_recorder():
 	global record_file
