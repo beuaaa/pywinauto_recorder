@@ -42,16 +42,15 @@ Recorder.bat:
     if not DEFINED IS_MINIMIZED set IS_MINIMIZED=1 && start "" /min "%~dpnx0" %* && exit
     python.exe recorder.py
 
-Double click on Recorder.bat to start the recorder.
-
-When the recorder is started, it is in "Pause" mode.
-Press ALT+r to switch to "Recording" mode.
-If the item below the mouse cursor can be uniquely identified, it will turn green.
-You can then click or perform another action on the user interface and the action is recorded in the generated Python script.
-Repeat this process performing a few actions on the user interface and when you're done press ALT+r to return to "Pause" mode.
-Eventually, press ALT+q to exit the recorder.
-The generated Python script is saved in the "Record files" folder.
-To replay actions of a Python script, you can drag and drop it to Drag_n_drop_to_replay.bat.
+- Double click on Recorder.bat to start the recorder.
+- When the recorder is started, it is in "Pause" mode.
+- Press ALT+r to switch to "Recording" mode.
+- If the item below the mouse cursor can be uniquely identified, it will turn green.
+- You can then click or perform another action on the user interface and the action is recorded in the generated Python script.
+- Repeat this process performing a few actions on the user interface and when you're done press ALT+r to return to "Pause" mode.
+- Eventually, press ALT+q to exit the recorder.
+- The generated Python script is saved in the "Record files" folder.
+- To replay actions of a Python script, you can drag and drop it to Drag_n_drop_to_replay.bat. Modify the path of the Python interpreter if necessary.
 
 More explanations
 #################
