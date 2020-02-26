@@ -47,11 +47,11 @@ Double click on Recorder.bat to start the recorder.
 When the recorder is started, it is in "Pause" mode.
 Press ALT+r to switch to "Recording" mode.
 If the item below the mouse cursor can be uniquely identified, it will turn green.
-The user can then click or perform another action on the user interface and the action is recorded in the generated Python script.
+You can then click or perform another action on the user interface and the action is recorded in the generated Python script.
 Repeat this process performing a few actions on the user interface and when you're done press ALT+r to return to "Pause" mode.
 Eventually, press ALT+q to exit the recorder.
 The generated Python script is saved in the "Record files" folder.
-To replay actions of a Python script, drag and drop it to Drag_n_drop_to_replay.bat.
+To replay actions of a Python script, you can drag and drop it to Drag_n_drop_to_replay.bat.
 
 More explanations
 #################

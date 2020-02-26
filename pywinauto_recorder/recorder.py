@@ -245,6 +245,7 @@ def main():
 		unique_candidate, elements = find_element(pywinauto_desktop, entry_list, window_candidates=[])
 		if unique_candidate is not None:
 			unique_element_path = get_element_path(unique_candidate)
+			# unique_candidate.draw_outline(colour='green', thickness=2)
 			r = unique_candidate.rectangle()
 			unique_rectangle = r
 			main_overlay.add(geometry=oaam.Shape.rectangle, x=r.left, y=r.top, width=r.width(), height=r.height(),
