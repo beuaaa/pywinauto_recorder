@@ -183,6 +183,8 @@ def mouse_on_drag(mouse_down_pos, mouse_down_unique_rectangle):
 
 		keyboard.start_recording()
 
+def mouse_on_wheel(mouse_event):
+	print 'TODO'
 
 mouse_down_unique_rectangle = None
 mouse_down_time = 0
@@ -209,6 +211,8 @@ def mouse_on(mouse_event):
 					mouse_on_drag(mouse_down_pos, mouse_down_unique_rectangle)
 				else:
 					mouse_on_click(mouse_event)
+	elif type(mouse_event) == mouse.WheelEvent:
+			mouse_on_wheel(mouse_event)
 
 
 def main():
