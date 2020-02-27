@@ -101,7 +101,7 @@ def get_send_keys_strings(e):
 	return ''.join(format(code) for code in get_type_strings(e))
 
 
-def print_pressed_keys(e):
+def key_on(e):
 	global main_overlay
 	global record_file
 
@@ -139,62 +139,33 @@ def print_pressed_keys(e):
 		exit_recorder()
 
 # TODO: % is relative to the center of the element, A is absolute, P is proportional, ...
-def mouse_on_click(mouse_event):
+def record_click(mouse_event):
 	global record_file
 	global unique_rectangle
 	global unique_element_path
-	if record_file is not None:
-		keyboard_events = keyboard.stop_recording()
-		if keyboard_events:
-			keyboard_events = keyboard_events[:-1]
-		line = get_send_keys_strings(keyboard_events)
-		if line:
-			record_file.write("send_keys(" + line + ")\n")
-
-		x, y = win32api.GetCursorPos()
-		record_file.write(mouse_event.button + "_")
-		rx, ry = unique_rectangle.mid_point()
-		dx , dy = x - rx,  y - ry
-		record_file.write('click("""' + unique_element_path + '%(' + str(dx) + ',' + str(dy) + ')""")\n')
-
-		keyboard.start_recording()
+	x, y = win32api.GetCursorPos()
+	record_file.write(mouse_event.button + "_")
+	rx, ry = unique_rectangle.mid_point()
+	dx , dy = x - rx,  y - ry
+	record_file.write('click("""' + unique_element_path + '%(' + str(dx) + ',' + str(dy) + ')""")\n')
 
 
-def mouse_on_drag(mouse_down_pos, mouse_down_unique_rectangle):
+def record_drag(mouse_down_pos, mouse_down_unique_rectangle):
 	global record_file
 	global unique_rectangle
 	global unique_element_path
-	if record_file is not None:
-		keyboard_events = keyboard.stop_recording()
-		if keyboard_events:
-			keyboard_events = keyboard_events[:-1]
-		line = get_send_keys_strings(keyboard_events)
-		if line:
-			record_file.write("send_keys(" + line + ")\n")
-
-		x, y = mouse_down_pos[0], mouse_down_pos[1]
-		rx, ry = mouse_down_unique_rectangle.mid_point()
-		dx, dy = x - rx, y - ry
-		record_file.write('drag_and_drop("""' + unique_element_path + '%(' + str(dx) + ',' + str(dy))
-
-		x2, y2 = win32api.GetCursorPos()
-		dx, dy = x2 - rx, y2 - ry
-		record_file.write(')%(' + str(dx) + ',' + str(dy) + ')""")\n')
-
-		keyboard.start_recording()
+	x, y = mouse_down_pos[0], mouse_down_pos[1]
+	rx, ry = mouse_down_unique_rectangle.mid_point()
+	dx, dy = x - rx, y - ry
+	record_file.write('drag_and_drop("""' + unique_element_path + '%(' + str(dx) + ',' + str(dy))
+	x2, y2 = win32api.GetCursorPos()
+	dx, dy = x2 - rx, y2 - ry
+	record_file.write(')%(' + str(dx) + ',' + str(dy) + ')""")\n')
 
 
-def mouse_on_wheel(mouse_event):
+def record_wheel(mouse_event):
 	global record_file
-	if record_file is not None:
-		keyboard_events = keyboard.stop_recording()
-		if keyboard_events:
-			keyboard_events = keyboard_events[:-1]
-		line = get_send_keys_strings(keyboard_events)
-		if line:
-			record_file.write("send_keys(" + line + ")\n")
-
-		record_file.write('mouse_wheel(' + str(mouse_event.delta) + ')\n')
+	record_file.write('mouse_wheel(' + str(mouse_event.delta) + ')\n')
 
 
 mouse_down_unique_rectangle = None
@@ -207,23 +178,45 @@ def mouse_on(mouse_event):
 	global mouse_down_unique_rectangle
 	global mouse_down_time
 	global mouse_down_pos
+	global record_file
+
+	mouse_on_click = False
+	mouse_on_drag = False
+	mouse_on_wheel = False
+
 	if type(mouse_event) == mouse.MoveEvent:
 		a = 0 # TODO: recording with timings
 	elif type(mouse_event) == mouse.ButtonEvent:
-		if mouse_event.event_type=='down':
+		if mouse_event.event_type == 'down':
 			mouse_down_time = mouse_event.time
 			mouse_down_pos = mouse.get_position()
 			mouse_down_unique_rectangle = unique_rectangle
-		if mouse_event.event_type=='up':
+		if mouse_event.event_type == 'up':
 			if (mouse_event.time - mouse_down_time) < 0.2:
-				mouse_on_click(mouse_event)
+				mouse_on_click = True
 			else:
 				if mouse_down_pos != mouse.get_position():
-					mouse_on_drag(mouse_down_pos, mouse_down_unique_rectangle)
+					mouse_on_drag = True
 				else:
-					mouse_on_click(mouse_event)
+					mouse_on_click = True
 	elif type(mouse_event) == mouse.WheelEvent:
-			mouse_on_wheel(mouse_event)
+		mouse_on_wheel = True
+
+	if (record_file is not None) and (mouse_on_click or mouse_on_drag or mouse_on_wheel):
+		keyboard_events = keyboard.stop_recording()
+		if keyboard_events:
+			keyboard_events = keyboard_events[:-1]
+		line = get_send_keys_strings(keyboard_events)
+		if line:
+			record_file.write("send_keys(" + line + ")\n")
+
+		if mouse_on_click:
+			record_click(mouse_event)
+		if mouse_on_drag:
+			record_drag(mouse_down_pos, mouse_down_unique_rectangle)
+		if mouse_on_wheel:
+			record_wheel(mouse_event)
+		keyboard.start_recording()
 
 
 def main():
@@ -234,7 +227,7 @@ def main():
 
 	#send_keys("{LWIN down}""{DOWN}""{DOWN}""{LWIN up}")
 
-	keyboard.hook(print_pressed_keys)
+	keyboard.hook(key_on)
 	mouse.hook(mouse_on)
 
 	unique_candidate = None
