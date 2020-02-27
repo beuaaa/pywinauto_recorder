@@ -45,7 +45,7 @@ Recorder.bat:
 - Double click on Recorder.bat to start the recorder.
 - When the recorder is started, it is in "Pause" mode.
 - Press ALT+r to switch to "Record" mode.
-- If the item below the mouse cursor can be uniquely identified, it will turn green.
+- If the item below the mouse cursor can be uniquely identified, it will turn green, red or blue.
 - You can then click or perform another action on the user interface and the action is recorded in the generated Python script.
 - Repeat this process performing a few actions on the user interface and when you're done press ALT+r to return to "Pause" mode.
 - Eventually, press ALT+q to exit the recorder.
