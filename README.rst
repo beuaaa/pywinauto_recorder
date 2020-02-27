@@ -59,7 +59,7 @@ The main of "Pywinauto recorder" is an infinite loop where, at each iteration, i
  - finds the path of the element under the mouse cursor
  - if this path is unique (unambiguous), it greens the region of the element
  - records a user action in a file involving the last recognized unique path
- - displays an icon in the left corner of the screen every second time to create a blink. This blink allows you to see how fast the loop is running.
+ - the icon, after the Recording/Pause mode icon, displays a green bar at each iteration of the loop. It allows you to see how fast the loop is running.
 
 .. note:: When it cannot find a unique path for an element it reds all the elements with the same path and it searchs a unique path in the ancestors then it greens the ancestor.
 The mouse coordinates recorded are relative to the center of the element recognized with a unique path
