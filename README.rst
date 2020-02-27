@@ -44,7 +44,7 @@ Recorder.bat:
 
 - Double click on Recorder.bat to start the recorder.
 - When the recorder is started, it is in "Pause" mode.
-- Press ALT+r to switch to "Recording" mode.
+- Press ALT+r to switch to "Record" mode.
 - If the item below the mouse cursor can be uniquely identified, it will turn green.
 - You can then click or perform another action on the user interface and the action is recorded in the generated Python script.
 - Repeat this process performing a few actions on the user interface and when you're done press ALT+r to return to "Pause" mode.
@@ -59,7 +59,7 @@ The main of "Pywinauto recorder" is an infinite loop where, at each iteration, i
  - finds the path of the element under the mouse cursor
  - if this path is unique (unambiguous), it greens the region of the element
  - records a user action in a file involving the last recognized unique path
- - the icon, after the Recording/Pause mode icon, displays a green bar at each iteration of the loop. It allows you to see how fast the loop is running.
+ - the second icon, after the Record/Pause mode icon, displays a green bar at each iteration of the loop. It allows you to see how fast the loop is running.
 
 .. note:: When it cannot find a unique path for an element it reds all the elements with the same path and it searchs a unique path in the ancestors then it greens the ancestor.
 The mouse coordinates recorded are relative to the center of the element recognized with a unique path
