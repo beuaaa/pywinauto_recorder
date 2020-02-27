@@ -36,6 +36,13 @@ def main_overlay_add_pause_icon():
 	main_overlay.add(geometry=oaam.Shape.rectangle, x=32, y=15, width=12, height=30, color=(0, 0, 0), thickness=1,
 					 brush=oaam.Brush.solid, brush_color=(0, 0, 0))
 
+def main_overlay_add_progress_icon(i):
+	main_overlay.add(geometry=oaam.Shape.rectangle, x=60, y=10, width=40, height=40, color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid,  brush_color=(255, 255, 254))
+
+	for b in range(i % 5):
+		main_overlay.add(geometry=oaam.Shape.rectangle, x=65, y=15+b*8, width=30, height=6, color=(0, 255, 0), thickness=1,
+						 brush=oaam.Brush.solid, brush_color=(0, 200, 0))
+
 
 def get_element_path(w):
 	try:
@@ -265,11 +272,13 @@ def main():
 					main_overlay.add(geometry=oaam.Shape.rectangle, x=r.left, y=r.top, width=r.width(), height=r.height(),
 									 thickness=1, color=(255, 0, 0), brush=oaam.Brush.solid, brush_color=(255, 0, 0))
 
-			if (i % 2 == 0):
-				if record_file is not None:
-					main_overlay_add_record_icon()
-				else:
-					main_overlay_add_pause_icon()
+			if record_file is not None:
+				main_overlay_add_record_icon()
+			else:
+				main_overlay_add_pause_icon()
+
+			main_overlay_add_progress_icon(i)
+
 			i = i + 1
 			main_overlay.refresh()
 			time.sleep(0.005) # main_overlay.clear_all() doit attendre la fin de main_overlay.refresh()
