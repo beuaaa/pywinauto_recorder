@@ -88,7 +88,9 @@ def find_element(desktop, entry_list, window_candidates=[], visible_only=True, e
 
 	candidates = []
 	for window in window_candidates:
-		descendants = window.descendants(title=get_window_text(entry_list[-1]), control_type=get_control_type(entry_list[-1]))
+		descendants = window.descendants(
+											title=get_window_text(entry_list[-1]),
+											control_type=get_control_type(entry_list[-1]))
 		for descendant in descendants:
 			if same_entry_list(descendant, entry_list):
 				candidates.append(descendant)
@@ -97,8 +99,9 @@ def find_element(desktop, entry_list, window_candidates=[], visible_only=True, e
 
 	if not candidates:
 		if active_only:
-			return find_element(desktop, entry_list, window_candidates=[], visible_only=True, enabled_only=False,
-								active_only=False)
+			return find_element(
+								desktop, entry_list, window_candidates=[], visible_only=True,
+								enabled_only=False, active_only=False)
 		else:
 			return None, []
 	elif len(candidates) == 1:
