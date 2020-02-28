@@ -67,43 +67,37 @@ def find_element(desktop, entryList, window_candidates=[], visible_only=True, en
 	title = get_window_text(entryList[0])
 	control_type = get_control_type(entryList[0])
 
-	if len(window_candidates)==0:
+	if not window_candidates:
 		window_candidates = desktop.windows(title=title, control_type=control_type, visible_only=visible_only,
 											enabled_only=enabled_only, active_only=active_only)
+		if not window_candidates:
+			if active_only:
+				return find_element(desktop, entryList, window_candidates=[], visible_only=True, enabled_only=False,
+									active_only=False)
+			else:
+				print ("Fatal error: No window found!")
+				return None, []
+
 	if len(entryList) == 1:
 		if len(window_candidates) == 1:
 			return window_candidates[0], []
 
-	if False: # A voir
-		candidates = []
-		for window in window_candidates:
-			#descendants = window.descendants(title=get_window_text(entryList[-1]), control_type=get_control_type(entryList[-1]))
-			try:
-				descendants = window.child_window(title=get_window_text(entryList[-1]),
-													control_type=get_control_type(entryList[-1]),
-													depth=len(entryList) )
-			except pywinauto.findwindows.ElementAmbiguousError as e:
-				descendants = e.elements
-			finally:
-				candidates = candidates + descendants
+	candidates = []
+	for window in window_candidates:
+		descendants = window.descendants(title=get_window_text(entryList[-1]), control_type=get_control_type(entryList[-1]))
+		for descendant in descendants:
+			if same_entry_list(descendant, entryList):
+				candidates.append(descendant)
+			else:
+				continue
 
-	else:
-		candidates = []
-		for window in window_candidates:
-			descendants = window.descendants(title=get_window_text(entryList[-1]), control_type=get_control_type(entryList[-1]))
-			for descendant in descendants:
-				if same_entry_list(descendant, entryList):
-					candidates.append(descendant)
-				else:
-					continue
-
-	if len(candidates)==0:
-		if active_only==False:
-			return None, []
+	if not candidates:
+		if active_only:
+			return find_element(desktop, entryList, window_candidates=[], visible_only=True, enabled_only=False,
+								active_only=False)
 		else:
-			return find_element(desktop, entryList, window_candidates=[], visible_only=True, enabled_only=False, active_only=False)
-
-	elif len(candidates)==1:
+			return None, []
+	elif len(candidates) == 1:
 		#add_wrapper_cache(candidates[0], entryList)
 		return candidates[0], []
 	else:
