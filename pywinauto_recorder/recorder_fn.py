@@ -1,18 +1,20 @@
 # -*- coding: utf-8 -*-
 
-import pywinauto, win32api, win32con, time, anytree
+import pywinauto, win32api, win32con, time
 
 from enum import Enum
-class Move_mode(Enum):
+
+
+class MoveMode(Enum):
 	linear = 0
 	y_first = 1
 	x_first = 2
 	
 
 def get_window_text(entry):
-	if len(entry)==0:
+	if not entry:
 		return ''
-	if entry[0]==':' and entry[1]==':':
+	if entry[0] == ':' and entry[1] == ':':
 		return ''
 	else:
 		i = entry.rfind('::')
@@ -22,18 +24,18 @@ def get_window_text(entry):
 def get_control_type(entry):
 	i = entry.rfind('::')
 	words = [entry[0:i], entry[i+2:]]
-	if len(words)==2:
+	if len(words) == 2:
 		control_type_dxy = words[1].split("%(")
 		return control_type_dxy[0]
 	else:
 		return None
 
 
-def get_dxdy(entry):
+def get_dx_dy(entry):
 	words = entry.split("%(")
-	dxVdy = words[1].split(")")[0]
-	dxdy = dxVdy.split(",")
-	return int(dxdy[0]), int(dxdy[1])
+	dx_dy_word = words[1].split(")")[0]
+	dx_dy = dx_dy_word.split(",")
+	return int(dx_dy[0]), int(dx_dy[1])
 
 # A FAIRE: voir pourquoi ca ne marche pas bien avec le dialogue Ajouter variable
 
@@ -63,148 +65,148 @@ def same_entry_list(element, entry_list):
 		return False
 
 
-def find_element(desktop, entryList, window_candidates=[], visible_only=True, enabled_only=True, active_only=True):
-	title = get_window_text(entryList[0])
-	control_type = get_control_type(entryList[0])
+def find_element(desktop, entry_list, window_candidates=[], visible_only=True, enabled_only=True, active_only=True):
+	title = get_window_text(entry_list[0])
+	control_type = get_control_type(entry_list[0])
 
 	if not window_candidates:
-		window_candidates = desktop.windows(title=title, control_type=control_type, visible_only=visible_only,
+		window_candidates = desktop.windows(
+											title=title, control_type=control_type, visible_only=visible_only,
 											enabled_only=enabled_only, active_only=active_only)
 		if not window_candidates:
 			if active_only:
-				return find_element(desktop, entryList, window_candidates=[], visible_only=True, enabled_only=False,
-									active_only=False)
+				return find_element(
+									desktop, entry_list, window_candidates=[], visible_only=True,
+									enabled_only=False, active_only=False)
 			else:
 				print ("Fatal error: No window found!")
 				return None, []
 
-	if len(entryList) == 1:
+	if len(entry_list) == 1:
 		if len(window_candidates) == 1:
 			return window_candidates[0], []
 
 	candidates = []
 	for window in window_candidates:
-		descendants = window.descendants(title=get_window_text(entryList[-1]), control_type=get_control_type(entryList[-1]))
+		descendants = window.descendants(title=get_window_text(entry_list[-1]), control_type=get_control_type(entry_list[-1]))
 		for descendant in descendants:
-			if same_entry_list(descendant, entryList):
+			if same_entry_list(descendant, entry_list):
 				candidates.append(descendant)
 			else:
 				continue
 
 	if not candidates:
 		if active_only:
-			return find_element(desktop, entryList, window_candidates=[], visible_only=True, enabled_only=False,
+			return find_element(desktop, entry_list, window_candidates=[], visible_only=True, enabled_only=False,
 								active_only=False)
 		else:
 			return None, []
 	elif len(candidates) == 1:
-		#add_wrapper_cache(candidates[0], entryList)
 		return candidates[0], []
 	else:
-		unique_candidate, elements = find_element(desktop, entryList[0:-1], window_candidates=window_candidates)
-		#add_wrapper_cache(unique_candidate, entryList[0:-1])
+		unique_candidate, elements = find_element(desktop, entry_list[0:-1], window_candidates=window_candidates)
 		return unique_candidate, candidates
 
 
-elementPathOLD = ''
+element_path_old = ''
 w_rOLD = None
 click_desktop = pywinauto.Desktop(backend='uia', allow_magic_lookup=False)
 
 
-def move(element_path, duration=0.5, mode=Move_mode.linear, button='left'):
+def find(element_path):
+	entry_list = (element_path.decode('utf-8')).split("->")
+	i = 0
+	unique_element = None
+	elements = []
+	while i < 99:
+		try:
+			unique_element, elements = find_element(click_desktop, entry_list, window_candidates=[])
+		except:
+			time.sleep(0.1)
+		i+=1
+
+		if unique_element is not None:
+			if get_control_type(entry_list[0]) == 'Menu' or get_control_type(entry_list[-1]) == 'TreeItem':
+				app = pywinauto.Application(backend='uia', allow_magic_lookup=False)
+				app.connect(process=unique_element.element_info.element.CurrentProcessId)
+				app.wait_cpu_usage_lower()
+			if unique_element.is_enabled():
+				break
+	return unique_element
+
+
+def move(element_path, duration=0.5, mode=MoveMode.linear, button='left'):
 	global click_desktop
-	global elementPathOLD
+	global element_path_old
 	global w_rOLD
 
-	entryList = (element_path.decode('utf-8')).split("->")
-	if element_path == elementPathOLD:
+	entry_list = (element_path.decode('utf-8')).split("->")
+	if element_path == element_path_old:
 		w_r = w_rOLD
 	else:
-		i=0
-		unique_element = None
-		elements = []
-		while i<99:
-			try:
-				unique_element, elements = find_element(click_desktop, entryList, window_candidates=[])
-			except:
-				time.sleep(0.1)
-			i+=1
-
-			if unique_element is not None:
-				if get_control_type(entryList[0]) == 'Menu' or get_control_type(entryList[-1]) == 'TreeItem':
-					app = pywinauto.Application(backend='uia', allow_magic_lookup=False)
-					app.connect(process=unique_element.element_info.element.CurrentProcessId)
-					app.wait_cpu_usage_lower()
-				if unique_element.is_enabled():
-					break
+		unique_element = find(element_path)
 		w_r = unique_element.rectangle()
 
 	x, y = win32api.GetCursorPos()
-	if get_control_type(entryList[0])=='Menu':
-		entryListOLD = (elementPathOLD.decode('utf-8')).split("->")
-		if get_control_type(entryListOLD[0])=='Menu':
-			mode = Move_mode.x_first
+	if get_control_type(entry_list[0]) == 'Menu':
+		entry_list_old = (element_path_old.decode('utf-8')).split("->")
+		if get_control_type(entry_list_old[0]) == 'Menu':
+			mode = MoveMode.x_first
 		else:
-			mode = Move_mode.y_first
+			mode = MoveMode.y_first
 	
 		xd, yd = w_r.mid_point()
 	else:
-		dx, dy = get_dxdy(entryList[-1])
+		dx, dy = get_dx_dy(entry_list[-1])
 		xd, yd = w_r.mid_point()
 		xd, yd = xd + dx, yd + dy
 
-	if (x,y) != (xd,yd):
+	if (x, y) != (xd, yd):
 		dt = 0.01
 		samples = duration/dt
-		step_x = (xd-x)/(samples)
-		step_y = (yd-y)/(samples)
+		step_x = (xd-x)/samples
+		step_y = (yd-y)/samples
 
-		if mode==Move_mode.x_first:
+		if mode == MoveMode.x_first:
 			for i in range(int(samples)):
 				x = x+step_x
 				time.sleep(0.01)
-				#win32api.SetCursorPos((int(x),int(y)))
-				#pywinauto.mouse.move(coords=(int(x),int(y)))
 				nx = int(x) * 65535 / win32api.GetSystemMetrics(0)
 				ny = int(y) * 65535 / win32api.GetSystemMetrics(1)
 				win32api.mouse_event(win32con.MOUSEEVENTF_MOVE|win32con.MOUSEEVENTF_ABSOLUTE, nx, ny)
 			step_x = 0
 
-		if mode==Move_mode.y_first:
+		if mode == MoveMode.y_first:
 			for i in range(int(samples)):
 				y = y+step_y
 				time.sleep(0.01)
-				#win32api.SetCursorPos((int(x),int(y)))
-				#pywinauto.mouse.move(coords=(int(x), int(y)))
 				nx = int(x) * 65535 / win32api.GetSystemMetrics(0)
 				ny = int(y) * 65535 / win32api.GetSystemMetrics(1)
 				win32api.mouse_event(win32con.MOUSEEVENTF_MOVE | win32con.MOUSEEVENTF_ABSOLUTE, nx, ny)
 			step_y = 0
 
 		for i in range(int(samples)):
-			x,y = x+step_x, y+step_y
+			x, y = x+step_x, y+step_y
 			time.sleep(0.01)
-			#win32api.SetCursorPos((int(x),int(y)))
-			#pywinauto.mouse.move(coords=(int(x), int(y)))
 			nx = int(x) * 65535 / win32api.GetSystemMetrics(0)
 			ny = int(y) * 65535 / win32api.GetSystemMetrics(1)
 			win32api.mouse_event(win32con.MOUSEEVENTF_MOVE | win32con.MOUSEEVENTF_ABSOLUTE, nx, ny)
 
-	#win32api.SetCursorPos((int(xd), int(yd)))
-	#pywinauto.mouse.move(coords=(int(xd), int(yd)))
 	nx = int(xd) * 65535 / win32api.GetSystemMetrics(0)
 	ny = int(yd) * 65535 / win32api.GetSystemMetrics(1)
 	win32api.mouse_event(win32con.MOUSEEVENTF_MOVE | win32con.MOUSEEVENTF_ABSOLUTE, nx, ny)
 
-	elementPathOLD = element_path
+	element_path_old = element_path
 	w_rOLD = w_r
 	return unique_element
+
 
 def mouse_wheel(steps):
 	win32api.mouse_event(win32con.MOUSEEVENTF_WHEEL, 0, 0, steps)
 
-def click(element_path, duration=0.5, mode=Move_mode.linear, button='left'):
-	move(element_path, duration=duration, mode=mode, button=button)
+
+def click(element_path, duration=0.5, mode=MoveMode.linear, button='left'):
+	unique_element = move(element_path, duration=duration, mode=mode, button=button)
 
 	if button == 'left' or button == 'double_left' or button == 'triple_left':
 		win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0)
@@ -224,30 +226,32 @@ def click(element_path, duration=0.5, mode=Move_mode.linear, button='left'):
 		win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0)
 
 	if button == 'right':
-		win32api.mouse_event(win32con.MOUSEEVENTF_RIGHTDOWN,0,0)
+		win32api.mouse_event(win32con.MOUSEEVENTF_RIGHTDOWN, 0, 0)
 		time.sleep(.01)
-		win32api.mouse_event(win32con.MOUSEEVENTF_RIGHTUP,0,0)
+		win32api.mouse_event(win32con.MOUSEEVENTF_RIGHTUP, 0, 0)
 		time.sleep(.01)
 
-
-def left_click(element_path, duration = 0.5, mode = Move_mode.linear):
-	click(element_path, duration = duration, mode = mode, button='left')
+	return unique_element
 
 
-def right_click(element_path, duration = 0.5, mode = Move_mode.linear):
-	click(element_path, duration = duration, mode = mode, button='right')
+def left_click(element_path, duration=0.5, mode=MoveMode.linear):
+	return click(element_path, duration=duration, mode=mode, button='left')
 
 
-def double_left_click(element_path, duration = 0.5, mode = Move_mode.linear):
-	click(element_path, duration = duration, mode = mode, button='double_left')
+def right_click(element_path, duration=0.5, mode=MoveMode.linear):
+	return click(element_path, duration=duration, mode=mode, button='right')
 
 
-def triple_left_click(element_path, duration = 0.5, mode = Move_mode.linear):
-	click(element_path, duration = duration, mode = mode, button='triple_left')
+def double_left_click(element_path, duration=0.5, mode=MoveMode.linear):
+	return click(element_path, duration=duration, mode=mode, button='double_left')
 
 
-def drag_and_drop(element_path, duration=0.5, mode=Move_mode.linear):
-	move(element_path, duration=duration, mode=mode)
+def triple_left_click(element_path, duration=0.5, mode=MoveMode.linear):
+	return click(element_path, duration=duration, mode=mode, button='triple_left')
+
+
+def drag_and_drop(element_path, duration=0.5, mode=MoveMode.linear):
+	unique_element = move(element_path, duration=duration, mode=mode)
 	win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0)
 	words = element_path.split("%(")
 	last_word = words[-1]
@@ -259,6 +263,7 @@ def drag_and_drop(element_path, duration=0.5, mode=Move_mode.linear):
 	element_path2 = element_path2 + last_word
 	move(element_path2, duration=duration, mode=mode)
 	win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0)
+	return unique_element
 
 
 def send_keys(str_keys):
