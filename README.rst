@@ -52,6 +52,14 @@ Recorder.bat:
 - The generated Python script is saved in the "Record files" folder.
 - To replay actions of a Python script, you can drag and drop it to Drag_n_drop_to_replay.bat. Modify the path of the Python interpreter if necessary.
 
+Icons
+#####
+
+Three transparent icons are displayed at the top of the screen:
+ - the first icon corresponds to Record/Pause mode. Press ALT+r to switch.
+ - the second icon displays a green bar at each iteration of the loop. It allows you to see how fast the loop is running.
+ - the third icon corresponds to the search algorithm used to identify the element under the mouse.
+
 More explanations
 #################
 
@@ -61,14 +69,6 @@ The main of "Pywinauto recorder" is an infinite loop where, at each iteration, i
  - records a user action in a file involving the last recognized unique path
 
 .. note:: When it cannot find a unique path for an element it reds all the elements with the same path and it searchs a unique path in the ancestors then it greens the ancestor.The mouse coordinates recorded are relative to the center of the element recognized with a unique path
-
-Icons
-#####
-
-Three transparent icons are displayed at the top of the screen:
- - the first icon corresponds to Record/Pause mode. Press ALT+r to switch.
- - the second icon, after the Record/Pause mode icon, displays a green bar at each iteration of the loop. It allows you to see how fast the loop is running.
- - the third icon corresponds to the search algorithm used to identify the element under the mouse.
 
 Functions
 **********************
