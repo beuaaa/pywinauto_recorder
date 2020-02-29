@@ -299,7 +299,7 @@ def main():
 					main_overlay.add(geometry=oaam.Shape.rectangle, x=r.left, y=r.top, width=r.width(), height=r.height(),
 									 thickness=1, color=(255, 0, 0), brush=oaam.Brush.solid, brush_color=(255, 0, 0))
 
-			if record_file is not None:
+			if record_file:
 				main_overlay_add_record_icon()
 			else:
 				main_overlay_add_pause_icon()
@@ -321,7 +321,7 @@ def main():
 def exit_recorder():
 	global record_file
 	print("Quit")
-	if record_file != None:
+	if record_file:
 		record_file.close()
 
 	# kill this process with taskkill
