@@ -107,6 +107,10 @@ def find_element(desktop, entry_list, window_candidates=[], visible_only=True, e
 	elif len(candidates) == 1:
 		return candidates[0], []
 	else:
+		# We have several elements so we have to use the good strategy to select the good one.
+		# Strategy 1: 1D array of elements beginning with an element having a unique path
+		# Strategy 2: 2D array of elements
+		# Strategy 3: we find a unique path in the ancestors
 		unique_candidate, elements = find_element(desktop, entry_list[0:-1], window_candidates=window_candidates)
 		return unique_candidate, candidates
 
