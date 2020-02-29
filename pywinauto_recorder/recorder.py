@@ -55,7 +55,7 @@ def main_overlay_add_progress_icon(i):
 			color=(0, 255, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(0, 200, 0))
 
 
-def main_overlay_add_search_mode_icon(i):
+def main_overlay_add_search_mode_icon():
 	main_overlay.add(
 		geometry=oaam.Shape.rectangle, x=110, y=10, width=40, height=40,
 		color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid,  brush_color=(255, 255, 254))
@@ -305,7 +305,7 @@ def main():
 				main_overlay_add_pause_icon()
 
 			main_overlay_add_progress_icon(i)
-			main_overlay_add_search_mode_icon(i)
+			main_overlay_add_search_mode_icon()
 
 			i = i + 1
 			main_overlay.refresh()
