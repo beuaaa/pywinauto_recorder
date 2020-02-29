@@ -23,52 +23,67 @@ unique_rectangle = None
 unique_element_path = None
 main_overlay = oaam.Overlay(transparency=100)
 
+
 def main_overlay_add_record_icon():
-	main_overlay.add(geometry=oaam.Shape.rectangle, x=10, y=10, width=40, height=40, color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid,  brush_color=(255, 255, 254))
-	main_overlay.add(geometry=oaam.Shape.ellipse, x=15, y=15, width=29, height=29, color=(255, 90, 90), thickness=1,
-					 brush=oaam.Brush.solid, brush_color=(255, 0, 0))
+	main_overlay.add(
+		geometry=oaam.Shape.rectangle, x=10, y=10, width=40, height=40,
+		color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid,  brush_color=(255, 255, 254))
+	main_overlay.add(
+		geometry=oaam.Shape.ellipse, x=15, y=15, width=29, height=29,
+		color=(255, 90, 90), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 0, 0))
 
 
 def main_overlay_add_pause_icon():
-	main_overlay.add(geometry=oaam.Shape.rectangle, x=10, y=10, width=40, height=40, color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid,  brush_color=(255, 255, 254))
-	main_overlay.add(geometry=oaam.Shape.rectangle, x=15, y=15, width=12, height=30, color=(0, 0, 0), thickness=1,
-					 brush=oaam.Brush.solid, brush_color=(0, 0, 0))
-	main_overlay.add(geometry=oaam.Shape.rectangle, x=32, y=15, width=12, height=30, color=(0, 0, 0), thickness=1,
-					 brush=oaam.Brush.solid, brush_color=(0, 0, 0))
+	main_overlay.add(
+		geometry=oaam.Shape.rectangle, x=10, y=10, width=40, height=40,
+		color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid,  brush_color=(255, 255, 254))
+	main_overlay.add(
+		geometry=oaam.Shape.rectangle, x=15, y=15, width=12, height=30,
+		color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(0, 0, 0))
+	main_overlay.add(
+		geometry=oaam.Shape.rectangle, x=32, y=15, width=12, height=30,
+		color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(0, 0, 0))
+
 
 def main_overlay_add_progress_icon(i):
-	main_overlay.add(geometry=oaam.Shape.rectangle, x=60, y=10, width=40, height=40, color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid,  brush_color=(255, 255, 254))
-
+	main_overlay.add(
+		geometry=oaam.Shape.rectangle, x=60, y=10, width=40, height=40,
+		color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid,  brush_color=(255, 255, 254))
 	for b in range(i % 5):
-		main_overlay.add(geometry=oaam.Shape.rectangle, x=65, y=15+b*8, width=30, height=6, color=(0, 255, 0), thickness=1,
-						 brush=oaam.Brush.solid, brush_color=(0, 200, 0))
+		main_overlay.add(
+			geometry=oaam.Shape.rectangle, x=65, y=15+b*8, width=30, height=6,
+			color=(0, 255, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(0, 200, 0))
+
 
 def main_overlay_add_search_mode_icon(i):
-	main_overlay.add(geometry=oaam.Shape.rectangle, x=110, y=10, width=40, height=40, color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid,  brush_color=(255, 255, 254))
-
-	main_overlay.add(geometry=oaam.Shape.rectangle, x=115, y=15, width=30, height=30, color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid,  brush_color=(0, 255, 0))
-
-	main_overlay.add(geometry=oaam.Shape.rectangle, x=120, y=15+ 1*8, width=15, height=6, color=(0, 255, 0), thickness=1,
-						 brush=oaam.Brush.solid, brush_color=(255, 0, 0))
-	main_overlay.add(geometry=oaam.Shape.rectangle, x=120, y=15 + 2 * 8, width=15, height=6, color=(0, 255, 0),
-					 thickness=1, brush=oaam.Brush.solid, brush_color=(255, 0, 0))
-
+	main_overlay.add(
+		geometry=oaam.Shape.rectangle, x=110, y=10, width=40, height=40,
+		color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid,  brush_color=(255, 255, 254))
+	main_overlay.add(
+		geometry=oaam.Shape.rectangle, x=115, y=15, width=30, height=30,
+		color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid,  brush_color=(0, 255, 0))
+	main_overlay.add(
+		geometry=oaam.Shape.rectangle, x=120, y=15+ 1*8, width=15, height=6,
+		color=(0, 255, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 0, 0))
+	main_overlay.add(
+		geometry=oaam.Shape.rectangle, x=120, y=15 + 2 * 8, width=15, height=6,
+		color=(0, 255, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 0, 0))
 
 
 def get_element_path(w):
 	try:
-		textBW=''
+		path = ''
 		wrapper_top_level_parent = w.top_level_parent()
 		while w != wrapper_top_level_parent:
-			if w==None:
+			if not w:
 				break
-			if w.window_text()!='':
-				textBW = "->" + w.window_text() + '::' + w.element_info.control_type + textBW
+			if w.window_text() != '':
+				path = "->" + w.window_text() + '::' + w.element_info.control_type + path
 			else:
-				textBW = "->" + '::' + w.element_info.control_type + textBW
+				path = "->" + '::' + w.element_info.control_type + path
 			w = w.parent()
 
-		return w.window_text() + '::' + w.element_info.control_type + textBW
+		return w.window_text() + '::' + w.element_info.control_type + path
 	except Exception:
 		return ''
 
@@ -155,6 +170,7 @@ def key_on(e):
 			main_overlay.refresh()
 	elif e.name == 'q' and e.event_type == 'up' and 56 in keyboard._pressed_events:
 		exit_recorder()
+
 
 # TODO: % is relative to the center of the element, A is absolute, P is proportional, ...
 def record_click(mouse_event):
@@ -301,6 +317,7 @@ def main():
 		print(e)
 		# raise
 
+
 def exit_recorder():
 	global record_file
 	print("Quit")
@@ -311,6 +328,7 @@ def exit_recorder():
 	current_pid = os.getpid()
 	os.system("taskkill /pid %s /f" % current_pid)
 	exit(0)
+
 
 if __name__ == '__main__':
 	main()

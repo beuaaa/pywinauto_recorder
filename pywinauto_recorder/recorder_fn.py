@@ -113,10 +113,14 @@ def find_element(desktop, entry_list, window_candidates=[], visible_only=True, e
 
 element_path_old = ''
 w_rOLD = None
-click_desktop = pywinauto.Desktop(backend='uia', allow_magic_lookup=False)
+click_desktop = None
 
 
 def find(element_path):
+	global click_desktop
+	if not click_desktop:
+		click_desktop = pywinauto.Desktop(backend='uia', allow_magic_lookup=False)
+
 	entry_list = (element_path.decode('utf-8')).split("->")
 	i = 0
 	unique_element = None
@@ -124,9 +128,9 @@ def find(element_path):
 	while i < 99:
 		try:
 			unique_element, elements = find_element(click_desktop, entry_list, window_candidates=[])
-		except:
+		except Exception:
 			time.sleep(0.1)
-		i+=1
+		i += 1
 
 		if unique_element is not None:
 			if get_control_type(entry_list[0]) == 'Menu' or get_control_type(entry_list[-1]) == 'TreeItem':
@@ -139,7 +143,6 @@ def find(element_path):
 
 
 def move(element_path, duration=0.5, mode=MoveMode.linear, button='left'):
-	global click_desktop
 	global element_path_old
 	global w_rOLD
 
