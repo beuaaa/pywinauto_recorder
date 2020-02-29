@@ -291,13 +291,15 @@ def main():
 				# unique_candidate.draw_outline(colour='green', thickness=2)
 				r = unique_candidate.rectangle()
 				unique_rectangle = r
-				main_overlay.add(geometry=oaam.Shape.rectangle, x=r.left, y=r.top, width=r.width(), height=r.height(),
-								 thickness=1, color=(0, 128, 0), brush=oaam.Brush.solid, brush_color=(0,255,0))
+				main_overlay.add(
+					geometry=oaam.Shape.rectangle, x=r.left, y=r.top, width=r.width(), height=r.height(),
+					thickness=1, color=(0, 128, 0), brush=oaam.Brush.solid, brush_color=(0,255,0))
 
 				for e in elements:
 					r = e.rectangle()
-					main_overlay.add(geometry=oaam.Shape.rectangle, x=r.left, y=r.top, width=r.width(), height=r.height(),
-									 thickness=1, color=(255, 0, 0), brush=oaam.Brush.solid, brush_color=(255, 0, 0))
+					main_overlay.add(
+						geometry=oaam.Shape.rectangle, x=r.left, y=r.top, width=r.width(), height=r.height(),
+						thickness=1, color=(255, 0, 0), brush=oaam.Brush.solid, brush_color=(255, 0, 0))
 
 			if record_file:
 				main_overlay_add_record_icon()
