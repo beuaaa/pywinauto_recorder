@@ -153,7 +153,7 @@ def key_on(e):
 			record_file.write("sys.path.append(os.path.realpath(os.path.dirname(__file__)+'/..'))\n")
 			record_file.write("from recorder_fn import *\n")
 			record_file.write('send_keys("{LWIN down}""{DOWN}""{DOWN}""{LWIN up}")\n')
-			record_file.write('time.sleep(1.0)\n')
+			record_file.write('time.sleep(0.5)\n')
 			main_overlay_add_record_icon()
 			main_overlay.refresh()
 		else:
@@ -270,10 +270,10 @@ def main():
 	pywinauto_desktop = pywinauto.Desktop(backend='uia', allow_magic_lookup=False)
 	wrapper_old = None
 
-	try:
-		i = 0
-		_is_running = True
-		while _is_running:
+	i = 0
+	_is_running = True
+	while _is_running:
+		try:
 			main_overlay.clear_all()
 
 			x, y = win32api.GetCursorPos()
@@ -312,12 +312,12 @@ def main():
 			i = i + 1
 			main_overlay.refresh()
 			time.sleep(0.005) # main_overlay.clear_all() doit attendre la fin de main_overlay.refresh()
-	except Exception as e:
-		print ('Exception raised in main loop: \n')
-		print(type(e))
-		print(e.args)
-		print(e)
-		# raise
+		except Exception as e:
+			print ('Exception raised in main loop: \n')
+			print(type(e))
+			print(e.args)
+			print(e)
+			# raise
 
 
 def exit_recorder():
