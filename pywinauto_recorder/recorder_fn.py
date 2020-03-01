@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-import pywinauto, win32api, win32con, time
+import pywinauto, win32api, win32con, time, re
 
 from enum import Enum
 
@@ -9,33 +9,41 @@ class MoveMode(Enum):
 	linear = 0
 	y_first = 1
 	x_first = 2
-	
 
-def get_window_text(entry):
-	if not entry:
-		return ''
-	if entry[0] == ':' and entry[1] == ':':
-		return ''
+
+def is_int(s):
+	try:
+		int(s)
+		return True
+	except ValueError:
+		return False
+
+
+def get_entry(entry):
+	p = re.compile('^(.*)::([^:]|[^#].*?)?(#\[.+?,[-+]?[0-9]+?\])?(%\(.+?,.+?\))?$')
+	m = p.match(entry)
+	str_name = m.group(1)
+	str_type = m.group(2)
+	str_array = m.group(3)
+	str_dx_dy = m.group(4)
+	if str_array:
+		words = str_array.split(',')
+		y = words[0][2:]
+		if is_int(y):
+			y = int(y)
+		x = int(words[1][:-1])
+		y_x = [y, x]
 	else:
-		i = entry.rfind('::')
-		return entry[0:i]
-
-
-def get_control_type(entry):
-	i = entry.rfind('::')
-	words = [entry[0:i], entry[i+2:]]
-	if len(words) == 2:
-		control_type_dxy = words[1].split("%(")
-		return control_type_dxy[0]
+		y_x = None
+	if str_dx_dy:
+		words = str_dx_dy.split(',')
+		dx = int(words[0][2:])
+		dy = int(words[1][:-1])
+		dx_dy = (dx, dy)
 	else:
-		return None
+		dx_dy = None
+	return str_name, str_type, y_x, dx_dy
 
-
-def get_dx_dy(entry):
-	words = entry.split("%(")
-	dx_dy_word = words[1].split(")")[0]
-	dx_dy = dx_dy_word.split(",")
-	return int(dx_dy[0]), int(dx_dy[1])
 
 # A FAIRE: voir pourquoi ca ne marche pas bien avec le dialogue Ajouter variable
 
@@ -48,8 +56,7 @@ def same_entry_list(element, entry_list):
 		while True:
 			current_element_text = current_element.window_text()
 			current_element_type = current_element.element_info.control_type
-			entry_text = get_window_text(entry_list[i])
-			entry_type = get_control_type(entry_list[i])
+			entry_text, entry_type, _, _ = get_entry(entry_list[i])
 			if current_element_text == entry_text and current_element_type == entry_type:
 				if current_element == top_level_parent:
 					return True
@@ -66,10 +73,8 @@ def same_entry_list(element, entry_list):
 
 
 def find_element(desktop, entry_list, window_candidates=[], visible_only=True, enabled_only=True, active_only=True):
-	title = get_window_text(entry_list[0])
-	control_type = get_control_type(entry_list[0])
-
 	if not window_candidates:
+		title, control_type, _, _ = get_entry(entry_list[0])
 		window_candidates = desktop.windows(
 											title=title, control_type=control_type, visible_only=visible_only,
 											enabled_only=enabled_only, active_only=active_only)
@@ -88,9 +93,8 @@ def find_element(desktop, entry_list, window_candidates=[], visible_only=True, e
 
 	candidates = []
 	for window in window_candidates:
-		descendants = window.descendants(
-											title=get_window_text(entry_list[-1]),
-											control_type=get_control_type(entry_list[-1]))
+		title, control_type, _, _ = get_entry(entry_list[-1])
+		descendants = window.descendants(title=title, control_type=control_type)
 		for descendant in descendants:
 			if same_entry_list(descendant, entry_list):
 				candidates.append(descendant)
@@ -111,10 +115,12 @@ def find_element(desktop, entry_list, window_candidates=[], visible_only=True, e
 		# Strategy 1: 1D array of elements beginning with an element having a unique path
 		# Strategy 2: 2D array of elements
 		# Strategy 3: we find a unique path in the ancestors
-		unique_candidate, elements = find_element(desktop, entry_list[0:-1], window_candidates=window_candidates)
-		return unique_candidate, candidates
+		#unique_candidate, elements = find_element(desktop, entry_list[0:-1], window_candidates=window_candidates)
+		#return unique_candidate, candidates
+		return candidates[0], candidates
 
 
+unique_element_old = None
 element_path_old = ''
 w_rOLD = None
 click_desktop = None
@@ -137,7 +143,10 @@ def find(element_path):
 		i += 1
 
 		if unique_element is not None:
-			if get_control_type(entry_list[0]) == 'Menu' or get_control_type(entry_list[-1]) == 'TreeItem':
+			# Wait if element is not clickable (greyed, not still visible)
+			_, control_type0, _, _ = get_entry(entry_list[0])
+			_, control_type1, _, _ = get_entry(entry_list[-1])
+			if control_type0 == 'Menu' or control_type1 == 'TreeItem':
 				app = pywinauto.Application(backend='uia', allow_magic_lookup=False)
 				app.connect(process=unique_element.element_info.element.CurrentProcessId)
 				app.wait_cpu_usage_lower()
@@ -147,27 +156,32 @@ def find(element_path):
 
 
 def move(element_path, duration=0.5, mode=MoveMode.linear, button='left'):
+	global unique_element_old
 	global element_path_old
 	global w_rOLD
 
 	entry_list = (element_path.decode('utf-8')).split("->")
 	if element_path == element_path_old:
 		w_r = w_rOLD
+		unique_element = unique_element_old
 	else:
 		unique_element = find(element_path)
 		w_r = unique_element.rectangle()
 
 	x, y = win32api.GetCursorPos()
-	if get_control_type(entry_list[0]) == 'Menu':
+	_, control_type, _, _ = get_entry(entry_list[0])
+	if control_type == 'Menu':
 		entry_list_old = (element_path_old.decode('utf-8')).split("->")
-		if get_control_type(entry_list_old[0]) == 'Menu':
+		_, control_type_old, _, _ = get_entry(entry_list_old[0])
+		if control_type_old == 'Menu':
 			mode = MoveMode.x_first
 		else:
 			mode = MoveMode.y_first
 	
 		xd, yd = w_r.mid_point()
 	else:
-		dx, dy = get_dx_dy(entry_list[-1])
+		_, _, _, dx_dy = get_entry(entry_list[-1])
+		dx, dy = dx_dy[0], dx_dy[1]
 		xd, yd = w_r.mid_point()
 		xd, yd = xd + dx, yd + dy
 
@@ -206,6 +220,7 @@ def move(element_path, duration=0.5, mode=MoveMode.linear, button='left'):
 	ny = int(yd) * 65535 / win32api.GetSystemMetrics(1)
 	win32api.mouse_event(win32con.MOUSEEVENTF_MOVE | win32con.MOUSEEVENTF_ABSOLUTE, nx, ny)
 
+	unique_element_old = unique_element
 	element_path_old = element_path
 	w_rOLD = w_r
 	return unique_element
