@@ -73,21 +73,24 @@ class TestNotepad(unittest.TestCase):
 		left_click("*Untitled - Notepad::Window->Notepad::Window->Don't Save::Button%(0,0)")
 		self.assertEqual(result, 'This is a test.\r\n')
 
-	def test_drag_and_drop(self): #With paint
+	def test_drag_and_drop(self):
 		time.sleep(0.5)
 		send_keys("{LWIN}Notepad{ENTER}")
-		left_click("Untitled - Notepad::Window->Application::MenuBar->Format::MenuItem")
-		left_click("Untitled - Notepad::Window->Format::Menu->Font...::MenuItem")
-		line_down = find("Untitled - Notepad::Window->Font::Window->Size:::ComboBox->Size:::List->Vertical::ScrollBar->Line down::Button")
-		position = find("Untitled - Notepad::Window->Font::Window->Size:::ComboBox->Size:::List->Vertical::ScrollBar->Position::Thumb")
+		in_region("Untitled - Notepad::Window")
+		left_click("Application::MenuBar->Format::MenuItem")
+		left_click("Format::Menu->Font...::MenuItem")
+		in_region("Untitled - Notepad::Window->Font::Window")
+		line_down = find("Size:::ComboBox->Size:::List->Vertical::ScrollBar->Line down::Button")
+		position = find("Size:::ComboBox->Size:::List->Vertical::ScrollBar->Position::Thumb")
 		dy = line_down.rectangle().top - (position.rectangle().top + position.rectangle().bottom)/2
-		drag_and_drop(
-			"Untitled - Notepad::Window->Font::Window->Size:::ComboBox->Size:::List->Vertical::ScrollBar->Position::Thumb%(0,0)%(0,"+ str(dy) +")")
-		size_list_box = find("Untitled - Notepad::Window->Font::Window->Size:::ComboBox->Size:::List%(0,0)")
-		left_click("Untitled - Notepad::Window->Font::Window->Size:::ComboBox->Size:::List->Vertical::ScrollBar->Line down::Button%(-20,0)")
+		drag_and_drop("Size:::ComboBox->Size:::List->Vertical::ScrollBar->Position::Thumb%(0,0)%(0," + str(dy) + ")")
+		size_list_box = find("Size:::ComboBox->Size:::List%(0,0)")
+		left_click("Size:::ComboBox->Size:::List->Vertical::ScrollBar->Line down::Button%(-20,0)")
 		self.assertEqual(size_list_box.get_selection()[0].name, size_list_box.children_texts()[-1])
-		left_click("Untitled - Notepad::Window->Font::Window->Cancel::Button")
-		left_click("Untitled - Notepad::Window->::TitleBar->Close::Button")
+		left_click("Cancel::Button")
+		in_region("Untitled - Notepad::Window")
+		left_click("::TitleBar->Close::Button")
+		in_region("")
 
 
 if __name__ == '__main__':
