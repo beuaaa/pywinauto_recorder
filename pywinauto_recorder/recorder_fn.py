@@ -152,6 +152,8 @@ def find(element_path):
 				app.wait_cpu_usage_lower()
 			if unique_element.is_enabled():
 				break
+	if not unique_element:
+		raise Exception("unique element not found!")
 	return unique_element
 
 
@@ -181,7 +183,10 @@ def move(element_path, duration=0.5, mode=MoveMode.linear, button='left'):
 		xd, yd = w_r.mid_point()
 	else:
 		_, _, _, dx_dy = get_entry(entry_list[-1])
-		dx, dy = dx_dy[0], dx_dy[1]
+		if dx_dy:
+			dx, dy = dx_dy[0], dx_dy[1]
+		else:
+			dx, dy = 0, 0
 		xd, yd = w_r.mid_point()
 		xd, yd = xd + dx, yd + dy
 
@@ -276,7 +281,9 @@ def triple_left_click(element_path, duration=0.5, mode=MoveMode.linear):
 
 
 def drag_and_drop(element_path, duration=0.5, mode=MoveMode.linear):
-	unique_element = move(element_path, duration=duration, mode=mode)
+	words = element_path.split("%(")
+	element_path1 = words[0] + "%(" + words[1]
+	unique_element = move(element_path1, duration=duration, mode=mode)
 	win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0)
 	words = element_path.split("%(")
 	last_word = words[-1]
