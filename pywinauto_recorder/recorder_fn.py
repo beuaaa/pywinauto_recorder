@@ -119,19 +119,30 @@ def find_element(desktop, entry_list, window_candidates=[], visible_only=True, e
 		#return unique_candidate, candidates
 		return candidates[0], candidates
 
-
+element_path_start = ''
 unique_element_old = None
 element_path_old = ''
 w_rOLD = None
 click_desktop = None
 
 
+def in_region(element_path):
+	global element_path_start
+	element_path_start = element_path
+
+
 def find(element_path):
+	global element_path_start
 	global click_desktop
 	if not click_desktop:
 		click_desktop = pywinauto.Desktop(backend='uia', allow_magic_lookup=False)
 
-	entry_list = (element_path.decode('utf-8')).split("->")
+	if element_path_start:
+		element_path2 = element_path_start + "->" + element_path
+	else:
+		element_path2 = element_path
+
+	entry_list = (element_path2.decode('utf-8')).split("->")
 	i = 0
 	unique_element = None
 	elements = []
