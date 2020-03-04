@@ -7,16 +7,14 @@ sys.path.append(os.path.realpath(__file__))
 from recorder_fn import *
 
 from ctypes.wintypes import tagPOINT
-import time, math
-import win32api, win32con, win32gui, win32ui
+import time
+import win32api, win32gui, win32ui
 
 import pywinauto
 import overlay_arrows_and_more as oaam
 
 import keyboard
 import mouse
-import traceback
-from threading import Thread
 
 record_file = None
 unique_rectangle = None

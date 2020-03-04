@@ -15,7 +15,7 @@ class TestEntryMethods(unittest.TestCase):
 		]
 		for i, entry in enumerate(entry_list):
 			str_name, str_type, y_x, dx_dy = get_entry(entry)
-			print get_entry(entry)
+			#print get_entry(entry)
 			if i % 3 == 0:
 				if i < 9:
 					self.assertEqual(str_name, 'Name:')
@@ -59,6 +59,35 @@ class TestEntryMethods(unittest.TestCase):
 		self.assertFalse(result)
 
 		send_keys("{LWIN}")
+
+
+class TestNotepad(unittest.TestCase):
+
+	def test_send_keys(self):
+		time.sleep(0.5)
+		send_keys("{LWIN}Notepad{ENTER}")
+		edit = left_click("Untitled - Notepad::Window->Text Editor::Edit%(0,0)")
+		send_keys("This is a error{BACKSPACE}{BACKSPACE}{BACKSPACE}{BACKSPACE}{BACKSPACE}test.{ENTER}")
+		result = edit.get_value()
+		left_click("*Untitled - Notepad::Window->::TitleBar->Close::Button%(0,0)")
+		left_click("*Untitled - Notepad::Window->Notepad::Window->Don't Save::Button%(0,0)")
+		self.assertEqual(result, 'This is a test.\r\n')
+
+	def test_drag_and_drop(self): #With paint
+		time.sleep(0.5)
+		send_keys("{LWIN}Notepad{ENTER}")
+		left_click("Untitled - Notepad::Window->Application::MenuBar->Format::MenuItem")
+		left_click("Untitled - Notepad::Window->Format::Menu->Font...::MenuItem")
+		line_down = find("Untitled - Notepad::Window->Font::Window->Size:::ComboBox->Size:::List->Vertical::ScrollBar->Line down::Button")
+		position = find("Untitled - Notepad::Window->Font::Window->Size:::ComboBox->Size:::List->Vertical::ScrollBar->Position::Thumb")
+		dy = line_down.rectangle().top - (position.rectangle().top + position.rectangle().bottom)/2
+		drag_and_drop(
+			"Untitled - Notepad::Window->Font::Window->Size:::ComboBox->Size:::List->Vertical::ScrollBar->Position::Thumb%(0,0)%(0,"+ str(dy) +")")
+		size_list_box = find("Untitled - Notepad::Window->Font::Window->Size:::ComboBox->Size:::List%(0,0)")
+		left_click("Untitled - Notepad::Window->Font::Window->Size:::ComboBox->Size:::List->Vertical::ScrollBar->Line down::Button%(-20,0)")
+		self.assertEqual(size_list_box.get_selection()[0].name, size_list_box.children_texts()[-1])
+		left_click("Untitled - Notepad::Window->Font::Window->Cancel::Button")
+		left_click("Untitled - Notepad::Window->::TitleBar->Close::Button")
 
 
 if __name__ == '__main__':
