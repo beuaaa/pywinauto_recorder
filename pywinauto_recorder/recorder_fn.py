@@ -1,6 +1,10 @@
 # -*- coding: utf-8 -*-
 
-import pywinauto, win32api, win32con, time, re
+import pywinauto
+import win32api
+import win32con
+import time
+import re
 
 from enum import Enum
 
@@ -66,8 +70,6 @@ def same_entry_list(element, entry_list):
 				return False
 			if i == -1:
 				return False
-
-		return False
 	except Exception:
 		return False
 
@@ -115,8 +117,8 @@ def find_element(desktop, entry_list, window_candidates=[], visible_only=True, e
 		# Strategy 1: 1D array of elements beginning with an element having a unique path
 		# Strategy 2: 2D array of elements
 		# Strategy 3: we find a unique path in the ancestors
-		#unique_candidate, elements = find_element(desktop, entry_list[0:-1], window_candidates=window_candidates)
-		#return unique_candidate, candidates
+		# unique_candidate, elements = find_element(desktop, entry_list[0:-1], window_candidates=window_candidates)
+		# return unique_candidate, candidates
 		return candidates[0], candidates
 
 element_path_start = ''
@@ -145,10 +147,9 @@ def find(element_path):
 	entry_list = (element_path2.decode('utf-8')).split("->")
 	i = 0
 	unique_element = None
-	elements = []
 	while i < 99:
 		try:
-			unique_element, elements = find_element(click_desktop, entry_list, window_candidates=[])
+			unique_element, _ = find_element(click_desktop, entry_list, window_candidates=[])
 		except Exception:
 			time.sleep(0.1)
 		i += 1
