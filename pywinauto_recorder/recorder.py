@@ -1,20 +1,14 @@
 # -*- coding: utf-8 -*-
 
-import sys, os
-reload(sys)
-sys.setdefaultencoding('utf-8')
-sys.path.append(os.path.realpath(__file__))
-from recorder_fn import *
-
+import os
 from ctypes.wintypes import tagPOINT
 import time
-import win32api, win32gui, win32ui
-
+import win32api
 import pywinauto
 import overlay_arrows_and_more as oaam
-
 import keyboard
 import mouse
+from recorder_fn import find_element
 
 record_file = None
 unique_rectangle = None
@@ -142,8 +136,8 @@ def key_on(e):
 			if not os.path.exists(new_path):
 				os.makedirs(new_path)
 			record_file_name = './Record files/recorded ' + time.asctime() + '.py'
-			record_file_name = record_file_name.replace(':','_')
-			print 'Recording in file: ' + record_file_name
+			record_file_name = record_file_name.replace(':', '_')
+			print('Recording in file: ' + record_file_name)
 			keyboard.start_recording()
 			record_file = open(record_file_name, "w")
 			record_file.write("# coding: utf-8\n")
@@ -178,7 +172,7 @@ def record_click(mouse_event):
 	x, y = win32api.GetCursorPos()
 	record_file.write(mouse_event.button + "_")
 	rx, ry = unique_rectangle.mid_point()
-	dx , dy = x - rx,  y - ry
+	dx, dy = x - rx,  y - ry
 	record_file.write('click("""' + unique_element_path + '%(' + str(dx) + ',' + str(dy) + ')""")\n')
 
 
@@ -257,7 +251,7 @@ def main():
 	global unique_rectangle
 	global unique_element_path
 
-	#send_keys("{LWIN down}""{DOWN}""{DOWN}""{LWIN up}")
+	# send_keys("{LWIN down}""{DOWN}""{DOWN}""{LWIN up}")
 
 	keyboard.hook(key_on)
 	mouse.hook(mouse_on)
@@ -266,7 +260,6 @@ def main():
 	elements = []
 
 	pywinauto_desktop = pywinauto.Desktop(backend='uia', allow_magic_lookup=False)
-	wrapper_old = None
 
 	i = 0
 	_is_running = True
@@ -309,9 +302,9 @@ def main():
 
 			i = i + 1
 			main_overlay.refresh()
-			time.sleep(0.005) # main_overlay.clear_all() doit attendre la fin de main_overlay.refresh()
+			time.sleep(0.005)  # main_overlay.clear_all() doit attendre la fin de main_overlay.refresh()
 		except Exception as e:
-			print ('Exception raised in main loop: \n')
+			print('Exception raised in main loop: \n')
 			print(type(e))
 			print(e.args)
 			print(e)
@@ -332,5 +325,4 @@ def exit_recorder():
 
 if __name__ == '__main__':
 	main()
-
 
