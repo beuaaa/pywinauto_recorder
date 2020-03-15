@@ -254,7 +254,7 @@ def move(element_path, duration=0.5, mode=MoveMode.linear, button='left'):
 
 
 def mouse_wheel(steps):
-	win32api.mouse_event(win32con.MOUSEEVENTF_WHEEL, 0, 0, steps)
+	win32api.mouse_event(win32con.MOUSEEVENTF_WHEEL, 0, 0, win32con.WHEEL_DELTA * steps, 0)
 
 
 def click(element_path, duration=0.5, mode=MoveMode.linear, button='left'):

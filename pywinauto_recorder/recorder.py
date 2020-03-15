@@ -11,7 +11,6 @@ import keyboard
 import mouse
 from recorder_fn import find_element
 
-recorder = None
 record_file = None
 main_overlay = None
 event_list = []
