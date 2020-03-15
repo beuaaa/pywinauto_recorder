@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import unittest
+import os
 from recorder_fn import *
 from recorder import Recorder
 
@@ -99,29 +100,73 @@ class TestCalculator(unittest.TestCase):
 
 	def test_clicks(self):
 		recorder = Recorder()
-		recorder.start_recording()
+		record_file_name = recorder.start_recording()
 
 		time.sleep(0.5)
 		send_keys("{LWIN}Calculator{ENTER}")
 		in_region("Calculator::Window->Calculator::Window->::Group->Number pad::Group")
+		move("One::Button")
+		time.sleep(0.5)
 		left_click("One::Button")
+		move("Two::Button")
+		time.sleep(0.5)
 		double_left_click("Two::Button")
+		move("Three::Button")
+		time.sleep(0.5)
 		triple_left_click("Three::Button")
+		move("Four::Button")
+		time.sleep(0.5)
 		triple_left_click("Four::Button")
 		left_click("Four::Button")
+		move("Five::Button")
+		time.sleep(0.5)
 		triple_left_click("Five::Button")
 		double_left_click("Five::Button")
+		move("Six::Button")
+		time.sleep(0.5)
 		triple_left_click("Six::Button")
 		triple_left_click("Six::Button")
+		move("Three::Button")
+		time.sleep(0.5)
 		triple_left_click("Three::Button")
+		move("Two::Button")
+		time.sleep(0.5)
 		double_left_click("Two::Button")
+		move("One::Button")
+		time.sleep(0.5)
 		left_click("One::Button")
+		move("Calculator::Window->Calculator::Window->Close Calculator::Button")
+		time.sleep(0.5)
 		left_click("Calculator::Window->Calculator::Window->Close Calculator::Button")
 		in_region("")
 
 		recorder.stop_recording()
 		recorder.quit()
 		del recorder
+
+		with open(record_file_name, 'r') as f:
+			line = f.readline()
+			while line:
+				line = f.readline()
+				if "One" in line:
+					self.assertTrue(line[0:len("left_click")] == "left_click")
+				elif "Two" in line:
+					self.assertTrue(line[0:len("double_left_click")] == "double_left_click")
+				elif "Three" in line:
+					self.assertTrue(line[0:len("triple_left_click")] == "triple_left_click")
+				elif "Four" in line:
+					self.assertTrue(line[0:len("triple_left_click")] == "triple_left_click")
+					line = f.readline()
+					self.assertTrue(line[0:len("left_click")] == "left_click")
+				elif "Five" in line:
+					self.assertTrue(line[0:len("triple_left_click")] == "triple_left_click")
+					line = f.readline()
+					self.assertTrue(line[0:len("double_left_click")] == "double_left_click")
+				elif "Six" in line:
+					self.assertTrue(line[0:len("triple_left_click")] == "triple_left_click")
+					line = f.readline()
+					self.assertTrue(line[0:len("triple_left_click")] == "triple_left_click")
+		os.remove(record_file_name)
 
 if __name__ == '__main__':
 	unittest.main(verbosity=2)
