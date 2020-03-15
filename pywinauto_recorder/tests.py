@@ -95,6 +95,23 @@ class TestNotepad(unittest.TestCase):
 		left_click("::TitleBar->Close::Button")
 		in_region("")
 
+	def test_wheel(self):
+		time.sleep(0.5)
+		send_keys("{LWIN}Notepad{ENTER}")
+		in_region("Untitled - Notepad::Window")
+		left_click("Application::MenuBar->Format::MenuItem")
+		left_click("Format::Menu->Font...::MenuItem")
+		in_region("Untitled - Notepad::Window->Font::Window")
+		left_click("Size:::ComboBox->Size:::List->Vertical::ScrollBar->Position::Thumb")
+		mouse_wheel(-10)
+		size_list_box = find("Size:::ComboBox->Size:::List%(0,0)")
+		left_click("Size:::ComboBox->Size:::List->Vertical::ScrollBar->Line down::Button%(-20,0)")
+		self.assertEqual(size_list_box.get_selection()[0].name, size_list_box.children_texts()[-1])
+		left_click("Cancel::Button")
+		in_region("Untitled - Notepad::Window")
+		left_click("::TitleBar->Close::Button")
+		in_region("")
+
 
 class TestCalculator(unittest.TestCase):
 
@@ -167,6 +184,7 @@ class TestCalculator(unittest.TestCase):
 					line = f.readline()
 					self.assertTrue(line[0:len("triple_left_click")] == "triple_left_click")
 		os.remove(record_file_name)
+
 
 if __name__ == '__main__':
 	unittest.main(verbosity=2)
