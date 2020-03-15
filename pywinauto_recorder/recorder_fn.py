@@ -26,6 +26,8 @@ def is_int(s):
 def get_entry(entry):
 	p = re.compile('^(.*)::([^:]|[^#].*?)?(#\[.+?,[-+]?[0-9]+?\])?(%\(.+?,.+?\))?$')
 	m = p.match(entry)
+	if not m:
+		return None, None, None, None
 	str_name = m.group(1)
 	str_type = m.group(2)
 	str_array = m.group(3)
@@ -121,7 +123,15 @@ def find_element(desktop, entry_list, window_candidates=[], visible_only=True, e
 		# return unique_candidate, candidates
 		return candidates[0], candidates
 
+
 element_path_start = ''
+
+
+def get_element_path_start():
+	global element_path_start
+	return element_path_start
+
+
 unique_element_old = None
 element_path_old = ''
 w_rOLD = None
@@ -165,7 +175,7 @@ def find(element_path):
 			if unique_element.is_enabled():
 				break
 	if not unique_element:
-		raise Exception("unique element not found!")
+		raise Exception("unique element not found! ", element_path)
 	return unique_element
 
 

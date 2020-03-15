@@ -2,6 +2,7 @@
 
 import unittest
 from recorder_fn import *
+from recorder import Recorder
 
 
 class TestEntryMethods(unittest.TestCase):
@@ -41,6 +42,7 @@ class TestEntryMethods(unittest.TestCase):
 				self.assertEqual(y_x, None)
 
 	def test_same_entry_list(self):
+		time.sleep(0.5)
 		send_keys("{LWIN}")
 		element_path = 'Taskbar::Pane->Start::Button%(0,0)'
 		entry_list = (element_path.decode('utf-8')).split("->")
@@ -93,5 +95,34 @@ class TestNotepad(unittest.TestCase):
 		in_region("")
 
 
+class TestCalculator(unittest.TestCase):
+
+	def test_clicks(self):
+		recorder = Recorder()
+		recorder.start_recording()
+
+		time.sleep(0.5)
+		send_keys("{LWIN}Calculator{ENTER}")
+		in_region("Calculator::Window->Calculator::Window->::Group->Number pad::Group")
+		left_click("One::Button")
+		double_left_click("Two::Button")
+		triple_left_click("Three::Button")
+		triple_left_click("Four::Button")
+		left_click("Four::Button")
+		triple_left_click("Five::Button")
+		double_left_click("Five::Button")
+		triple_left_click("Six::Button")
+		triple_left_click("Six::Button")
+		triple_left_click("Three::Button")
+		double_left_click("Two::Button")
+		left_click("One::Button")
+		left_click("Calculator::Window->Calculator::Window->Close Calculator::Button")
+		in_region("")
+
+		recorder.stop_recording()
+		recorder.quit()
+		del recorder
+
 if __name__ == '__main__':
 	unittest.main(verbosity=2)
+	exit(0)
