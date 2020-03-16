@@ -108,5 +108,5 @@ def find_element(desktop, entry_list, window_candidates=[], visible_only=True, e
         # Strategy 2: 2D array of elements
         # Strategy 3: we find a unique path in the ancestors
         # unique_candidate, elements = find_element(desktop, entry_list[0:-1], window_candidates=window_candidates)
-        # return unique_candidate, candidates
+        # return (Strategy 3, unique_candidate, candidates)
         return candidates[0], candidates
