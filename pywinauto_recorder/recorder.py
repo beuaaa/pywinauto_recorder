@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import sys
 import os
 from ctypes.wintypes import tagPOINT
 import time
@@ -9,7 +10,11 @@ import pywinauto
 import overlay_arrows_and_more as oaam
 import keyboard
 import mouse
-from recorder_fn import find_element
+from core import find_element
+
+reload(sys)
+sys.setdefaultencoding('utf-8')
+
 
 record_file = None
 main_overlay = None
@@ -334,7 +339,7 @@ class Recorder(Thread):
 		mouse.hook(mouse_on)
 		unique_candidate = None
 		elements = []
-		pywinauto_desktop = pywinauto.Desktop(backend='uia', allow_magic_lookup=False)
+		desktop = pywinauto.Desktop(backend='uia', allow_magic_lookup=False)
 		i = 0
 		self._is_running = True
 		while self._is_running:
@@ -352,7 +357,7 @@ class Recorder(Thread):
 					continue
 
 				entry_list = (element_path.decode('utf-8')).split("->")
-				unique_candidate, elements = find_element(pywinauto_desktop, entry_list, window_candidates=[])
+				unique_candidate, elements = find_element(desktop, entry_list, window_candidates=[])
 				if unique_candidate is not None:
 					unique_element_path = get_element_path(unique_candidate)
 					# unique_candidate.draw_outline(colour='green', thickness=2)
@@ -395,7 +400,7 @@ class Recorder(Thread):
 			recorder.stop_recording()
 		keyboard.unhook_all()
 		mouse.unhook_all()
-		del pywinauto_desktop
+		del desktop
 		del main_overlay
 
 	def start_recording(self):
@@ -412,7 +417,7 @@ class Recorder(Thread):
 		record_file.write("# coding: utf-8\n")
 		record_file.write("import sys, os\n")
 		record_file.write("sys.path.append(os.path.realpath(os.path.dirname(__file__)+'/..'))\n")
-		record_file.write("from recorder_fn import *\n")
+		record_file.write("from player import *\n")
 		record_file.write('send_keys("{LWIN down}""{DOWN}""{DOWN}""{LWIN up}")\n')
 		record_file.write('time.sleep(0.5)\n')
 		main_overlay_add_record_icon()

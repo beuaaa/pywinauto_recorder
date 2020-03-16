@@ -2,7 +2,8 @@
 
 import unittest
 import os
-from recorder_fn import *
+from core import *
+from player import *
 from recorder import Recorder
 
 
@@ -17,7 +18,6 @@ class TestEntryMethods(unittest.TestCase):
 		]
 		for i, entry in enumerate(entry_list):
 			str_name, str_type, y_x, dx_dy = get_entry(entry)
-			#print get_entry(entry)
 			if i % 3 == 0:
 				if i < 9:
 					self.assertEqual(str_name, 'Name:')
