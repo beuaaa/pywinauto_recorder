@@ -2,6 +2,7 @@
 
 import sys
 import os
+import traceback
 from ctypes.wintypes import tagPOINT
 import time
 import win32api
@@ -28,7 +29,8 @@ def get_double_click_time():
 
 
 class ElementEvent(object):
-	def __init__(self, rectangle, path):
+	def __init__(self, strategy, rectangle, path):
+		self.strategy = strategy
 		self.rectangle = rectangle
 		self.path = path
 
@@ -357,7 +359,7 @@ class Recorder(Thread):
 					continue
 
 				entry_list = (element_path.decode('utf-8')).split("->")
-				unique_candidate, elements = find_element(desktop, entry_list, window_candidates=[])
+				strategy, unique_candidate, elements = find_element(desktop, entry_list, window_candidates=[])
 				if unique_candidate is not None:
 					unique_element_path = get_element_path(unique_candidate)
 					# unique_candidate.draw_outline(colour='green', thickness=2)
@@ -365,9 +367,9 @@ class Recorder(Thread):
 					if record_file:
 						if (len(event_list) > 0) and (type(event_list[-1]) == ElementEvent):
 							if event_list[-1].path != unique_element_path:
-								event_list.append(ElementEvent(r, unique_element_path))
+								event_list.append(ElementEvent(strategy, r, unique_element_path))
 						else:
-							event_list.append(ElementEvent(r, unique_element_path))
+							event_list.append(ElementEvent(strategy, r, unique_element_path))
 					main_overlay.add(
 						geometry=oaam.Shape.rectangle, x=r.left, y=r.top, width=r.width(), height=r.height(),
 						thickness=1, color=(0, 128, 0), brush=oaam.Brush.solid, brush_color=(0, 255, 0))
@@ -390,10 +392,8 @@ class Recorder(Thread):
 				main_overlay.refresh()
 				time.sleep(0.005)  # main_overlay.clear_all() doit attendre la fin de main_overlay.refresh()
 			except Exception as e:
-				print('Exception raised in main loop: \n')
-				print(type(e))
-				print(e.args)
-				print(e)
+				exc_type, exc_value, exc_traceback = sys.exc_info()
+				print(repr(traceback.format_exception(exc_type, exc_value, exc_traceback)))
 		main_overlay.clear_all()
 		main_overlay.refresh()
 		if record_file:
