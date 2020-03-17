@@ -1,6 +1,14 @@
 # -*- coding: utf-8 -*-
 
 import re
+from enum import Enum
+
+
+class Strategy(Enum):
+    unique_path = 0
+    array_1D = 1
+    array_2D = 2
+    ancestor_unique_path = 3
 
 
 def is_int(s):
@@ -77,11 +85,11 @@ def find_element(desktop, entry_list, window_candidates=[], visible_only=True, e
                     enabled_only=False, active_only=False)
             else:
                 print ("Warning: No window found!")
-                return None, []
+                return Strategy.unique_path, None, []
 
     if len(entry_list) == 1:
         if len(window_candidates) == 1:
-            return window_candidates[0], []
+            return Strategy.unique_path, window_candidates[0], []
 
     candidates = []
     for window in window_candidates:
@@ -99,14 +107,13 @@ def find_element(desktop, entry_list, window_candidates=[], visible_only=True, e
                 desktop, entry_list, window_candidates=[], visible_only=True,
                 enabled_only=False, active_only=False)
         else:
-            return None, []
+            return Strategy.unique_path, None, []
     elif len(candidates) == 1:
-        return candidates[0], []
+        return Strategy.unique_path, candidates[0], []
     else:
         # We have several elements so we have to use the good strategy to select the good one.
         # Strategy 1: 1D array of elements beginning with an element having a unique path
         # Strategy 2: 2D array of elements
         # Strategy 3: we find a unique path in the ancestors
-        # unique_candidate, elements = find_element(desktop, entry_list[0:-1], window_candidates=window_candidates)
-        # return (Strategy 3, unique_candidate, candidates)
-        return candidates[0], candidates
+        _, unique_candidate, candidates = find_element(desktop, entry_list[0:-1], window_candidates=window_candidates)
+        return Strategy.ancestor_unique_path, unique_candidate, candidates
