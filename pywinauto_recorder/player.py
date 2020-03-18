@@ -46,45 +46,33 @@ def find(element_path):
     entry_list = (element_path2.decode('utf-8')).split("->")
     i = 0
     unique_element = None
+    elements = None
+    strategy = None
     while i < 99:
         try:
-            strategy, unique_element, _ = core.find_element(click_desktop, entry_list, window_candidates=[])
+            strategy, unique_element, elements = core.find_element(click_desktop, entry_list, window_candidates=[])
         except Exception:
             time.sleep(0.1)
         i += 1
 
+        if strategy == core.Strategy.array_2D:
+            nb_y, nb_x, candidates = core.getSortedRegion(elements)
+            _, _, y_x, _ = core.get_entry(entry_list[-1])
+            unique_element = candidates[int(y_x[0])][int(y_x[1])]
+
         if unique_element is not None:
-            # Wait if element is not clickable (greyed, not still visible)
             _, control_type0, _, _ = core.get_entry(entry_list[0])
-            _, control_type1, y_x, _ = core.get_entry(entry_list[-1])
+            _, control_type1, _, _ = core.get_entry(entry_list[-1])
             if control_type0 == 'Menu' or control_type1 == 'TreeItem':
+                # Wait if element is not clickable (greyed, not still visible) :
+                # So far, I didn't find better than wait_cpu_usage_lower but must be enhanced
                 app = pywinauto.Application(backend='uia', allow_magic_lookup=False)
                 app.connect(process=unique_element.element_info.element.CurrentProcessId)
                 app.wait_cpu_usage_lower()
             if unique_element.is_enabled():
                 break
     if not unique_element:
-        raise Exception("unique element not found! ", element_path)
-    if strategy == core.Strategy.array_1D:
-        r = unique_element.rectangle
-
-        x, y = r.right, r.mid_point()[1]
-        found = False
-        i_x = 0
-        element_path_array_old = element_path
-        while i_x < y_x[1]:
-            x = x + 1
-            elem = pywinauto.uia_defines.IUIA().iuia.ElementFromPoint(tagPOINT(x, y))
-            element = pywinauto.uia_element_info.UIAElementInfo(elem)
-            wrapper = pywinauto.controls.uiawrapper.UIAWrapper(element)
-            if wrapper is None:
-                continue
-            element_path_array = core.get_element_path(wrapper)
-            if not element_path_array:
-                continue
-            if element_path_array!= element_path_array_old:
-                i_x = i_x + 1
-                unique_element = wrapper
+        raise Exception("Unique element not found! ", element_path)
 
     return unique_element
 

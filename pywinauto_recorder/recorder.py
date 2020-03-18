@@ -11,11 +11,11 @@ import pywinauto
 import overlay_arrows_and_more as oaam
 import keyboard
 import mouse
-from core import find_element
+import core
+
 
 reload(sys)
 sys.setdefaultencoding('utf-8')
-
 
 record_file = None
 main_overlay = None
@@ -164,6 +164,24 @@ def key_on(e):
 
 old_common_path = ''
 
+def find_comon_path(element_event_before_click, i0, i1):
+	while i0 > i1:
+		if type(event_list[i0]) == ElementEvent:
+			element_paths = event_list[i0].path.split('->')
+			element_paths = element_paths[:-1]
+			unique_element_paths = element_event_before_click.path.split('->')
+			unique_element_paths = unique_element_paths[:-1]
+			n = 0
+			try:
+				while element_paths[n] == unique_element_paths[n]:
+					n = n + 1
+			except IndexError:
+				common_path = "->".join(element_paths[0:n])
+				return common_path
+			common_path = "->".join(element_paths[0:n])
+			return common_path
+		i0 = i0 - 1
+	return ''
 
 # TODO: % is relative to the center of the element, A is absolute, P is proportional, ...
 def record_click(i):
@@ -175,16 +193,17 @@ def record_click(i):
 	i0 = i - 1
 	while type(event_list[i0]) != mouse.MoveEvent:
 		i0 = i0 - 1
-	up_event = event_list[i0]
+	move_event_before_click = event_list[i0]
+
+	i0 = i - 1
 	while type(event_list[i0]) != ElementEvent:
 		i0 = i0 - 1
-	unique_element = event_list[i0]
+	element_event_before_click = event_list[i0]
 
-	# ne pas aller vers le passé mais vers le futur
 	i0 = i + 1
 	double_click = False
 	while (i0 < len(event_list)) and \
-			((type(event_list[i0]) != mouse.ButtonEvent) or ((event_list[i0].time - t1) < get_double_click_time())):
+		((type(event_list[i0]) != mouse.ButtonEvent) or ((event_list[i0].time - t1) < get_double_click_time())):
 		if (type(event_list[i0]) == mouse.ButtonEvent) and (event_list[i0].event_type == 'up'):
 			double_click = True
 			i1 = i0
@@ -193,8 +212,7 @@ def record_click(i):
 	i0 = i0 + 1
 	triple_click = False
 	while (i0 < len(event_list)) and \
-			((type(event_list[i0]) != mouse.ButtonEvent) or (
-					(event_list[i0].time - t1) < 2.0 * get_double_click_time())):
+		((type(event_list[i0]) != mouse.ButtonEvent) or ((event_list[i0].time - t1) < 2.0 * get_double_click_time())):
 		if (type(event_list[i0]) == mouse.ButtonEvent) and (event_list[i0].event_type == 'up'):
 			triple_click = True
 			i1 = i0
@@ -202,20 +220,10 @@ def record_click(i):
 		i0 = i0 + 1
 
 	common_path = ''
+	i0 = i1 + 1
 	while i0 < len(event_list):
-		if type(event_list[i0]) == ElementEvent:
-			element_paths = event_list[i0].path.split('->')
-			element_paths = element_paths[:-1]
-			unique_element_paths = unique_element.path.split('->')
-			unique_element_paths = unique_element_paths[:-1]
-			n = 0
-			try:
-				while element_paths[n] == unique_element_paths[n]:
-					n = n + 1
-			except IndexError:
-				common_path = "->".join(element_paths[0:n])
-				break
-			common_path = "->".join(element_paths[0:n])
+		if (type(event_list[i0]) == mouse.ButtonEvent) and (event_list[i0].event_type == 'up'):
+			common_path = find_comon_path(element_event_before_click, i0, i1)
 			break
 		i0 = i0 + 1
 
@@ -223,16 +231,16 @@ def record_click(i):
 		record_file.write('in_region("""' + common_path + '""")\n')
 	old_common_path = common_path
 	if common_path:
-		click_path = unique_element.path[len(common_path) + 2:]
+		click_path = element_event_before_click.path[len(common_path) + 2:]
 	else:
-		click_path = unique_element.path
+		click_path = element_event_before_click.path
 
 	if triple_click:
 		record_file.write('triple_')
 	elif double_click:
 		record_file.write('double_')
-	rx, ry = unique_element.rectangle.mid_point()
-	dx, dy = up_event.x - rx, up_event.y - ry
+	rx, ry = element_event_before_click.rectangle.mid_point()
+	dx, dy = move_event_before_click.x - rx, move_event_before_click.y - ry
 	record_file.write(event_list[i].button + "_")
 	record_file.write('click("""' + click_path + '%(' + str(dx) + ',' + str(dy) + ')""")\n')
 	return i1
@@ -359,26 +367,40 @@ class Recorder(Thread):
 					continue
 
 				entry_list = (element_path.decode('utf-8')).split("->")
-				strategy, unique_candidate, elements = find_element(desktop, entry_list, window_candidates=[])
-				if unique_candidate is not None:
+				strategy, unique_candidate, elements = core.find_element(desktop, entry_list, window_candidates=[])
+				if strategy is core.Strategy.unique_path:
 					unique_element_path = get_element_path(unique_candidate)
+					unique_element_r = unique_candidate.rectangle()
 					# unique_candidate.draw_outline(colour='green', thickness=2)
 					r = unique_candidate.rectangle()
-					if record_file:
-						if (len(event_list) > 0) and (type(event_list[-1]) == ElementEvent):
-							if event_list[-1].path != unique_element_path:
-								event_list.append(ElementEvent(strategy, r, unique_element_path))
-						else:
-							event_list.append(ElementEvent(strategy, r, unique_element_path))
 					main_overlay.add(
 						geometry=oaam.Shape.rectangle, x=r.left, y=r.top, width=r.width(), height=r.height(),
 						thickness=1, color=(0, 128, 0), brush=oaam.Brush.solid, brush_color=(0, 255, 0))
+				elif strategy is core.Strategy.array_2D:
+					nb_y, nb_x, candidates = core.getSortedRegion(elements)
+					for r_y in range(nb_y):
+						for r_x in range(nb_x):
+							try:
+								r = candidates[r_y][r_x].rectangle()
+							except IndexError:
+								continue
+							if r == element.rectangle:
+								color = (255, 200, 0)
+								unique_element_path = element_path + '#[' + str(r_y) + ',' + str(r_x) + ']'
+								unique_element_r = r
+							else:
+								color = (255, 0, 0)
+							main_overlay.add(
+								geometry=oaam.Shape.rectangle, x=r.left, y=r.top, width=r.width(),
+								height=r.height(),
+								thickness=1, color=(255, 0, 0), brush=oaam.Brush.solid, brush_color=color)
 
-					for e in elements:
-						r = e.rectangle()
-						main_overlay.add(
-							geometry=oaam.Shape.rectangle, x=r.left, y=r.top, width=r.width(), height=r.height(),
-							thickness=1, color=(255, 0, 0), brush=oaam.Brush.solid, brush_color=(255, 0, 0))
+				if record_file and (strategy is not core.Strategy.failed):
+					if (len(event_list) > 0) and (type(event_list[-1]) == ElementEvent):
+						if event_list[-1].path != unique_element_path:
+							event_list.append(ElementEvent(strategy, unique_element_r, unique_element_path))
+					else:
+						event_list.append(ElementEvent(strategy, unique_element_r, unique_element_path))
 
 				if record_file:
 					main_overlay_add_record_icon()

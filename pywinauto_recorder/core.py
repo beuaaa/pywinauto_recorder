@@ -5,10 +5,11 @@ from enum import Enum
 
 
 class Strategy(Enum):
-    unique_path = 0
-    array_1D = 1
-    array_2D = 2
-    ancestor_unique_path = 3
+    failed = 0
+    unique_path = 1
+    array_1D = 2
+    array_2D = 3
+    ancestor_unique_path = 4
 
 
 def is_int(s):
@@ -47,9 +48,6 @@ def get_entry(entry):
     return str_name, str_type, y_x, dx_dy
 
 
-# A FAIRE: voir pourquoi ca ne marche pas bien avec le dialogue Ajouter variable
-
-
 def same_entry_list(element, entry_list):
     try:
         i = len(entry_list) - 1
@@ -72,6 +70,49 @@ def same_entry_list(element, entry_list):
         return False
 
 
+def isFilterCriteriaOk(child, minHeight=8, maxHeight=200, minWidth=8, maxWidth=800):
+    if child.is_visible():
+        h = child.rectangle().height()
+        if (minHeight <= h) and (h <= maxHeight):
+            w = child.rectangle().width()
+            if (minWidth <= w) and (w <= maxWidth):
+                if child.rectangle().top > 0:
+                    return True
+    return False
+
+
+def getSortedRegion(children, minHeight=8, maxHeight=9999, minWidth=8, maxWidth=9999, lineTolerance=20):
+    widgetList = []
+    for child in children:
+        if isFilterCriteriaOk(child, minHeight, maxHeight, minWidth, maxWidth):
+            widgetList.append(child)
+
+    widgetList.sort(key=lambda widget: (widget.rectangle().top, widget.rectangle().left))
+    widgetLists = []
+    widgetLists.append([])
+
+    h = 0
+    w = -1
+    if len(widgetList) > 0:
+        y = widgetList[0].rectangle().top
+        for child in widgetList:
+            if (child.rectangle().top - y) < lineTolerance:
+                widgetLists[h].append(child)
+                if len(widgetLists[h]) > w:
+                    w = len(widgetLists[h])
+            else:
+                if w > -1:
+                    widgetLists[h].sort(key=lambda widget: (widget.rectangle().left, -widget.rectangle().width()))
+                widgetLists.append([])
+                h = h + 1
+                widgetLists[h].append(child)
+                y = child.rectangle().top
+        widgetLists[h].sort(key=lambda widget: (widget.rectangle().left, -widget.rectangle().width()))
+    else:
+        return 0, 0, []
+    return h + 1, w, widgetLists
+
+
 def find_element(desktop, entry_list, window_candidates=[], visible_only=True, enabled_only=True, active_only=True):
     if not window_candidates:
         title, control_type, _, _ = get_entry(entry_list[0])
@@ -85,7 +126,7 @@ def find_element(desktop, entry_list, window_candidates=[], visible_only=True, e
                     enabled_only=False, active_only=False)
             else:
                 print ("Warning: No window found!")
-                return Strategy.unique_path, None, []
+                return Strategy.failed, None, []
 
     if len(entry_list) == 1:
         if len(window_candidates) == 1:
@@ -107,7 +148,7 @@ def find_element(desktop, entry_list, window_candidates=[], visible_only=True, e
                 desktop, entry_list, window_candidates=[], visible_only=True,
                 enabled_only=False, active_only=False)
         else:
-            return Strategy.unique_path, None, []
+            return Strategy.failed, None, []
     elif len(candidates) == 1:
         return Strategy.unique_path, candidates[0], []
     else:
@@ -115,5 +156,5 @@ def find_element(desktop, entry_list, window_candidates=[], visible_only=True, e
         # Strategy 1: 1D array of elements beginning with an element having a unique path
         # Strategy 2: 2D array of elements
         # Strategy 3: we find a unique path in the ancestors
-        _, unique_candidate, candidates = find_element(desktop, entry_list[0:-1], window_candidates=window_candidates)
-        return Strategy.ancestor_unique_path, unique_candidate, candidates
+        #_, unique_candidate, candidates = find_element(desktop, entry_list[0:-1], window_candidates=window_candidates)
+        return Strategy.array_2D, None, candidates
