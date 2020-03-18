@@ -56,7 +56,7 @@ def find(element_path):
         i += 1
 
         if strategy == core.Strategy.array_2D:
-            nb_y, nb_x, candidates = core.getSortedRegion(elements)
+            nb_y, nb_x, candidates = core.get_sorted_region(elements)
             _, _, y_x, _ = core.get_entry(entry_list[-1])
             unique_element = candidates[int(y_x[0])][int(y_x[1])]
 
