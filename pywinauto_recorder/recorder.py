@@ -377,7 +377,7 @@ class Recorder(Thread):
 						geometry=oaam.Shape.rectangle, x=r.left, y=r.top, width=r.width(), height=r.height(),
 						thickness=1, color=(0, 128, 0), brush=oaam.Brush.solid, brush_color=(0, 255, 0))
 				elif strategy is core.Strategy.array_2D:
-					nb_y, nb_x, candidates = core.getSortedRegion(elements)
+					nb_y, nb_x, candidates = core.get_sorted_region(elements)
 					for r_y in range(nb_y):
 						for r_x in range(nb_x):
 							try:

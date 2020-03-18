@@ -70,47 +70,46 @@ def same_entry_list(element, entry_list):
         return False
 
 
-def isFilterCriteriaOk(child, minHeight=8, maxHeight=200, minWidth=8, maxWidth=800):
+def is_filter_criteria_ok(child, min_height=8, max_height=200, min_width=8, max_width=800):
     if child.is_visible():
         h = child.rectangle().height()
-        if (minHeight <= h) and (h <= maxHeight):
+        if (min_height <= h) and (h <= max_height):
             w = child.rectangle().width()
-            if (minWidth <= w) and (w <= maxWidth):
+            if (min_width <= w) and (w <= max_width):
                 if child.rectangle().top > 0:
                     return True
     return False
 
 
-def getSortedRegion(children, minHeight=8, maxHeight=9999, minWidth=8, maxWidth=9999, lineTolerance=20):
-    widgetList = []
-    for child in children:
-        if isFilterCriteriaOk(child, minHeight, maxHeight, minWidth, maxWidth):
-            widgetList.append(child)
+def get_sorted_region(elements, min_height=8, max_height=9999, min_width=8, max_width=9999, line_tolerance=20):
+    filtered_elements = []
+    for e in elements:
+        if is_filter_criteria_ok(e, min_height, max_height, min_width, max_width):
+            filtered_elements.append(e)
 
-    widgetList.sort(key=lambda widget: (widget.rectangle().top, widget.rectangle().left))
-    widgetLists = []
-    widgetLists.append([])
+    filtered_elements.sort(key=lambda widget: (widget.rectangle().top, widget.rectangle().left))
+    arrays = [[]]
 
     h = 0
     w = -1
-    if len(widgetList) > 0:
-        y = widgetList[0].rectangle().top
-        for child in widgetList:
-            if (child.rectangle().top - y) < lineTolerance:
-                widgetLists[h].append(child)
-                if len(widgetLists[h]) > w:
-                    w = len(widgetLists[h])
+    if len(filtered_elements) > 0:
+        y = filtered_elements[0].rectangle().top
+        for e in filtered_elements:
+            if (e.rectangle().top - y) < line_tolerance:
+                arrays[h].append(e)
+                if len(arrays[h]) > w:
+                    w = len(arrays[h])
             else:
                 if w > -1:
-                    widgetLists[h].sort(key=lambda widget: (widget.rectangle().left, -widget.rectangle().width()))
-                widgetLists.append([])
+                    arrays[h].sort(key=lambda widget: (widget.rectangle().left, -widget.rectangle().width()))
+                arrays.append([])
                 h = h + 1
-                widgetLists[h].append(child)
-                y = child.rectangle().top
-        widgetLists[h].sort(key=lambda widget: (widget.rectangle().left, -widget.rectangle().width()))
+                arrays[h].append(e)
+                y = e.rectangle().top
+        arrays[h].sort(key=lambda widget: (widget.rectangle().left, -widget.rectangle().width()))
     else:
         return 0, 0, []
-    return h + 1, w, widgetLists
+    return h + 1, w, arrays
 
 
 def find_element(desktop, entry_list, window_candidates=[], visible_only=True, enabled_only=True, active_only=True):
@@ -128,9 +127,8 @@ def find_element(desktop, entry_list, window_candidates=[], visible_only=True, e
                 print ("Warning: No window found!")
                 return Strategy.failed, None, []
 
-    if len(entry_list) == 1:
-        if len(window_candidates) == 1:
-            return Strategy.unique_path, window_candidates[0], []
+    if len(entry_list) == 1 and len(window_candidates) == 1:
+        return Strategy.unique_path, window_candidates[0], []
 
     candidates = []
     for window in window_candidates:
