@@ -50,14 +50,14 @@ def find(element_path):
     strategy = None
     while i < 99:
         try:
-            strategy, unique_element, elements = core.find_element(click_desktop, entry_list, window_candidates=[])
+            unique_element, elements = core.find_element(click_desktop, entry_list, window_candidates=[])
         except Exception:
             time.sleep(0.1)
         i += 1
 
-        if strategy == core.Strategy.array_2D:
+        _, _, y_x, _ = core.get_entry(entry_list[-1])
+        if y_x is not None:
             nb_y, nb_x, candidates = core.get_sorted_region(elements)
-            _, _, y_x, _ = core.get_entry(entry_list[-1])
             unique_element = candidates[int(y_x[0])][int(y_x[1])]
 
         if unique_element is not None:
