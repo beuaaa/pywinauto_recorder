@@ -128,7 +128,7 @@ def find_element(desktop, entry_list, window_candidates=[], visible_only=True, e
                 return Strategy.failed, None, []
 
     if len(entry_list) == 1 and len(window_candidates) == 1:
-        return Strategy.unique_path, window_candidates[0], []
+        return window_candidates[0], []
 
     candidates = []
     for window in window_candidates:
@@ -146,13 +146,14 @@ def find_element(desktop, entry_list, window_candidates=[], visible_only=True, e
                 desktop, entry_list, window_candidates=[], visible_only=True,
                 enabled_only=False, active_only=False)
         else:
-            return Strategy.failed, None, []
+            return None, []
     elif len(candidates) == 1:
-        return Strategy.unique_path, candidates[0], []
+        return candidates[0], []
     else:
         # We have several elements so we have to use the good strategy to select the good one.
-        # Strategy 1: 1D array of elements beginning with an element having a unique path
+        # Strategy 1: unique path
         # Strategy 2: 2D array of elements
-        # Strategy 3: we find a unique path in the ancestors
+        # Strategy 3: 1D array of elements beginning with an element having a unique path
+        # Strategy 4: we find a unique path in the ancestors
         #_, unique_candidate, candidates = find_element(desktop, entry_list[0:-1], window_candidates=window_candidates)
-        return Strategy.array_2D, None, candidates
+        return None, candidates
