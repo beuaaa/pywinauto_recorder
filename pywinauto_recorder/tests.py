@@ -9,13 +9,25 @@ from recorder import Recorder
 
 class TestEntryMethods(unittest.TestCase):
 
+	def test_get_entry_list(self):
+		element_path = "Name::Window->::Pane->Property::Group->"
+		element_path = element_path + "Label:::Text#[Name::Window->::Pane->Property::Group->Label:::Text,0]%(0,0)"
+		entry_list = get_entry_list(element_path)
+		self.assertEqual(entry_list[0], 'Name::Window')
+		self.assertEqual(entry_list[1], '::Pane')
+		self.assertEqual(entry_list[2], 'Property::Group')
+		self.assertEqual(entry_list[3], 'Label:::Text#[Name::Window->::Pane->Property::Group->Label:::Text,0]%(0,0)')
+
 	def test_get_entry_elements(self):
 		entry_list = [
 			'Name:::Type#[0,0]%(2,-24)', '::Type#[0,0]%(2,-24)', 'Name:::#[0,0]%(2,-24)',
 			'Name:::Type#[0,0]', '::Type#[0,0]', 'Name:::#[0,0]',
 			'Name:::Type', '::Type', 'Name:::',
-			'Name::Type', '::Type', 'Name::'
+			'Name::Type', '::Type', 'Name::',
+			'Name::Type#[y_name::y_type,0]', '::Type#[y_name::y_type,0]', 'Name::#[y_name::y_type,0]',
+			'Name::Type#[y_name:::y_type,0]', '::Type#[y_name:::y_type,0]', 'Name::#[y_name:::y_type,0]'
 		]
+
 		for i, entry in enumerate(entry_list):
 			str_name, str_type, y_x, dx_dy = get_entry(entry)
 			if i % 3 == 0:
@@ -39,6 +51,10 @@ class TestEntryMethods(unittest.TestCase):
 				self.assertEqual(dx_dy, None)
 			if i < 6:
 				self.assertEqual(y_x, [0, 0])
+			elif i >= 15:
+				self.assertEqual(y_x, ['y_name:::y_type', 0])
+			elif i >= 12:
+				self.assertEqual(y_x, ['y_name::y_type', 0])
 			else:
 				self.assertEqual(y_x, None)
 

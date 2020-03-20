@@ -167,9 +167,14 @@ old_common_path = ''
 def find_comon_path(element_event_before_click, i0, i1):
 	while i0 > i1:
 		if type(event_list[i0]) == ElementEvent:
-			element_paths = event_list[i0].path.split('->')
-			element_paths = element_paths[:-1]
-			unique_element_paths = element_event_before_click.path.split('->')
+			element_paths = core.get_entry_list(event_list[i0].path)
+			_, _, y_x, _ = core.get_entry(element_paths[-1])
+			if (y_x is not None) and not core.is_int(y_x[0]):
+				element_paths = core.get_entry_list(y_x[0])[:-1]
+			else:
+				element_paths = element_paths[:-1]
+
+			unique_element_paths = core.get_entry_list(element_event_before_click.path)
 			unique_element_paths = unique_element_paths[:-1]
 			n = 0
 			try:
@@ -234,6 +239,14 @@ def record_click(i):
 	old_common_path = common_path
 	if common_path:
 		click_path = element_event_before_click.path[len(common_path) + 2:]
+		entry_list = core.get_entry_list(click_path.decode('utf-8'))
+		str_name, str_type, y_x, dx_dy = core.get_entry(entry_list[-1])
+		if (y_x is not None) and not core.is_int(y_x[0]):
+			y_x[0] = y_x[0][len(common_path) + 2:]
+			click_path = "->".join(entry_list[:-1]) + "->" + str_name + "::" + str_type
+			click_path = click_path + "#[" + y_x[0] + "," + str(y_x[1]) + "]"
+			if dx_dy is not None:
+				click_path = click_path + "%(" + str(dx_dy[0]) + "," + str(dx_dy[1]) + ")"
 	else:
 		click_path = element_event_before_click.path
 
@@ -355,7 +368,7 @@ class Recorder(Thread):
 		i = 0
 		previous_element_path = None
 		previous_element_path_found = False
-		strategies = [core.Strategy.unique_path, core.Strategy.array_2D]
+		strategies = [core.Strategy.unique_path, core.Strategy.array_2D, core.Strategy.array_1D]
 		i_strategy = 0
 		self._is_running = True
 		while self._is_running:
@@ -372,18 +385,21 @@ class Recorder(Thread):
 				if not element_path:
 					continue
 				if element_path == previous_element_path:
-					if not previous_element_path_found:
+					if (not previous_element_path_found) or (strategies[i_strategy] == core.Strategy.array_2D):
 						i_strategy = i_strategy + 1
 						if i_strategy >= len(strategies):
 							i_strategy = len(strategies) - 1
 				else:
 					i_strategy = 0
 					previous_element_path = element_path
-					entry_list = (element_path.decode('utf-8')).split("->")
+					entry_list = core.get_entry_list(element_path.decode('utf-8'))
 					unique_candidate, elements = core.find_element(desktop, entry_list, window_candidates=[])
 
 				strategy = strategies[i_strategy]
 				previous_element_path_found = False
+				unique_element_path = None
+				unique_element_r = None
+
 				if strategy == core.Strategy.unique_path:
 					if unique_candidate is not None:
 						unique_element_path = get_element_path(unique_candidate)
@@ -400,7 +416,8 @@ class Recorder(Thread):
 							main_overlay.add(
 								geometry=oaam.Shape.rectangle, x=r.left, y=r.top, width=r.width(), height=r.height(),
 								thickness=1, color=(0, 128, 0), brush=oaam.Brush.solid, brush_color=(255, 0, 0))
-				elif strategy == core.Strategy.array_2D:
+
+				if strategy == core.Strategy.array_1D:
 					nb_y, nb_x, candidates = core.get_sorted_region(elements)
 					for r_y in range(nb_y):
 						for r_x in range(nb_x):
@@ -409,17 +426,48 @@ class Recorder(Thread):
 							except IndexError:
 								continue
 							if r == element_info.rectangle:
-								color = (255, 200, 0)
-								unique_element_path = element_path + '#[' + str(r_y) + ',' + str(r_x) + ']'
-								unique_element_r = r
-								previous_element_path_found = True
-							else:
-								color = (255, 0, 0)
-							main_overlay.add(
-								geometry=oaam.Shape.rectangle, x=r.left, y=r.top, width=r.width(),
-								height=r.height(),
-								thickness=1, color=(255, 0, 0), brush=oaam.Brush.solid, brush_color=color)
-				elif strategy == core.Strategy.array_1D:
+								xx, yy = r.left, r.mid_point()[1]
+								previous_element_path2 = None
+								while xx > 0:
+									xx = xx - 9
+									element_from_point2 = pywinauto.uia_defines.IUIA().iuia.ElementFromPoint(tagPOINT(xx, yy))
+									element_info2 = pywinauto.uia_element_info.UIAElementInfo(element_from_point2)
+									wrapper2 = pywinauto.controls.uiawrapper.UIAWrapper(element_info2)
+									if wrapper2 is None:
+										continue
+									element_path2 = get_element_path(wrapper2)
+									if not element_path2:
+										continue
+									if element_path2 == previous_element_path2:
+										continue
+									previous_element_path2 = element_path2
+
+									entry_list2 = core.get_entry_list(element_path2.decode('utf-8'))
+									unique_candidate2, _ = core.find_element(desktop, entry_list2, window_candidates=[])
+
+									if unique_candidate2 is not None:
+										r = element_info2.rectangle
+										if r.height() > element_info.rectangle.height()*2:
+											continue
+										main_overlay.add(
+											geometry=oaam.Shape.rectangle, x=r.left, y=r.top,
+											width=r.width(), height=r.height(),
+											thickness=1, color=(0, 0, 255), brush=oaam.Brush.solid,
+											brush_color=(0, 0, 255))
+										r = element_info.rectangle
+										main_overlay.add(
+											geometry=oaam.Shape.rectangle, x=r.left, y=r.top,
+											width=r.width(), height=r.height(),
+											thickness=1, color=(255, 0, 0), brush=oaam.Brush.solid,
+											brush_color=(255, 200, 0))
+										unique_element_path = element_path + '#[' + element_path2 + ',' + str(r_x) + ']'
+										unique_element_r = element_info.rectangle
+										previous_element_path_found = True
+										break
+								else:
+									strategy = core.Strategy.array_2D
+
+				if strategy == core.Strategy.array_2D:
 					nb_y, nb_x, candidates = core.get_sorted_region(elements)
 					for r_y in range(nb_y):
 						for r_x in range(nb_x):

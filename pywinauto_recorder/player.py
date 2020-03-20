@@ -43,7 +43,7 @@ def find(element_path):
     else:
         element_path2 = element_path
 
-    entry_list = (element_path2.decode('utf-8')).split("->")
+    entry_list = core.get_entry_list(element_path2.decode('utf-8'))
     i = 0
     unique_element = None
     elements = None
@@ -58,7 +58,21 @@ def find(element_path):
         _, _, y_x, _ = core.get_entry(entry_list[-1])
         if y_x is not None:
             nb_y, nb_x, candidates = core.get_sorted_region(elements)
-            unique_element = candidates[int(y_x[0])][int(y_x[1])]
+            if core.is_int(y_x[0]):
+                unique_element = candidates[int(y_x[0])][int(y_x[1])]
+            else:
+                ref_entry_list = core.get_entry_list(element_path_start.decode('utf-8')) + [y_x[0]]
+                ref_unique_element, _ = core.find_element(click_desktop, ref_entry_list, window_candidates=[])
+                ref_r = ref_unique_element.rectangle()
+                r_y = 0
+                while r_y < nb_y:
+                    y_candidate = candidates[r_y][0].rectangle().mid_point()[1]
+                    if ref_r.top < y_candidate < ref_r.bottom:
+                        unique_element = candidates[r_y][y_x[1]]
+                        break
+                    r_y = r_y + 1
+                else:
+                    unique_element = None
 
         if unique_element is not None:
             _, control_type0, _, _ = core.get_entry(entry_list[0])
@@ -82,7 +96,7 @@ def move(element_path, duration=0.5, mode=MoveMode.linear):
     global element_path_old
     global w_rOLD
 
-    entry_list = (element_path.decode('utf-8')).split("->")
+    entry_list = core.get_entry_list(element_path.decode('utf-8'))
     if element_path == element_path_old:
         w_r = w_rOLD
         unique_element = unique_element_old
@@ -93,7 +107,7 @@ def move(element_path, duration=0.5, mode=MoveMode.linear):
     x, y = win32api.GetCursorPos()
     _, control_type, _, _ = core.get_entry(entry_list[0])
     if control_type == 'Menu':
-        entry_list_old = (element_path_old.decode('utf-8')).split("->")
+        entry_list_old = core.get_entry_list(element_path_old.decode('utf-8'))
         _, control_type_old, _, _ = core.get_entry(entry_list_old[0])
         if control_type_old == 'Menu':
             mode = MoveMode.x_first
