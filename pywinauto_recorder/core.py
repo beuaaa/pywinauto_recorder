@@ -20,18 +20,49 @@ def is_int(s):
         return False
 
 
+def get_entry_list(path):
+    i = path.rfind("#[")
+    if i != -1:
+        i = path.rfind("->", 0, i)
+    else:
+        i = path.rfind("->")
+    if i == -1:
+        return [path]
+    last_entry = path[i+2::]
+    start_entry = path[:i]
+    return start_entry.split('->') + [last_entry]
+
+
 def get_entry(entry):
-    p = re.compile('^(.*)::([^:]|[^#].*?)?(#\[.+?,[-+]?[0-9]+?\])?(%\(.+?,.+?\))?$')
-    m = p.match(entry)
-    if not m:
-        return None, None, None, None
-    str_name = m.group(1)
-    str_type = m.group(2)
-    str_array = m.group(3)
-    str_dx_dy = m.group(4)
+    i = entry.find("::")
+    while i < len(entry) and entry[i] == ":":
+        i = i + 1
+    i = i - 2
+    str_name = entry[0:i]
+
+    entry2 = entry[i+2:]
+    i = entry2.rfind("""%(""")
+
+    if i != -1:
+        str_dx_dy = entry2[i+2:]
+        entry3 = entry2[0:i]
+    else:
+        str_dx_dy = None
+        entry3 = entry2
+
+    i = entry3.rfind("""#[""")
+    if i != -1:
+        str_array = entry3[i+2:]
+        str_type = entry3[0:i]
+    else:
+        str_array = None
+        str_type = entry3
+
+    if str_type == '':
+        str_type = None
     if str_array:
         words = str_array.split(',')
-        y = words[0][2:]
+        y = words[0]
         if is_int(y):
             y = int(y)
         x = int(words[1][:-1])
@@ -40,7 +71,7 @@ def get_entry(entry):
         y_x = None
     if str_dx_dy:
         words = str_dx_dy.split(',')
-        dx = int(words[0][2:])
+        dx = int(words[0])
         dy = int(words[1][:-1])
         dx_dy = (dx, dy)
     else:
@@ -125,7 +156,7 @@ def find_element(desktop, entry_list, window_candidates=[], visible_only=True, e
                     enabled_only=False, active_only=False)
             else:
                 print ("Warning: No window found!")
-                return Strategy.failed, None, []
+                return None, []
 
     if len(entry_list) == 1 and len(window_candidates) == 1:
         return window_candidates[0], []
