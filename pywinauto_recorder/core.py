@@ -3,13 +3,14 @@
 import re
 from enum import Enum
 
+path_separator = "->"
+type_separator = "||"
+
 
 class Strategy(Enum):
-    failed = 0
     unique_path = 1
     array_1D = 2
     array_2D = 3
-    ancestor_unique_path = 4
 
 
 def is_int(s):
@@ -21,26 +22,27 @@ def is_int(s):
 
 
 def get_entry_list(path):
+    path = path.decode('utf-8')
     i = path.rfind("#[")
     if i != -1:
-        i = path.rfind("->", 0, i)
+        i = path.rfind(path_separator, 0, i)
     else:
-        i = path.rfind("->")
+        i = path.rfind(path_separator)
     if i == -1:
         return [path]
-    last_entry = path[i+2::]
+    last_entry = path[i+len(path_separator)::]
     start_entry = path[:i]
-    return start_entry.split('->') + [last_entry]
+    return start_entry.split(path_separator) + [last_entry]
 
 
 def get_entry(entry):
-    i = entry.find("::")
-    while i < len(entry) and entry[i] == ":":
+    i = entry.find(type_separator)
+    while i < len(entry) and entry[i] == type_separator[0]:
         i = i + 1
-    i = i - 2
+    i = i - len(type_separator)
     str_name = entry[0:i]
 
-    entry2 = entry[i+2:]
+    entry2 = entry[i+len(type_separator):]
     i = entry2.rfind("""%(""")
 
     if i != -1:
