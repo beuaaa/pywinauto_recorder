@@ -10,10 +10,10 @@ from recorder import Recorder
 class TestEntryMethods(unittest.TestCase):
 
 	def test_get_entry_list(self):
-		element_path = "Name::Window->::Pane->Property::Group->"
+		element_path = "D:\\Name::Window->::Pane->Property::Group->"
 		element_path = element_path + "Label:::Text#[Name::Window->::Pane->Property::Group->Label:::Text,0]%(0,0)"
 		entry_list = get_entry_list(element_path)
-		self.assertEqual(entry_list[0], 'Name::Window')
+		self.assertEqual(entry_list[0], 'D:\\Name::Window')
 		self.assertEqual(entry_list[1], '::Pane')
 		self.assertEqual(entry_list[2], 'Property::Group')
 		self.assertEqual(entry_list[3], 'Label:::Text#[Name::Window->::Pane->Property::Group->Label:::Text,0]%(0,0)')
@@ -24,8 +24,8 @@ class TestEntryMethods(unittest.TestCase):
 			'Name:::Type#[0,0]', '::Type#[0,0]', 'Name:::#[0,0]',
 			'Name:::Type', '::Type', 'Name:::',
 			'Name::Type', '::Type', 'Name::',
-			'Name::Type#[y_name::y_type,0]', '::Type#[y_name::y_type,0]', 'Name::#[y_name::y_type,0]',
-			'Name::Type#[y_name:::y_type,0]', '::Type#[y_name:::y_type,0]', 'Name::#[y_name:::y_type,0]'
+			'Name::Type#[y_name:y_type,0]', '::Type#[y_name:y_type,0]', 'Name::#[y_name:y_type,0]',
+			'Name::Type#[y_name::y_type,0]', '::Type#[y_name::y_type,0]', 'Name::#[y_name::y_type,0]'
 		]
 
 		for i, entry in enumerate(entry_list):
@@ -52,9 +52,9 @@ class TestEntryMethods(unittest.TestCase):
 			if i < 6:
 				self.assertEqual(y_x, [0, 0])
 			elif i >= 15:
-				self.assertEqual(y_x, ['y_name:::y_type', 0])
-			elif i >= 12:
 				self.assertEqual(y_x, ['y_name::y_type', 0])
+			elif i >= 12:
+				self.assertEqual(y_x, ['y_name:y_type', 0])
 			else:
 				self.assertEqual(y_x, None)
 
@@ -62,18 +62,18 @@ class TestEntryMethods(unittest.TestCase):
 		time.sleep(0.5)
 		send_keys("{LWIN}")
 		element_path = 'Taskbar::Pane->Start::Button%(0,0)'
-		entry_list = (element_path.decode('utf-8')).split("->")
+		entry_list = core.get_entry_list(element_path)
 		element = find(element_path)
 		result = same_entry_list(element, entry_list)
 		self.assertTrue(result)
 
 		element_path2 = 'Taskbar::Pane->Start2::Button%(0,0)'
-		entry_list2 = (element_path2.decode('utf-8')).split("->")
+		entry_list2 = core.get_entry_list(element_path2)
 		result = same_entry_list(element, entry_list2)
 		self.assertFalse(result)
 
 		element_path3 = 'Taskbar::Pane->Start::Button2%(0,0)'
-		entry_list3 = (element_path3.decode('utf-8')).split("->")
+		entry_list3 = core.get_entry_list(element_path3)
 		result = same_entry_list(element, entry_list3)
 		self.assertFalse(result)
 
@@ -132,13 +132,14 @@ class TestNotepad(unittest.TestCase):
 class TestCalculator(unittest.TestCase):
 
 	def test_clicks(self):
-		recorder = Recorder()
+		recorder = Recorder(path_separator='->', type_separator='::')
 		record_file_name = recorder.start_recording()
 
 		time.sleep(0.5)
 		send_keys("{LWIN}Calculator{ENTER}")
 		in_region("Calculator::Window->Calculator::Window->::Group->Number pad::Group")
-		move("One::Button")
+		move("One::Button")  # TODO: mettre dans player.py
+		# (recording mode)
 		time.sleep(0.5)
 		left_click("One::Button")
 		move("Two::Button")
@@ -175,7 +176,6 @@ class TestCalculator(unittest.TestCase):
 
 		recorder.stop_recording()
 		recorder.quit()
-		del recorder
 
 		with open(record_file_name, 'r') as f:
 			line = f.readline()

@@ -17,7 +17,6 @@ reload(sys)
 sys.setdefaultencoding('utf-8')
 
 record_file = None
-main_overlay = None
 event_list = []
 
 
@@ -34,66 +33,17 @@ class ElementEvent(object):
 		self.path = path
 
 
-def main_overlay_add_record_icon():
-	main_overlay.add(
-		geometry=oaam.Shape.rectangle, x=10, y=10, width=40, height=40,
-		color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 255, 254))
-	main_overlay.add(
-		geometry=oaam.Shape.ellipse, x=15, y=15, width=29, height=29,
-		color=(255, 90, 90), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 0, 0))
-
-
-def main_overlay_add_pause_icon():
-	main_overlay.add(
-		geometry=oaam.Shape.rectangle, x=10, y=10, width=40, height=40,
-		color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 255, 254))
-	main_overlay.add(
-		geometry=oaam.Shape.rectangle, x=15, y=15, width=12, height=30,
-		color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(0, 0, 0))
-	main_overlay.add(
-		geometry=oaam.Shape.rectangle, x=32, y=15, width=12, height=30,
-		color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(0, 0, 0))
-
-
-def main_overlay_add_progress_icon(i):
-	main_overlay.add(
-		geometry=oaam.Shape.rectangle, x=60, y=10, width=40, height=40,
-		color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 255, 254))
-	for b in range(i % 5):
-		main_overlay.add(
-			geometry=oaam.Shape.rectangle, x=65, y=15 + b * 8, width=30, height=6,
-			color=(0, 255, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(0, 200, 0))
-
-
-def main_overlay_add_search_mode_icon():
-	main_overlay.add(
-		geometry=oaam.Shape.rectangle, x=110, y=10, width=40, height=40,
-		color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 255, 254))
-	main_overlay.add(
-		geometry=oaam.Shape.rectangle, x=115, y=15, width=30, height=30,
-		color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(0, 255, 0))
-	main_overlay.add(
-		geometry=oaam.Shape.rectangle, x=120, y=15 + 1 * 8, width=15, height=6,
-		color=(0, 255, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 0, 0))
-	main_overlay.add(
-		geometry=oaam.Shape.rectangle, x=120, y=15 + 2 * 8, width=15, height=6,
-		color=(0, 255, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 0, 0))
-
-
-def get_element_path(w):
+def get_wrapper_path(wrapper):
 	try:
 		path = ''
-		wrapper_top_level_parent = w.top_level_parent()
-		while w != wrapper_top_level_parent:
-			if not w:
+		wrapper_top_level_parent = wrapper.top_level_parent()
+		while wrapper != wrapper_top_level_parent:
+			if not wrapper:
 				break
-			if w.window_text() != '':
-				path = "->" + w.window_text() + '::' + w.element_info.control_type + path
-			else:
-				path = "->" + '::' + w.element_info.control_type + path
-			w = w.parent()
+			path = core.path_separator + wrapper.window_text() + core.type_separator + wrapper.element_info.control_type + path
+			wrapper = wrapper.parent()
 
-		return w.window_text() + '::' + w.element_info.control_type + path
+		return wrapper.window_text() + core.type_separator + wrapper.element_info.control_type + path
 	except Exception:
 		return ''
 
@@ -147,7 +97,6 @@ def get_send_keys_strings(keyboard_events):
 def key_on(e):
 	global recorder
 	global event_list
-	global main_overlay
 	global record_file
 
 	if e.name == 'r' and e.event_type == 'up' and 56 in keyboard._pressed_events:
@@ -164,7 +113,7 @@ def key_on(e):
 old_common_path = ''
 
 
-def find_comon_path(element_event_before_click, i0, i1):
+def find_common_path(element_event_before_click, i0, i1):
 	while i0 > i1:
 		if type(event_list[i0]) == ElementEvent:
 			element_paths = core.get_entry_list(event_list[i0].path)
@@ -181,9 +130,9 @@ def find_comon_path(element_event_before_click, i0, i1):
 				while element_paths[n] == unique_element_paths[n]:
 					n = n + 1
 			except IndexError:
-				common_path = "->".join(element_paths[0:n])
+				common_path = core.path_separator.join(element_paths[0:n])
 				return common_path
-			common_path = "->".join(element_paths[0:n])
+			common_path = core.path_separator.join(element_paths[0:n])
 			return common_path
 		i0 = i0 - 1
 	return ''
@@ -230,7 +179,7 @@ def record_click(i):
 	i0 = i1 + 1
 	while i0 < len(event_list):
 		if (type(event_list[i0]) == mouse.ButtonEvent) and (event_list[i0].event_type == 'up'):
-			common_path = find_comon_path(element_event_before_click, i0, i1)
+			common_path = find_common_path(element_event_before_click, i0, i1)
 			break
 		i0 = i0 + 1
 
@@ -238,13 +187,13 @@ def record_click(i):
 		record_file.write('in_region("""' + common_path + '""")\n')
 	old_common_path = common_path
 	if common_path:
-		click_path = element_event_before_click.path[len(common_path) + 2:]
-		entry_list = core.get_entry_list(click_path.decode('utf-8'))
+		click_path = element_event_before_click.path[len(common_path) + len(core.path_separator):]
+		entry_list = core.get_entry_list(click_path)
 		str_name, str_type, y_x, dx_dy = core.get_entry(entry_list[-1])
 		if (y_x is not None) and not core.is_int(y_x[0]):
 			y_x[0] = y_x[0][len(common_path) + 2:]
-			click_path = "->".join(entry_list[:-1]) + "->" + str_name + "::" + str_type
-			click_path = click_path + "#[" + y_x[0] + "," + str(y_x[1]) + "]"
+			click_path = core.path_separator.join(entry_list[:-1]) + core.path_separator + str_name
+			click_path = click_path + core.type_separator + str_type + "#[" + y_x[0] + "," + str(y_x[1]) + "]"
 			if dx_dy is not None:
 				click_path = click_path + "%(" + str(dx_dy[0]) + "," + str(dx_dy[1]) + ")"
 	else:
@@ -348,32 +297,149 @@ def record_mouse(i):
 
 
 class Recorder(Thread):
-	def __init__(self, **parameters):
+	def __init__(self, path_separator='->', type_separator='||'):
 		Thread.__init__(self)
+		core.path_separator = path_separator
+		core.type_separator = type_separator
+		self.desktop = None
+		self.main_overlay = None
 		self._is_running = False
 		self.daemon = True
 		self.start()
 
+
+	def main_overlay_add_record_icon(self):
+		self.main_overlay.add(
+			geometry=oaam.Shape.rectangle, x=10, y=10, width=40, height=40,
+			color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 255, 254))
+		self.main_overlay.add(
+			geometry=oaam.Shape.ellipse, x=15, y=15, width=29, height=29,
+			color=(255, 90, 90), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 0, 0))
+
+	def main_overlay_add_pause_icon(self):
+		self.main_overlay.add(
+			geometry=oaam.Shape.rectangle, x=10, y=10, width=40, height=40,
+			color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 255, 254))
+		self.main_overlay.add(
+			geometry=oaam.Shape.rectangle, x=15, y=15, width=12, height=30,
+			color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(0, 0, 0))
+		self.main_overlay.add(
+			geometry=oaam.Shape.rectangle, x=32, y=15, width=12, height=30,
+			color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(0, 0, 0))
+
+	def main_overlay_add_progress_icon(self, i):
+		self.main_overlay.add(
+			geometry=oaam.Shape.rectangle, x=60, y=10, width=40, height=40,
+			color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 255, 254))
+		for b in range(i % 5):
+			self.main_overlay.add(
+				geometry=oaam.Shape.rectangle, x=65, y=15 + b * 8, width=30, height=6,
+				color=(0, 255, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(0, 200, 0))
+
+	def main_overlay_add_search_mode_icon(self):
+		self.main_overlay.add(
+			geometry=oaam.Shape.rectangle, x=110, y=10, width=40, height=40,
+			color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 255, 254))
+		self.main_overlay.add(
+			geometry=oaam.Shape.rectangle, x=115, y=15, width=30, height=30,
+			color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(0, 255, 0))
+		self.main_overlay.add(
+			geometry=oaam.Shape.rectangle, x=120, y=15 + 1 * 8, width=15, height=6,
+			color=(0, 255, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 0, 0))
+		self.main_overlay.add(
+			geometry=oaam.Shape.rectangle, x=120, y=15 + 2 * 8, width=15, height=6,
+			color=(0, 255, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 0, 0))
+
+	def find_unique_element_array_1D(self, element_info, elements):
+		nb_y, nb_x, candidates = core.get_sorted_region(elements)
+		for r_y in range(nb_y):
+			for r_x in range(nb_x):
+				try:
+					r = candidates[r_y][r_x].rectangle()
+				except IndexError:
+					continue
+				if r == element_info.rectangle:
+					xx, yy = r.left, r.mid_point()[1]
+					previous_element_path2 = None
+					while xx > 0:
+						xx = xx - 9
+						element_from_point2 = pywinauto.uia_defines.IUIA().iuia.ElementFromPoint(tagPOINT(xx, yy))
+						element_info2 = pywinauto.uia_element_info.UIAElementInfo(element_from_point2)
+						if element_info2.control_type != "Text":
+							continue
+						if element_info2.rectangle.height() > element_info.rectangle.height() * 2:
+							continue
+						wrapper2 = pywinauto.controls.uiawrapper.UIAWrapper(element_info2)
+						if wrapper2 is None:
+							continue
+						element_path2 = get_wrapper_path(wrapper2)
+						if not element_path2:
+							continue
+						if element_path2 == previous_element_path2:
+							continue
+
+						previous_element_path2 = element_path2
+
+						entry_list2 = core.get_entry_list(element_path2)
+						unique_candidate2, _ = core.find_element(self.desktop, entry_list2, window_candidates=[])
+
+						if unique_candidate2 is not None:
+							r = element_info2.rectangle
+							self.main_overlay.add(
+								geometry=oaam.Shape.rectangle, x=r.left, y=r.top,
+								width=r.width(), height=r.height(),
+								thickness=1, color=(0, 0, 255), brush=oaam.Brush.solid,
+								brush_color=(0, 0, 255))
+							r = element_info.rectangle
+							self.main_overlay.add(
+								geometry=oaam.Shape.rectangle, x=r.left, y=r.top,
+								width=r.width(), height=r.height(),
+								thickness=1, color=(255, 0, 0), brush=oaam.Brush.solid,
+								brush_color=(255, 200, 0))
+							return '#[' + element_path2 + ',' + str(r_x) + ']'
+					else:
+						return None
+		return None
+
+	def find_unique_element_array_2D(self, element_info, elements):
+		nb_y, nb_x, candidates = core.get_sorted_region(elements)
+		unique_array_2D = ''
+		for r_y in range(nb_y):
+			for r_x in range(nb_x):
+				try:
+					r = candidates[r_y][r_x].rectangle()
+				except IndexError:
+					continue
+				if r == element_info.rectangle:
+					color = (255, 200, 0)
+					unique_array_2D = '#[' + str(r_y) + ',' + str(r_x) + ']'
+				else:
+					color = (255, 0, 0)
+				self.main_overlay.add(
+					geometry=oaam.Shape.rectangle, x=r.left, y=r.top, width=r.width(),
+					height=r.height(),
+					thickness=1, color=(255, 0, 0), brush=oaam.Brush.solid, brush_color=color)
+		return unique_array_2D
+
 	def run(self):
-		global main_overlay
 		global record_file
 		global event_list
 
-		main_overlay = oaam.Overlay(transparency=100)
+		self.main_overlay = oaam.Overlay(transparency=100)
+		self.desktop = pywinauto.Desktop(backend='uia', allow_magic_lookup=False)
 		keyboard.hook(key_on)
 		mouse.hook(mouse_on)
 		unique_candidate = None
 		elements = []
-		desktop = pywinauto.Desktop(backend='uia', allow_magic_lookup=False)
 		i = 0
 		previous_element_path = None
-		previous_element_path_found = False
+		unique_element_path = None
 		strategies = [core.Strategy.unique_path, core.Strategy.array_2D, core.Strategy.array_1D]
 		i_strategy = 0
 		self._is_running = True
 		while self._is_running:
 			try:
-				main_overlay.clear_all()
+				self.main_overlay.clear_all()
 
 				x, y = win32api.GetCursorPos()
 				element_from_point = pywinauto.uia_defines.IUIA().iuia.ElementFromPoint(tagPOINT(x, y))
@@ -381,144 +447,79 @@ class Recorder(Thread):
 				wrapper = pywinauto.controls.uiawrapper.UIAWrapper(element_info)
 				if wrapper is None:
 					continue
-				element_path = get_element_path(wrapper)
+				element_path = get_wrapper_path(wrapper)
 				if not element_path:
 					continue
 				if element_path == previous_element_path:
-					if (not previous_element_path_found) or (strategies[i_strategy] == core.Strategy.array_2D):
+					if (unique_element_path is None) or (strategies[i_strategy] == core.Strategy.array_2D):
 						i_strategy = i_strategy + 1
 						if i_strategy >= len(strategies):
 							i_strategy = len(strategies) - 1
 				else:
 					i_strategy = 0
 					previous_element_path = element_path
-					entry_list = core.get_entry_list(element_path.decode('utf-8'))
-					unique_candidate, elements = core.find_element(desktop, entry_list, window_candidates=[])
+					entry_list = core.get_entry_list(element_path)
+					unique_candidate, elements = core.find_element(self.desktop, entry_list, window_candidates=[])
 
 				strategy = strategies[i_strategy]
-				previous_element_path_found = False
 				unique_element_path = None
-				unique_element_r = None
 
 				if strategy == core.Strategy.unique_path:
 					if unique_candidate is not None:
-						unique_element_path = get_element_path(unique_candidate)
-						unique_element_r = unique_candidate.rectangle()
-						# unique_candidate.draw_outline(colour='green', thickness=2)
-						r = unique_candidate.rectangle()
-						main_overlay.add(
+						unique_element_path = get_wrapper_path(unique_candidate)
+						r = element_info.rectangle
+						self.main_overlay.add(
 							geometry=oaam.Shape.rectangle, x=r.left, y=r.top, width=r.width(), height=r.height(),
 							thickness=1, color=(0, 128, 0), brush=oaam.Brush.solid, brush_color=(0, 255, 0))
-						previous_element_path_found = True
 					else:
 						for e in elements:
 							r = e.rectangle()
-							main_overlay.add(
+							self.main_overlay.add(
 								geometry=oaam.Shape.rectangle, x=r.left, y=r.top, width=r.width(), height=r.height(),
 								thickness=1, color=(0, 128, 0), brush=oaam.Brush.solid, brush_color=(255, 0, 0))
 
 				if strategy == core.Strategy.array_1D:
-					nb_y, nb_x, candidates = core.get_sorted_region(elements)
-					for r_y in range(nb_y):
-						for r_x in range(nb_x):
-							try:
-								r = candidates[r_y][r_x].rectangle()
-							except IndexError:
-								continue
-							if r == element_info.rectangle:
-								xx, yy = r.left, r.mid_point()[1]
-								previous_element_path2 = None
-								while xx > 0:
-									xx = xx - 9
-									element_from_point2 = pywinauto.uia_defines.IUIA().iuia.ElementFromPoint(tagPOINT(xx, yy))
-									element_info2 = pywinauto.uia_element_info.UIAElementInfo(element_from_point2)
-									wrapper2 = pywinauto.controls.uiawrapper.UIAWrapper(element_info2)
-									if wrapper2 is None:
-										continue
-									element_path2 = get_element_path(wrapper2)
-									if not element_path2:
-										continue
-									if element_path2 == previous_element_path2:
-										continue
-									previous_element_path2 = element_path2
-
-									entry_list2 = core.get_entry_list(element_path2.decode('utf-8'))
-									unique_candidate2, _ = core.find_element(desktop, entry_list2, window_candidates=[])
-
-									if unique_candidate2 is not None:
-										r = element_info2.rectangle
-										if r.height() > element_info.rectangle.height()*2:
-											continue
-										main_overlay.add(
-											geometry=oaam.Shape.rectangle, x=r.left, y=r.top,
-											width=r.width(), height=r.height(),
-											thickness=1, color=(0, 0, 255), brush=oaam.Brush.solid,
-											brush_color=(0, 0, 255))
-										r = element_info.rectangle
-										main_overlay.add(
-											geometry=oaam.Shape.rectangle, x=r.left, y=r.top,
-											width=r.width(), height=r.height(),
-											thickness=1, color=(255, 0, 0), brush=oaam.Brush.solid,
-											brush_color=(255, 200, 0))
-										unique_element_path = element_path + '#[' + element_path2 + ',' + str(r_x) + ']'
-										unique_element_r = element_info.rectangle
-										previous_element_path_found = True
-										break
-								else:
-									strategy = core.Strategy.array_2D
+					unique_array_1D = self.find_unique_element_array_1D(element_info, elements)
+					if unique_array_1D is not None:
+						unique_element_path = element_path + unique_array_1D
+					else:
+						strategy = core.Strategy.array_2D
 
 				if strategy == core.Strategy.array_2D:
-					nb_y, nb_x, candidates = core.get_sorted_region(elements)
-					for r_y in range(nb_y):
-						for r_x in range(nb_x):
-							try:
-								r = candidates[r_y][r_x].rectangle()
-							except IndexError:
-								continue
-							if r == element_info.rectangle:
-								color = (255, 200, 0)
-								unique_element_path = element_path + '#[' + str(r_y) + ',' + str(r_x) + ']'
-								unique_element_r = r
-								previous_element_path_found = True
-							else:
-								color = (255, 0, 0)
-							main_overlay.add(
-								geometry=oaam.Shape.rectangle, x=r.left, y=r.top, width=r.width(),
-								height=r.height(),
-								thickness=1, color=(255, 0, 0), brush=oaam.Brush.solid, brush_color=color)
+					unique_array_2D = self.find_unique_element_array_2D(element_info, elements)
+					if unique_array_2D is not None:
+						unique_element_path = element_path + unique_array_2D
 
-				if record_file and (strategy is not core.Strategy.failed):
+				if record_file and unique_element_path is not None:
 					if (len(event_list) > 0) and (type(event_list[-1]) == ElementEvent):
 						if event_list[-1].path != unique_element_path:
-							event_list.append(ElementEvent(strategy, unique_element_r, unique_element_path))
+							event_list.append(ElementEvent(strategy, element_info.rectangle, unique_element_path))
 					else:
-						event_list.append(ElementEvent(strategy, unique_element_r, unique_element_path))
+						event_list.append(ElementEvent(strategy, element_info.rectangle, unique_element_path))
 
 				if record_file:
-					main_overlay_add_record_icon()
+					self.main_overlay_add_record_icon()
 				else:
-					main_overlay_add_pause_icon()
+					self.main_overlay_add_pause_icon()
 
-				main_overlay_add_progress_icon(i)
-				main_overlay_add_search_mode_icon()
+				self.main_overlay_add_progress_icon(i)
+				self.main_overlay_add_search_mode_icon()
 
 				i = i + 1
-				main_overlay.refresh()
+				self.main_overlay.refresh()
 				time.sleep(0.005)  # main_overlay.clear_all() doit attendre la fin de main_overlay.refresh()
 			except Exception as e:
 				exc_type, exc_value, exc_traceback = sys.exc_info()
 				print(repr(traceback.format_exception(exc_type, exc_value, exc_traceback)))
-		main_overlay.clear_all()
-		main_overlay.refresh()
+		self.main_overlay.clear_all()
+		self.main_overlay.refresh()
 		if record_file:
 			recorder.stop_recording()
-		keyboard.unhook_all()
 		mouse.unhook_all()
-		del desktop
-		del main_overlay
+		keyboard.unhook_all()
+		print("Run end")
 
 	def start_recording(self):
-		global main_overlay
 		global record_file
 
 		new_path = 'Record files'
@@ -534,13 +535,12 @@ class Recorder(Thread):
 		record_file.write("from player import *\n")
 		record_file.write('send_keys("{LWIN down}""{DOWN}""{DOWN}""{LWIN up}")\n')
 		record_file.write('time.sleep(0.5)\n')
-		main_overlay_add_record_icon()
-		main_overlay.refresh()
+		self.main_overlay_add_record_icon()
+		self.main_overlay.refresh()
 		return record_file_name
 
 	def stop_recording(self):
 		global event_list
-		global main_overlay
 		global record_file
 		if event_list:
 			event_list = event_list[:-1]
@@ -567,9 +567,9 @@ class Recorder(Thread):
 					i = i + 1
 		record_file.close()
 		record_file = None
-		main_overlay.clear_all()
-		main_overlay_add_pause_icon()
-		main_overlay.refresh()
+		self.main_overlay.clear_all()
+		self.main_overlay_add_pause_icon()
+		self.main_overlay.refresh()
 
 	def quit(self):
 		print("Quit")
@@ -582,3 +582,5 @@ if __name__ == '__main__':
 	while recorder.is_alive():
 		time.sleep(1.0)
 	del recorder
+	print("Exit")
+	exit(0)
