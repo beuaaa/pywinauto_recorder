@@ -10,22 +10,22 @@ from recorder import Recorder
 class TestEntryMethods(unittest.TestCase):
 
 	def test_get_entry_list(self):
-		element_path = "D:\\Name::Window->::Pane->Property::Group->"
-		element_path = element_path + "Label:::Text#[Name::Window->::Pane->Property::Group->Label:::Text,0]%(0,0)"
+		element_path = "D:\\Name||Window->||Pane->Property||Group->"
+		element_path = element_path + "Label:||Text#[Name||Window->||Pane->Property||Group->Label:||Text,0]%(0,0)"
 		entry_list = get_entry_list(element_path)
-		self.assertEqual(entry_list[0], 'D:\\Name::Window')
-		self.assertEqual(entry_list[1], '::Pane')
-		self.assertEqual(entry_list[2], 'Property::Group')
-		self.assertEqual(entry_list[3], 'Label:::Text#[Name::Window->::Pane->Property::Group->Label:::Text,0]%(0,0)')
+		self.assertEqual(entry_list[0], 'D:\\Name||Window')
+		self.assertEqual(entry_list[1], '||Pane')
+		self.assertEqual(entry_list[2], 'Property||Group')
+		self.assertEqual(entry_list[3], 'Label:||Text#[Name||Window->||Pane->Property||Group->Label:||Text,0]%(0,0)')
 
 	def test_get_entry_elements(self):
 		entry_list = [
-			'Name:::Type#[0,0]%(2,-24)', '::Type#[0,0]%(2,-24)', 'Name:::#[0,0]%(2,-24)',
-			'Name:::Type#[0,0]', '::Type#[0,0]', 'Name:::#[0,0]',
-			'Name:::Type', '::Type', 'Name:::',
-			'Name::Type', '::Type', 'Name::',
-			'Name::Type#[y_name:y_type,0]', '::Type#[y_name:y_type,0]', 'Name::#[y_name:y_type,0]',
-			'Name::Type#[y_name::y_type,0]', '::Type#[y_name::y_type,0]', 'Name::#[y_name::y_type,0]'
+			'Name:||Type#[0,0]%(2,-24)', '||Type#[0,0]%(2,-24)', 'Name:||#[0,0]%(2,-24)',
+			'Name:||Type#[0,0]', '||Type#[0,0]', 'Name:||#[0,0]',
+			'Name:||Type', '||Type', 'Name:||',
+			'Name||Type', '||Type', 'Name||',
+			'Name||Type#[y_name:||y_type,0]', '||Type#[y_name:||y_type,0]', 'Name||#[y_name:||y_type,0]',
+			'Name||Type#[y_name||y_type,0]', '||Type#[y_name||y_type,0]', 'Name||#[y_name||y_type,0]'
 		]
 
 		for i, entry in enumerate(entry_list):
@@ -52,27 +52,28 @@ class TestEntryMethods(unittest.TestCase):
 			if i < 6:
 				self.assertEqual(y_x, [0, 0])
 			elif i >= 15:
-				self.assertEqual(y_x, ['y_name::y_type', 0])
+				self.assertEqual(y_x, ['y_name||y_type', 0])
 			elif i >= 12:
-				self.assertEqual(y_x, ['y_name:y_type', 0])
+				self.assertEqual(y_x, ['y_name:||y_type', 0])
 			else:
 				self.assertEqual(y_x, None)
 
 	def test_same_entry_list(self):
 		time.sleep(0.5)
 		send_keys("{LWIN}")
-		element_path = 'Taskbar::Pane->Start::Button%(0,0)'
+		element_path = 'Taskbar||Pane->Start||Button%(0,0)'
 		entry_list = core.get_entry_list(element_path)
-		element = find(element_path)
+		with Region('') as r:
+			element = r.find(element_path)
 		result = same_entry_list(element, entry_list)
 		self.assertTrue(result)
 
-		element_path2 = 'Taskbar::Pane->Start2::Button%(0,0)'
+		element_path2 = 'Taskbar||Pane->Start2||Button%(0,0)'
 		entry_list2 = core.get_entry_list(element_path2)
 		result = same_entry_list(element, entry_list2)
 		self.assertFalse(result)
 
-		element_path3 = 'Taskbar::Pane->Start::Button2%(0,0)'
+		element_path3 = 'Taskbar||Pane->Start||Button2%(0,0)'
 		entry_list3 = core.get_entry_list(element_path3)
 		result = same_entry_list(element, entry_list3)
 		self.assertFalse(result)
@@ -85,94 +86,104 @@ class TestNotepad(unittest.TestCase):
 	def test_send_keys(self):
 		time.sleep(0.5)
 		send_keys("{LWIN}Notepad{ENTER}")
-		edit = left_click("Untitled - Notepad::Window->Text Editor::Edit%(0,0)")
-		send_keys("This is a error{BACKSPACE}{BACKSPACE}{BACKSPACE}{BACKSPACE}{BACKSPACE}test.{ENTER}")
+
+		with Region("Untitled - Notepad||Window") as r:
+			edit = r.left_click("Text Editor||Edit%(0,0)")
+			send_keys("This is a error{BACKSPACE}{BACKSPACE}{BACKSPACE}{BACKSPACE}{BACKSPACE}test.{ENTER}")
 		result = edit.get_value()
-		left_click("*Untitled - Notepad::Window->::TitleBar->Close::Button%(0,0)")
-		left_click("*Untitled - Notepad::Window->Notepad::Window->Don't Save::Button%(0,0)")
+
+		with Region("*Untitled - Notepad||Window") as r:
+			r.left_click("||TitleBar->Close||Button%(0,0)")
+			r.left_click("Notepad||Window->Don't Save||Button%(0,0)")
+
 		self.assertEqual(result, 'This is a test.\r\n')
 
 	def test_drag_and_drop(self):
 		time.sleep(0.5)
 		send_keys("{LWIN}Notepad{ENTER}")
-		in_region("Untitled - Notepad::Window")
-		left_click("Application::MenuBar->Format::MenuItem")
-		left_click("Format::Menu->Font...::MenuItem")
-		in_region("Untitled - Notepad::Window->Font::Window")
-		line_down = find("Size:::ComboBox->Size:::List->Vertical::ScrollBar->Line down::Button")
-		position = find("Size:::ComboBox->Size:::List->Vertical::ScrollBar->Position::Thumb")
-		dy = line_down.rectangle().top - (position.rectangle().top + position.rectangle().bottom)/2
-		drag_and_drop("Size:::ComboBox->Size:::List->Vertical::ScrollBar->Position::Thumb%(0,0)%(0," + str(dy) + ")")
-		size_list_box = find("Size:::ComboBox->Size:::List%(0,0)")
-		left_click("Size:::ComboBox->Size:::List->Vertical::ScrollBar->Line down::Button%(-20,0)")
-		self.assertEqual(size_list_box.get_selection()[0].name, size_list_box.children_texts()[-1])
-		left_click("Cancel::Button")
-		in_region("Untitled - Notepad::Window")
-		left_click("::TitleBar->Close::Button")
-		in_region("")
+
+		with Region("Untitled - Notepad||Window") as r:
+			r.left_click("Application||MenuBar->Format||MenuItem")
+			r.left_click("Format||Menu->Font...||MenuItem")
+
+		with Region("Untitled - Notepad||Window->Font||Window") as r:
+			line_down = r.find("Size:||ComboBox->Size:||List->Vertical||ScrollBar->Line down||Button")
+			position = r.find("Size:||ComboBox->Size:||List->Vertical||ScrollBar->Position||Thumb")
+			dy = str(line_down.rectangle().top - (position.rectangle().top + position.rectangle().bottom)/2)
+			r.drag_and_drop("Size:||ComboBox->Size:||List->Vertical||ScrollBar->Position||Thumb%(0,0)%(0," + dy + ")")
+			size_list_box = r.find("Size:||ComboBox->Size:||List%(0,0)")
+			r.left_click("Size:||ComboBox->Size:||List->Vertical||ScrollBar->Line down||Button%(-20,0)")
+			self.assertEqual(size_list_box.get_selection()[0].name, size_list_box.children_texts()[-1])
+			r.left_click("Cancel||Button")
+
+		with Region("Untitled - Notepad||Window") as r:
+			r.left_click("||TitleBar->Close||Button")
 
 	def test_wheel(self):
 		time.sleep(0.5)
 		send_keys("{LWIN}Notepad{ENTER}")
-		in_region("Untitled - Notepad::Window")
-		left_click("Application::MenuBar->Format::MenuItem")
-		left_click("Format::Menu->Font...::MenuItem")
-		in_region("Untitled - Notepad::Window->Font::Window")
-		left_click("Size:::ComboBox->Size:::List->Vertical::ScrollBar->Position::Thumb")
-		mouse_wheel(-10)
-		size_list_box = find("Size:::ComboBox->Size:::List%(0,0)")
-		left_click("Size:::ComboBox->Size:::List->Vertical::ScrollBar->Line down::Button%(-20,0)")
-		self.assertEqual(size_list_box.get_selection()[0].name, size_list_box.children_texts()[-1])
-		left_click("Cancel::Button")
-		in_region("Untitled - Notepad::Window")
-		left_click("::TitleBar->Close::Button")
-		in_region("")
+
+		with Region("Untitled - Notepad||Window") as r:
+			r.left_click("Application||MenuBar->Format||MenuItem")
+			r.left_click("Format||Menu->Font...||MenuItem")
+
+		with Region("Untitled - Notepad||Window->Font||Window") as r:
+			r.left_click("Size:||ComboBox->Size:||List->Vertical||ScrollBar->Position||Thumb")
+			mouse_wheel(-10)
+			size_list_box = r.find("Size:||ComboBox->Size:||List%(0,0)")
+			r.left_click("Size:||ComboBox->Size:||List->Vertical||ScrollBar->Line down||Button%(-20,0)")
+			self.assertEqual(size_list_box.get_selection()[0].name, size_list_box.children_texts()[-1])
+			r.left_click("Cancel||Button")
+
+		with Region("Untitled - Notepad||Window") as r:
+			r.left_click("||TitleBar->Close||Button")
 
 
 class TestCalculator(unittest.TestCase):
 
 	def test_clicks(self):
-		recorder = Recorder(path_separator='->', type_separator='::')
+		recorder = Recorder()
 		recorder.start_recording()
 
 		time.sleep(0.5)
 		send_keys("{LWIN}Calculator{ENTER}")
-		in_region("Calculator::Window->Calculator::Window->::Group->Number pad::Group")
-		move("One::Button")  # TODO: mettre dans player.py
-		# (recording mode)
-		time.sleep(0.5)
-		left_click("One::Button")
-		move("Two::Button")
-		time.sleep(0.5)
-		double_left_click("Two::Button")
-		move("Three::Button")
-		time.sleep(0.5)
-		triple_left_click("Three::Button")
-		move("Four::Button")
-		time.sleep(0.5)
-		triple_left_click("Four::Button")
-		left_click("Four::Button")
-		move("Five::Button")
-		time.sleep(0.5)
-		triple_left_click("Five::Button")
-		double_left_click("Five::Button")
-		move("Six::Button")
-		time.sleep(0.5)
-		triple_left_click("Six::Button")
-		triple_left_click("Six::Button")
-		move("Three::Button")
-		time.sleep(0.5)
-		triple_left_click("Three::Button")
-		move("Two::Button")
-		time.sleep(0.5)
-		double_left_click("Two::Button")
-		move("One::Button")
-		time.sleep(0.5)
-		left_click("One::Button")
-		move("Calculator::Window->Calculator::Window->Close Calculator::Button")
-		time.sleep(0.5)
-		left_click("Calculator::Window->Calculator::Window->Close Calculator::Button")
-		in_region("")
+
+		with Region("Calculator||Window->Calculator||Window->||Group->Number pad||Group") as r:
+			r.move("One||Button")
+			time.sleep(0.5)
+			r.left_click("One||Button")
+			r.move("Two||Button")
+			time.sleep(0.5)
+			r.double_left_click("Two||Button")
+			r.move("Three||Button")
+			time.sleep(0.5)
+			r.triple_left_click("Three||Button")
+			r.move("Four||Button")
+			time.sleep(0.5)
+			r.triple_left_click("Four||Button")
+			r.left_click("Four||Button")
+			r.move("Five||Button")
+			time.sleep(0.5)
+			r.triple_left_click("Five||Button")
+			r.double_left_click("Five||Button")
+			r.move("Six||Button")
+			time.sleep(0.5)
+			r.triple_left_click("Six||Button")
+			r.triple_left_click("Six||Button")
+			r.move("Three||Button")
+			time.sleep(0.5)
+			r.triple_left_click("Three||Button")
+			r.move("Two||Button")
+			time.sleep(0.5)
+			r.double_left_click("Two||Button")
+			r.move("One||Button")
+			time.sleep(0.5)
+			r.left_click("One||Button")
+
+		with Region("Calculator||Window->Calculator||Window") as r:
+			r.move("Close Calculator||Button")
+			time.sleep(0.5)
+			r.left_click("Close Calculator||Button")
 
 		record_file_name = recorder.stop_recording()
 		recorder.quit()
