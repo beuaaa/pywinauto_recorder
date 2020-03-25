@@ -46,22 +46,26 @@ def write_in_file(event_list_copy):
 	while i < len(event_list_copy):
 		e_i = event_list_copy[i]
 		if type(e_i) is SendKeysEvent:
+			if common_path:
+				record_file.write("\t")
 			record_file.write("send_keys(" + e_i.line + ")\n")
 		elif type(e_i) is MouseWheelEvent:
+			if common_path:
+				record_file.write("\t")
 			record_file.write("mouse_wheel(" + str(e_i.delta) + ")\n")
 		elif type(e_i) is CommonPathEvent:
-			record_file.write('\nin_region("""' + e_i.path + '""")\n')
+			record_file.write('\nwith Region("""' + e_i.path + '""") as r:\n')
 			common_path = e_i.path
 		elif type(e_i) is DragAndDropEvent:
 			p, dx1, dy1, dx2, dy2 = e_i.path, str(e_i.dx1), str(e_i.dy1), str(e_i.dx2), str(e_i.dy2)
 			if common_path:
 				p = get_relative_path(common_path, p)
-			record_file.write('drag_and_drop("""' + p + '%(' + dx1 + ',' + dy1 + ')%(' + dx2 + ',' + dy2 + ')""")\n')
+			record_file.write('\tr.drag_and_drop("""' + p + '%(' + dx1 + ',' + dy1 + ')%(' + dx2 + ',' + dy2 + ')""")\n')
 		elif type(e_i) is ClickEvent:
 			p, dx, dy = e_i.path, str(e_i.dx), str(e_i.dy)
 			if common_path:
 				p = get_relative_path(common_path, p)
-			str_c = ['', '', 'double_', 'triple_']
+			str_c = ['', '\tr.', '\tr.double_', '\tr.triple_']
 			record_file.write(str_c[e_i.click_count] + e_i.button + '_click("""' + p + '%(' + dx + ',' + dy + ')""")\n')
 		i = i + 1
 	record_file.close()
