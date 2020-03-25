@@ -133,7 +133,7 @@ class TestCalculator(unittest.TestCase):
 
 	def test_clicks(self):
 		recorder = Recorder(path_separator='->', type_separator='::')
-		record_file_name = recorder.start_recording()
+		recorder.start_recording()
 
 		time.sleep(0.5)
 		send_keys("{LWIN}Calculator{ENTER}")
@@ -174,7 +174,7 @@ class TestCalculator(unittest.TestCase):
 		left_click("Calculator::Window->Calculator::Window->Close Calculator::Button")
 		in_region("")
 
-		recorder.stop_recording()
+		record_file_name = recorder.stop_recording()
 		recorder.quit()
 
 		with open(record_file_name, 'r') as f:
