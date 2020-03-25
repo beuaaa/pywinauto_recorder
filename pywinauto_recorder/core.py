@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-import re
 from enum import Enum
 
 path_separator = "->"
@@ -183,10 +182,4 @@ def find_element(desktop, entry_list, window_candidates=[], visible_only=True, e
     elif len(candidates) == 1:
         return candidates[0], []
     else:
-        # We have several elements so we have to use the good strategy to select the good one.
-        # Strategy 1: unique path
-        # Strategy 2: 2D array of elements
-        # Strategy 3: 1D array of elements beginning with an element having a unique path
-        # Strategy 4: we find a unique path in the ancestors
-        #_, unique_candidate, candidates = find_element(desktop, entry_list[0:-1], window_candidates=window_candidates)
         return None, candidates
