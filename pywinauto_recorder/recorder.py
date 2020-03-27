@@ -35,12 +35,8 @@ def write_in_file(event_list_copy):
 	record_file_name = record_file_name.replace(':', '_')
 	print('Recording in file: ' + record_file_name)
 	record_file = open(record_file_name, "w")
-	record_file.write("# coding: utf-8\n")
-	record_file.write("import sys, os\n")
-	record_file.write("sys.path.append(os.path.realpath(os.path.dirname(__file__)+'/..'))\n")
-	record_file.write("from player import *\n")
-	record_file.write('send_keys("{LWIN down}""{DOWN}""{DOWN}""{LWIN up}")\n')
-	record_file.write('time.sleep(0.5)\n')
+	record_file.write("# coding: utf-8\n\n")
+	record_file.write("from pywinauto_recorder import *\n\n")
 	i = 0
 	common_path = ''
 	while i < len(event_list_copy):
@@ -580,11 +576,3 @@ class Recorder(Thread):
 		print("Quit")
 		self._is_running = False
 
-
-if __name__ == '__main__':
-	global recorder
-	recorder = Recorder()
-	while recorder.is_alive():
-		time.sleep(1.0)
-	print("Exit")
-	exit(0)
