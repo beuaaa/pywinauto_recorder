@@ -19,19 +19,10 @@ functions.
 
 .. _Pywinauto: https://github.com/pywinauto/pywinauto/
 
-Installation
-############
- pip install pywinauto
+Setup
+#####
+ run pip install -U pywinauto_recorder (dependencies will be installed automatically)
 
- pip install keyboard
-
- pip install mouse
-
- pip install overlay_arrows_and_more
-
- Download https://github.com/beuaaa/pywinauto_recorder/archive/master.zip
-
- Unzip master.zip
 
 Usage
 #####
@@ -43,7 +34,7 @@ Recorder.bat:
 .. code-block:: bat
 
     if not DEFINED IS_MINIMIZED set IS_MINIMIZED=1 && start "" /min "%~dpnx0" %* && exit
-    python.exe recorder.py
+    python.exe pywinauto_recorder.py
 
 - Double click on Recorder.bat to start the recorder.
 - When the recorder is started, it is in "Pause" mode.
@@ -53,25 +44,29 @@ Recorder.bat:
 - Repeat this process performing a few actions on the user interface and when you're done press ALT+r to return to "Pause" mode.
 - Eventually, press ALT+q to exit the recorder.
 - The generated Python script is saved in the "Record files" folder.
-- To replay actions of a Python script, you can drag and drop it to Drag_n_drop_to_replay.bat. Modify the path of the Python interpreter if necessary.
+- To replay a Python script, you can drag and drop it to Drag_n_drop_to_replay.bat. Modify the path of the Python interpreter if necessary.
 
 Icons
 #####
 
-Three transparent icons are displayed at the top of the screen:
+Two transparent icons are displayed at the top left of the screen:
  - the first icon corresponds to Record/Pause mode. Press ALT+r to switch.
  - the second icon displays a green bar at each iteration of the loop. It allows you to see how fast the loop is running.
- - the third icon corresponds to the search algorithm used to identify the element under the mouse.
 
 More explanations
 #################
 
-The main of "Pywinauto recorder" is an infinite loop where, at each iteration, it:
- - finds the path of the element under the mouse cursor
- - if this path is unique (unambiguous), it greens the region of the element
- - records a user action in a file involving the last recognized unique path
+The main of "Pywinauto recorder" is an infinite loop where where at each iteration it:
+ (1) finds the path of the element under the mouse cursor. The path is formed by the pair window_text and control_type of the element and all its ancestors.
+ (2) looks for an unambiguous path, if found it colours the region of the element in green or orange.
+ (3) records a user action in a file involving the last recognized unique path.
 
-.. note:: When it cannot find a unique path for an element it reds all the elements with the same path and it searchs a unique path in the ancestors then it greens the ancestor.The mouse coordinates recorded are relative to the center of the element recognized with a unique path
+.. note::  The mouse coordinates recorded are relative to the center of the element recognized with a unique path.
+
+It looks for an unambiguous path using three strategies in the following order:
+ (1) The path of the element under the mouse cursor is unique. In this case the region of the element is coloured in green.
+ (2) All the elements with the same path are ordered in a 2D table. The regions of the elements are coloured in red. The path is made unambiguous by adding a row index and a column index the region of the element under the mouse cursor is coloured in orange.
+ (3) If an element having, an unambiguous path, a static control_type and a window_text is found on the same row, its region is coloured in blue and the element under the mouse cursor in coloured in orange.
 
 Functions
 **********************

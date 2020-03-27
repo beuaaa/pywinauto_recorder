@@ -26,6 +26,7 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+upload_pypi.bat
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -127,3 +128,5 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+/pywinauto_recorder/pywinauto_recorder.dist/
+/pywinauto_recorder/pywinauto_recorder.build/
