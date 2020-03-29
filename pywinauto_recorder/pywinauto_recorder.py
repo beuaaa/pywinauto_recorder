@@ -11,7 +11,8 @@ from player import *
 if __name__ == '__main__':
 	global recorder
 	parser = argparse.ArgumentParser()
-	parser.add_argument("filename", help="replay a python script", type=str)
+	parser.add_argument("filename", metavar='path', help="replay a python script", type=str,
+						action='store', nargs='?', default='')
 	args = parser.parse_args()
 	if args.filename:
 		main_overlay = oaam.Overlay(transparency=0.5)
