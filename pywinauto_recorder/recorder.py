@@ -24,10 +24,8 @@ CommonPathEvent = namedtuple('CommonPathEvent', ['path'])
 reload(sys)
 sys.setdefaultencoding('utf-8')
 
-event_list = []
 
-
-def write_in_file(event_list_copy):
+def write_in_file(events):
 	new_path = 'Record files'
 	if not os.path.exists(new_path):
 		os.makedirs(new_path)
@@ -39,8 +37,8 @@ def write_in_file(event_list_copy):
 	record_file.write("from pywinauto_recorder import *\n\n")
 	i = 0
 	common_path = ''
-	while i < len(event_list_copy):
-		e_i = event_list_copy[i]
+	while i < len(events):
+		e_i = events[i]
 		if type(e_i) is SendKeysEvent:
 			if common_path:
 				record_file.write("\t")
@@ -68,140 +66,140 @@ def write_in_file(event_list_copy):
 	return record_file_name
 
 
-def clean_events(event_list_copy):
+def clean_events(events):
 	"""
 	remove duplicate or useless events
-	:param event_list_copy: the copy of recorded event list
+	:param events: the copy of recorded event list
 	"""
 	i = 0
 	previous_event_type = None
-	while i < len(event_list_copy):
-		if type(event_list_copy[i]) is previous_event_type:
-			if type(event_list_copy[i]) in [ElementEvent, mouse.MoveEvent]:
-				del event_list_copy[i - 1]
+	while i < len(events):
+		if type(events[i]) is previous_event_type:
+			if type(events[i]) in [ElementEvent, mouse.MoveEvent]:
+				del events[i - 1]
 			else:
-				previous_event_type = type(event_list_copy[i])
+				previous_event_type = type(events[i])
 				i = i + 1
 		else:
-			previous_event_type = type(event_list_copy[i])
+			previous_event_type = type(events[i])
 			i = i + 1
 
 
-def process_events(event_list_copy):
+def process_events(events):
 	i = 0
-	while i < len(event_list_copy):
-		if type(event_list_copy[i]) is keyboard.KeyboardEvent:
-			process_keyboard_events(event_list_copy, i)
-		elif type(event_list_copy[i]) is mouse.WheelEvent:
-			process_wheel_events(event_list_copy, i)
+	while i < len(events):
+		if type(events[i]) is keyboard.KeyboardEvent:
+			process_keyboard_events(events, i)
+		elif type(events[i]) is mouse.WheelEvent:
+			process_wheel_events(events, i)
 		i = i + 1
-	i = len(event_list_copy) - 1
+	i = len(events) - 1
 	while i >= 0:
-		if type(event_list_copy[i]) is mouse.ButtonEvent and event_list_copy[i].event_type == 'up':
-			i = process_drag_and_drop_or_click_events(event_list_copy, i)
+		if type(events[i]) is mouse.ButtonEvent and events[i].event_type == 'up':
+			i = process_drag_and_drop_or_click_events(events, i)
 		i = i - 1
 
 	common_path = None
-	while i < len(event_list_copy):
-		if type(event_list_copy[i]) in [DragAndDropEvent, ClickEvent]:
-			common_path = process_common_path_events(event_list_copy, i, common_path)
+	while i < len(events):
+		if type(events[i]) in [DragAndDropEvent, ClickEvent]:
+			common_path = process_common_path_events(events, i, common_path)
 		i = i + 1
 
 
-def process_keyboard_events(event_list_copy, i):
-	keyboard_events = [event_list_copy[i]]
+def process_keyboard_events(events, i):
+	keyboard_events = [events[i]]
 	i0 = i + 1
 	i_processed_events = []
-	while i0 < len(event_list_copy):
-		if type(event_list_copy[i0]) == keyboard.KeyboardEvent:
-			keyboard_events.append(event_list_copy[i0])
+	while i0 < len(events):
+		if type(events[i0]) == keyboard.KeyboardEvent:
+			keyboard_events.append(events[i0])
 			i_processed_events.append(i0)
 			i0 = i0 + 1
-		elif type(event_list_copy[i0]) == ElementEvent:
+		elif type(events[i0]) == ElementEvent:
 			i0 = i0 + 1
 		else:
 			break
 	line = get_send_keys_strings(keyboard_events)
 	for i_p_e in sorted(i_processed_events, reverse=True):
-		del event_list_copy[i_p_e]
+		del events[i_p_e]
 	if line:
-		event_list_copy[i] = SendKeysEvent(line=line)
+		events[i] = SendKeysEvent(line=line)
 
 
-def process_wheel_events(event_list_copy, i):
-	delta = event_list_copy[i].delta
+def process_wheel_events(events, i):
+	delta = events[i].delta
 	i_processed_events = []
 	i0 = i + 1
-	while i0 < len(event_list_copy):
-		if type(event_list_copy[i0]) == mouse.WheelEvent:
-			delta = delta + event_list_copy[i0].delta
+	while i0 < len(events):
+		if type(events[i0]) == mouse.WheelEvent:
+			delta = delta + events[i0].delta
 			i_processed_events.append(i0)
 			i0 = i0 + 1
-		elif type(event_list_copy[i0]) in [ElementEvent, mouse.MoveEvent]:
+		elif type(events[i0]) in [ElementEvent, mouse.MoveEvent]:
 			i0 = i0 + 1
 		else:
 			break
 	for i_p_e in sorted(i_processed_events, reverse=True):
-		del event_list_copy[i_p_e]
-	event_list_copy[i] = MouseWheelEvent(delta=delta)
+		del events[i_p_e]
+	events[i] = MouseWheelEvent(delta=delta)
 
 
-def process_drag_and_drop_or_click_events(event_list_copy, i):
+def process_drag_and_drop_or_click_events(events, i):
 	i0 = i - 1
 	move_event_end = None
 	drag_and_drop = False
 	click_count = 0
 	while i0 >= 0:
-		if type(event_list_copy[i0]) == mouse.MoveEvent:
+		if type(events[i0]) == mouse.MoveEvent:
 			if move_event_end:
-				if event_list_copy[i0].x != move_event_end.x or event_list_copy[i0].y != move_event_end.y:
+				if events[i0].x != move_event_end.x or events[i0].y != move_event_end.y:
 					drag_and_drop = True
 			else:
-				move_event_end = event_list_copy[i0]
-		elif type(event_list_copy[i0]) == mouse.ButtonEvent and event_list_copy[i0].event_type in ['down', 'double']:
+				move_event_end = events[i0]
+		elif type(events[i0]) == mouse.ButtonEvent and events[i0].event_type in ['down', 'double']:
 			click_count = click_count + 1
-			if event_list_copy[i0].event_type == 'down' or click_count == 3:
+			if events[i0].event_type == 'down' or click_count == 3:
 				i1 = i0
 				break
 		i0 = i0 - 1
 	element_event_before_click = None
 	while i0 >= 0:
-		if type(event_list_copy[i0]) == ElementEvent:
-			element_event_before_click = event_list_copy[i0]
+		if type(events[i0]) == ElementEvent:
+			element_event_before_click = events[i0]
 			break
 		i0 = i0 - 1
 	if drag_and_drop:
 		move_event_start = None
 		while i0 >= 0:
-			if type(event_list_copy[i0]) == mouse.MoveEvent:
-				move_event_start = event_list_copy[i0]
+			if type(events[i0]) == mouse.MoveEvent:
+				move_event_start = events[i0]
 				break
 			i0 = i0 - 1
 		rx, ry = element_event_before_click.rectangle.mid_point()
 		dx1, dy1 = move_event_start.x - rx, move_event_start.y - ry
 		dx2, dy2 = move_event_end.x - rx, move_event_end.y - ry
-		event_list_copy[i] = DragAndDropEvent(path=element_event_before_click.path, dx1=dx1, dy1=dy1, dx2=dx2, dy2=dy2)
+		events[i] = DragAndDropEvent(path=element_event_before_click.path, dx1=dx1, dy1=dy1, dx2=dx2, dy2=dy2)
 	else:
 		while i0 >= 0:
 			if move_event_end:
 				break
-			if type(event_list_copy[i0]) == mouse.MoveEvent:
-				move_event_end = event_list_copy[i0]
+			if type(events[i0]) == mouse.MoveEvent:
+				move_event_end = events[i0]
 				break
 			i0 = i0 - 1
-		up_event = event_list_copy[i]
+		up_event = events[i]
 		rx, ry = element_event_before_click.rectangle.mid_point()
 		dx, dy = move_event_end.x - rx, move_event_end.y - ry
-		event_list_copy[i] = ClickEvent(button=up_event.button, click_count=click_count,
+		events[i] = ClickEvent(button=up_event.button, click_count=click_count,
 										path=element_event_before_click.path, dx=dx, dy=dy, time=up_event.time)
 	i_processed_events = []
 	i0 = i - 1
 	while i0 >= i1:
-		if type(event_list_copy[i0]) in [mouse.ButtonEvent, mouse.MoveEvent, ElementEvent]:
+		if type(events[i0]) in [mouse.ButtonEvent, mouse.MoveEvent, ElementEvent]:
 			i_processed_events.append(i0)
 		i0 = i0 - 1
 	for i_p_e in sorted(i_processed_events, reverse=True):
-		del event_list_copy[i_p_e]
+		del events[i_p_e]
 		i = i - 1
 	return i
 
@@ -240,12 +238,12 @@ def find_common_path(current_path, next_path):
 	return common_path
 
 
-def process_common_path_events(event_list_copy, i, common_path):
-	path_i = event_list_copy[i].path
+def process_common_path_events(events, i, common_path):
+	path_i = events[i].path
 	i0 = i + 1
 	new_common_path = ''
-	while i0 < len(event_list_copy):
-		e = event_list_copy[i0]
+	while i0 < len(events):
+		e = events[i0]
 		if type(e) in [DragAndDropEvent, ClickEvent]:
 			new_common_path = find_common_path(path_i, e.path)
 			break
@@ -256,7 +254,7 @@ def process_common_path_events(event_list_copy, i, common_path):
 	if new_common_path == '':
 		new_common_path = find_common_path(path_i, path_i)
 	if new_common_path != common_path:
-		event_list_copy.insert(i, CommonPathEvent(path=new_common_path))
+		events.insert(i, CommonPathEvent(path=new_common_path))
 		return new_common_path
 	return common_path
 
@@ -322,29 +320,50 @@ def get_send_keys_strings(keyboard_events):
 	return ''.join(format(code) for code in get_type_strings(keyboard_events))
 
 
-def key_on(e):
-	global recorder
-	global event_list
-
-	if e.name == 'r' and e.event_type == 'up' and 56 in keyboard._pressed_events:
-		if not event_list:
-			recorder.start_recording()
-		else:
-			recorder.stop_recording()
-	elif e.name == 'q' and e.event_type == 'up' and 56 in keyboard._pressed_events:
-		recorder.quit()
-	elif event_list:
-		event_list.append(e)
+def overlay_add_record_icon(main_overlay):
+	main_overlay.add(
+		geometry=oaam.Shape.rectangle, x=10, y=10, width=40, height=40,
+		color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 255, 254))
+	main_overlay.add(
+		geometry=oaam.Shape.ellipse, x=15, y=15, width=29, height=29,
+		color=(255, 90, 90), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 0, 0))
 
 
-def mouse_on(mouse_event):
-	global event_list
-	if event_list:
-		if (type(mouse_event) == mouse.MoveEvent) and (len(event_list) > 0):
-			if type(event_list[-1]) == mouse.MoveEvent:
-				event_list = event_list[:-1]
+def overlay_add_pause_icon(main_overlay):
+	main_overlay.add(
+		geometry=oaam.Shape.rectangle, x=10, y=10, width=40, height=40,
+		color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 255, 254))
+	main_overlay.add(
+		geometry=oaam.Shape.rectangle, x=15, y=15, width=12, height=30,
+		color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(0, 0, 0))
+	main_overlay.add(
+		geometry=oaam.Shape.rectangle, x=32, y=15, width=12, height=30,
+		color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(0, 0, 0))
 
-		event_list.append(mouse_event)
+
+def overlay_add_progress_icon(main_overlay, i):
+	main_overlay.add(
+		geometry=oaam.Shape.rectangle, x=60, y=10, width=40, height=40,
+		color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 255, 254))
+	for b in range(i % 5):
+		main_overlay.add(
+			geometry=oaam.Shape.rectangle, x=65, y=15 + b * 8, width=30, height=6,
+			color=(0, 255, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(0, 200, 0))
+
+
+def overlay_add_search_mode_icon(main_overlay):
+	main_overlay.add(
+		geometry=oaam.Shape.rectangle, x=110, y=10, width=40, height=40,
+		color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 255, 254))
+	main_overlay.add(
+		geometry=oaam.Shape.rectangle, x=115, y=15, width=30, height=30,
+		color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(0, 255, 0))
+	main_overlay.add(
+		geometry=oaam.Shape.rectangle, x=120, y=15 + 1 * 8, width=15, height=6,
+		color=(0, 255, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 0, 0))
+	main_overlay.add(
+		geometry=oaam.Shape.rectangle, x=120, y=15 + 2 * 8, width=15, height=6,
+		color=(0, 255, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 0, 0))
 
 
 class Recorder(Thread):
@@ -356,51 +375,10 @@ class Recorder(Thread):
 		self.desktop = pywinauto.Desktop(backend='uia', allow_magic_lookup=False)
 		self._is_running = False
 		self.daemon = True
+		self.event_list = []
 		self.start()
 
-	def main_overlay_add_record_icon(self):
-		self.main_overlay.add(
-			geometry=oaam.Shape.rectangle, x=10, y=10, width=40, height=40,
-			color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 255, 254))
-		self.main_overlay.add(
-			geometry=oaam.Shape.ellipse, x=15, y=15, width=29, height=29,
-			color=(255, 90, 90), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 0, 0))
-
-	def main_overlay_add_pause_icon(self):
-		self.main_overlay.add(
-			geometry=oaam.Shape.rectangle, x=10, y=10, width=40, height=40,
-			color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 255, 254))
-		self.main_overlay.add(
-			geometry=oaam.Shape.rectangle, x=15, y=15, width=12, height=30,
-			color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(0, 0, 0))
-		self.main_overlay.add(
-			geometry=oaam.Shape.rectangle, x=32, y=15, width=12, height=30,
-			color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(0, 0, 0))
-
-	def main_overlay_add_progress_icon(self, i):
-		self.main_overlay.add(
-			geometry=oaam.Shape.rectangle, x=60, y=10, width=40, height=40,
-			color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 255, 254))
-		for b in range(i % 5):
-			self.main_overlay.add(
-				geometry=oaam.Shape.rectangle, x=65, y=15 + b * 8, width=30, height=6,
-				color=(0, 255, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(0, 200, 0))
-
-	def main_overlay_add_search_mode_icon(self):
-		self.main_overlay.add(
-			geometry=oaam.Shape.rectangle, x=110, y=10, width=40, height=40,
-			color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 255, 254))
-		self.main_overlay.add(
-			geometry=oaam.Shape.rectangle, x=115, y=15, width=30, height=30,
-			color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(0, 255, 0))
-		self.main_overlay.add(
-			geometry=oaam.Shape.rectangle, x=120, y=15 + 1 * 8, width=15, height=6,
-			color=(0, 255, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 0, 0))
-		self.main_overlay.add(
-			geometry=oaam.Shape.rectangle, x=120, y=15 + 2 * 8, width=15, height=6,
-			color=(0, 255, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 0, 0))
-
-	def find_unique_element_array_1D(self, element_info, elements):
+	def __find_unique_element_array_1d(self, element_info, elements):
 		nb_y, nb_x, candidates = core.get_sorted_region(elements)
 		for r_y in range(nb_y):
 			for r_x in range(nb_x):
@@ -451,9 +429,9 @@ class Recorder(Thread):
 						return None
 		return None
 
-	def find_unique_element_array_2D(self, element_info, elements):
+	def __find_unique_element_array_2d(self, element_info, elements):
 		nb_y, nb_x, candidates = core.get_sorted_region(elements)
-		unique_array_2D = ''
+		unique_array_2d = ''
 		for r_y in range(nb_y):
 			for r_x in range(nb_x):
 				try:
@@ -462,19 +440,37 @@ class Recorder(Thread):
 					continue
 				if r == element_info.rectangle:
 					color = (255, 200, 0)
-					unique_array_2D = '#[' + str(r_y) + ',' + str(r_x) + ']'
+					unique_array_2d = '#[' + str(r_y) + ',' + str(r_x) + ']'
 				else:
 					color = (255, 0, 0)
 				self.main_overlay.add(
 					geometry=oaam.Shape.rectangle, x=r.left, y=r.top, width=r.width(),
 					height=r.height(),
 					thickness=1, color=(255, 0, 0), brush=oaam.Brush.solid, brush_color=color)
-		return unique_array_2D
+		return unique_array_2d
+
+	def __mouse_on(self, mouse_event):
+		if self.event_list:
+			if (type(mouse_event) == mouse.MoveEvent) and (len(self.event_list) > 0):
+				if type(self.event_list[-1]) == mouse.MoveEvent:
+					self.event_list = self.event_list[:-1]
+
+			self.event_list.append(mouse_event)
+
+	def __key_on(self, e):
+		if e.name == 'r' and e.event_type == 'up' and 56 in keyboard._pressed_events:
+			if not self.event_list:
+				self.start_recording()
+			else:
+				self.stop_recording()
+		elif e.name == 'q' and e.event_type == 'up' and 56 in keyboard._pressed_events:
+			self.quit()
+		elif self.event_list:
+			self.event_list.append(e)
 
 	def run(self):
-		global event_list
-		keyboard.hook(key_on)
-		mouse.hook(mouse_on)
+		keyboard.hook(self.__key_on)
+		mouse.hook(self.__mouse_on)
 		unique_candidate = None
 		elements = []
 		i = 0
@@ -521,23 +517,23 @@ class Recorder(Thread):
 								geometry=oaam.Shape.rectangle, x=r.left, y=r.top, width=r.width(), height=r.height(),
 								thickness=1, color=(0, 128, 0), brush=oaam.Brush.solid, brush_color=(255, 0, 0))
 				if strategy == core.Strategy.array_1D:
-					unique_array_1D = self.find_unique_element_array_1D(element_info, elements)
-					if unique_array_1D is not None:
-						unique_element_path = element_path + unique_array_1D
+					unique_array_1d = self.__find_unique_element_array_1d(element_info, elements)
+					if unique_array_1d is not None:
+						unique_element_path = element_path + unique_array_1d
 					else:
 						strategy = core.Strategy.array_2D
 				if strategy == core.Strategy.array_2D:
-					unique_array_2D = self.find_unique_element_array_2D(element_info, elements)
-					if unique_array_2D is not None:
-						unique_element_path = element_path + unique_array_2D
-				if event_list and unique_element_path is not None:
-					event_list.append(ElementEvent(strategy, element_info.rectangle, unique_element_path))
-				if event_list:
-					self.main_overlay_add_record_icon()
+					unique_array_2d = self.__find_unique_element_array_2d(element_info, elements)
+					if unique_array_2d is not None:
+						unique_element_path = element_path + unique_array_2d
+				if self.event_list and unique_element_path is not None:
+					self.event_list.append(ElementEvent(strategy, element_info.rectangle, unique_element_path))
+				if self.event_list:
+					overlay_add_record_icon(self.main_overlay)
 				else:
-					self.main_overlay_add_pause_icon()
-				self.main_overlay_add_progress_icon(i)
-				self.main_overlay_add_search_mode_icon()
+					overlay_add_pause_icon(self.main_overlay)
+				overlay_add_progress_icon(self.main_overlay, i)
+				overlay_add_search_mode_icon(self.main_overlay)
 				i = i + 1
 				self.main_overlay.refresh()
 				time.sleep(0.005)  # main_overlay.clear_all() doit attendre la fin de main_overlay.refresh()
@@ -546,29 +542,27 @@ class Recorder(Thread):
 				print(repr(traceback.format_exception(exc_type, exc_value, exc_traceback)))
 		self.main_overlay.clear_all()
 		self.main_overlay.refresh()
-		if event_list:
-			recorder.stop_recording()
+		if self.event_list:
+			self.stop_recording()
 		mouse.unhook_all()
 		keyboard.unhook_all()
 		print("Run end")
 
 	def start_recording(self):
-		global event_list
 		x, y = win32api.GetCursorPos()
-		event_list.append(mouse.MoveEvent(x, y, time.time()))
-		self.main_overlay_add_record_icon()
+		self.event_list.append(mouse.MoveEvent(x, y, time.time()))
+		overlay_add_record_icon(self.main_overlay)
 		self.main_overlay.refresh()
 
 	def stop_recording(self):
-		global event_list
-		if event_list:
-			event_list_copy = list(event_list[0:-4])
-			event_list = []
-			clean_events(event_list_copy)
-			process_events(event_list_copy)
-			return write_in_file(event_list_copy)
+		if self.event_list:
+			events = list(self.event_list[0:-4])
+			self.event_list = []
+			clean_events(events)
+			process_events(events)
+			return write_in_file(events)
 		self.main_overlay.clear_all()
-		self.main_overlay_add_pause_icon()
+		overlay_add_pause_icon(self.main_overlay)
 		self.main_overlay.refresh()
 		return None
 
