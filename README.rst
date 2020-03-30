@@ -21,10 +21,10 @@ functions.
 
 Pywinauto_recorder.exe for Windows
 ##################################
-"Pywinauto_recorder.exe" is a standalone application, it's the compiled version for Windows.
+"pywinauto_recorder.exe" is a standalone application, it's the compiled version for Windows.
 You can download it here: Download_zip_archive_.
 You just have to unzip the zip archive and then you can directly launch Pywinauto_recorder.exe.
-If you drag and drop the file in the folder "Record files", it will play back the user actions previously recorded.
+If you drag and drop a file from the "Record files" folder to "pywinauto_recorder.exe", it will play back previously recorded user actions.
 
 .. _Download_zip_archive: https://raw.githubusercontent.com/beuaaa/pywinauto_recorder/master/pywinauto_recorder.dist.zip
 
