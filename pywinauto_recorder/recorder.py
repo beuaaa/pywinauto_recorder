@@ -320,49 +320,59 @@ def get_send_keys_strings(keyboard_events):
 	return ''.join(format(code) for code in get_type_strings(keyboard_events))
 
 
-def overlay_add_record_icon(main_overlay):
+def overlay_add_play_icon(main_overlay, x, y):
 	main_overlay.add(
-		geometry=oaam.Shape.rectangle, x=10, y=10, width=40, height=40,
+		geometry=oaam.Shape.rectangle, x=x, y=y, width=40, height=40,
 		color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 255, 254))
 	main_overlay.add(
-		geometry=oaam.Shape.ellipse, x=15, y=15, width=29, height=29,
-		color=(255, 90, 90), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 0, 0))
+		geometry=oaam.Shape.polyline, xy_array=((x+5, y+5), (x+5, y+35), (x+35, y+20)),
+		color=(99, 255, 99), thickness=1, brush=oaam.Brush.solid, brush_color=(0, 255, 0))
+	main_overlay.refresh()
 
 
-def overlay_add_pause_icon(main_overlay):
+def overlay_add_record_icon(main_overlay, x, y):
 	main_overlay.add(
-		geometry=oaam.Shape.rectangle, x=10, y=10, width=40, height=40,
+		geometry=oaam.Shape.rectangle, x=x, y=y, width=40, height=40,
 		color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 255, 254))
 	main_overlay.add(
-		geometry=oaam.Shape.rectangle, x=15, y=15, width=12, height=30,
+		geometry=oaam.Shape.ellipse, x=x+5, y=y+5, width=29, height=29,
+		color=(255, 99, 99), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 0, 0))
+
+
+def overlay_add_pause_icon(main_overlay, x, y):
+	main_overlay.add(
+		geometry=oaam.Shape.rectangle, x=x, y=y, width=40, height=40,
+		color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 255, 254))
+	main_overlay.add(
+		geometry=oaam.Shape.rectangle, x=x+5, y=y+5, width=12, height=30,
 		color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(0, 0, 0))
 	main_overlay.add(
-		geometry=oaam.Shape.rectangle, x=32, y=15, width=12, height=30,
+		geometry=oaam.Shape.rectangle, x=x+22, y=y+5, width=12, height=30,
 		color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(0, 0, 0))
 
 
-def overlay_add_progress_icon(main_overlay, i):
+def overlay_add_progress_icon(main_overlay, i, x, y):
 	main_overlay.add(
-		geometry=oaam.Shape.rectangle, x=60, y=10, width=40, height=40,
+		geometry=oaam.Shape.rectangle, x=x, y=y, width=40, height=40,
 		color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 255, 254))
 	for b in range(i % 5):
 		main_overlay.add(
-			geometry=oaam.Shape.rectangle, x=65, y=15 + b * 8, width=30, height=6,
+			geometry=oaam.Shape.rectangle, x=x+5, y=y+5 + b * 8, width=30, height=6,
 			color=(0, 255, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(0, 200, 0))
 
 
-def overlay_add_search_mode_icon(main_overlay):
+def overlay_add_search_mode_icon(main_overlay, x, y):
 	main_overlay.add(
-		geometry=oaam.Shape.rectangle, x=110, y=10, width=40, height=40,
+		geometry=oaam.Shape.rectangle, x=x, y=y, width=40, height=40,
 		color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 255, 254))
 	main_overlay.add(
-		geometry=oaam.Shape.rectangle, x=115, y=15, width=30, height=30,
+		geometry=oaam.Shape.rectangle, x=x+5, y=y+5, width=30, height=30,
 		color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(0, 255, 0))
 	main_overlay.add(
-		geometry=oaam.Shape.rectangle, x=120, y=15 + 1 * 8, width=15, height=6,
+		geometry=oaam.Shape.rectangle, x=x+10, y=y+5 + 1 * 8, width=15, height=6,
 		color=(0, 255, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 0, 0))
 	main_overlay.add(
-		geometry=oaam.Shape.rectangle, x=120, y=15 + 2 * 8, width=15, height=6,
+		geometry=oaam.Shape.rectangle, x=x+10, y=y+5 + 2 * 8, width=15, height=6,
 		color=(0, 255, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 0, 0))
 
 
@@ -529,11 +539,11 @@ class Recorder(Thread):
 				if self.event_list and unique_element_path is not None:
 					self.event_list.append(ElementEvent(strategy, element_info.rectangle, unique_element_path))
 				if self.event_list:
-					overlay_add_record_icon(self.main_overlay)
+					overlay_add_record_icon(self.main_overlay, 10, 10)
 				else:
-					overlay_add_pause_icon(self.main_overlay)
-				overlay_add_progress_icon(self.main_overlay, i)
-				overlay_add_search_mode_icon(self.main_overlay)
+					overlay_add_pause_icon(self.main_overlay, 10, 10)
+				overlay_add_progress_icon(self.main_overlay, i, 60, 10)
+				overlay_add_search_mode_icon(self.main_overlay, 110, 10)
 				i = i + 1
 				self.main_overlay.refresh()
 				time.sleep(0.005)  # main_overlay.clear_all() doit attendre la fin de main_overlay.refresh()
