@@ -130,3 +130,4 @@ dmypy.json
 .pyre/
 /pywinauto_recorder/pywinauto_recorder.dist/
 /pywinauto_recorder/pywinauto_recorder.build/
+/pywinauto_recorder/pywinauto_recorder.optim/
