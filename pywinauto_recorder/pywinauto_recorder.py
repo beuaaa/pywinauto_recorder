@@ -53,8 +53,8 @@ def display_splash_screen():
 	splash_screen.clear_all()
 	splash_screen.refresh()
 
+
 if __name__ == '__main__':
-	display_splash_screen()
 	parser = argparse.ArgumentParser()
 	parser.add_argument(
 		"filename", metavar='path', help="replay a python script", type=str, action='store', nargs='?', default='')
@@ -63,22 +63,19 @@ if __name__ == '__main__':
 		main_overlay = oaam.Overlay(transparency=0.5)
 		overlay_add_play_icon(main_overlay, 10, 10)
 		if os.path.isfile(args.filename):
-			"""
 			with codecs.open(args.filename, "r", encoding='utf-8') as python_file:
 				data = python_file.read()
 			strCode = data.encode('utf-8')
 			print("Replaying: " + args.filename)
 			code = compile(strCode, '<string>', 'exec')
 			exec code
-			"""
-			print("Replaying: " + args.filename)
-			execfile(args.filename)
 		else:
 			print("Error: file '" + args.filename + "' not found.")
 		main_overlay.clear_all()
 		main_overlay.refresh()
 		print("Exit")
 	else:
+		display_splash_screen()
 		recorder = Recorder()
 		while recorder.is_alive():
 			time.sleep(1.0)
