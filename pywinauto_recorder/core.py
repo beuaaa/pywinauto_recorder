@@ -156,7 +156,7 @@ def find_element(desktop, entry_list, window_candidates=[], visible_only=True, e
                     desktop, entry_list, window_candidates=[], visible_only=True,
                     enabled_only=False, active_only=False)
             else:
-                print ("Warning: No window found!")
+                print ("Warning: No window '" + title + "' with control type '" + control_type + "' found! ")
                 return None, []
 
     if len(entry_list) == 1 and len(window_candidates) == 1:

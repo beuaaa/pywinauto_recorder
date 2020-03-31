@@ -561,7 +561,7 @@ class Recorder(Thread):
 	def start_recording(self):
 		x, y = win32api.GetCursorPos()
 		self.event_list.append(mouse.MoveEvent(x, y, time.time()))
-		overlay_add_record_icon(self.main_overlay)
+		overlay_add_record_icon(self.main_overlay, 10, 10)
 		self.main_overlay.refresh()
 
 	def stop_recording(self):
@@ -572,7 +572,7 @@ class Recorder(Thread):
 			process_events(events)
 			return write_in_file(events)
 		self.main_overlay.clear_all()
-		overlay_add_pause_icon(self.main_overlay)
+		overlay_add_pause_icon(self.main_overlay, 10, 10)
 		self.main_overlay.refresh()
 		return None
 
