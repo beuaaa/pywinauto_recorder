@@ -325,8 +325,8 @@ def overlay_add_play_icon(main_overlay, x, y):
 		geometry=oaam.Shape.rectangle, x=x, y=y, width=40, height=40,
 		color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 255, 254))
 	main_overlay.add(
-		geometry=oaam.Shape.polyline, xy_array=((x+5, y+5), (x+5, y+35), (x+35, y+20)),
-		color=(99, 255, 99), thickness=1, brush=oaam.Brush.solid, brush_color=(0, 255, 0))
+		geometry=oaam.Shape.triangle,
+		xyrgb_array=((x+5, y+5, 0, 255, 0), (x+5, y+35, 0, 255, 0), (x+35, y+20, 0, 255, 0)))
 	main_overlay.refresh()
 
 

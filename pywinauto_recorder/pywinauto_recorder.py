@@ -13,7 +13,7 @@ from win32api import GetSystemMetrics
 from player import *
 
 if __name__ == '__main__':
-	splash_screen = oaam.Overlay(transparency=1.0)
+	splash_screen = oaam.Overlay(transparency=0.0)
 	screen_width = GetSystemMetrics(0)
 	screen_height = GetSystemMetrics(1)
 	i = 0
