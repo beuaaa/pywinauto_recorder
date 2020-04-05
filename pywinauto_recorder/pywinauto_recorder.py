@@ -22,9 +22,9 @@ def display_splash_screen():
 	text_lines = [''] * nb_band
 	text_lines[1] = 'Pywinauto recorder'
 	text_lines[2] = 'version ' + __version__
-	text_lines[4] = 'ALT+R : Recording/Pause'
+	text_lines[4] = 'CTRL+ALT+R : Recording/Pause'
 	text_lines[6] = 'Search algorithm speed'
-	text_lines[8] = 'ALT+Q : Quit'
+	text_lines[8] = 'CTRL+ALT+Q : Quit'
 	text_lines[12] = 'Drag & drop a recorded file on pywinauto_recorder.exe'
 	text_lines[13] = ' to play it back'
 	for n in xrange(5):
@@ -58,6 +58,8 @@ if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
 	parser.add_argument(
 		"filename", metavar='path', help="replay a python script", type=str, action='store', nargs='?', default='')
+	parser.add_argument(
+		"--no_splash_screen", help="Does not display the splashs creen", action='store_true')
 	args = parser.parse_args()
 	if args.filename:
 		main_overlay = oaam.Overlay(transparency=0.5)
@@ -65,7 +67,7 @@ if __name__ == '__main__':
 		if os.path.isfile(args.filename):
 			with codecs.open(args.filename, "r", encoding='utf-8') as python_file:
 				data = python_file.read()
-			strCode = data.encode('utf-8')
+			strCode = data.encode('utf-8').replace("from pywinauto_recorder import *", "")
 			print("Replaying: " + args.filename)
 			code = compile(strCode, '<string>', 'exec')
 			exec code
@@ -75,7 +77,8 @@ if __name__ == '__main__':
 		main_overlay.refresh()
 		print("Exit")
 	else:
-		display_splash_screen()
+		if not args.no_splash_screen:
+			display_splash_screen()
 		recorder = Recorder()
 		while recorder.is_alive():
 			time.sleep(1.0)
