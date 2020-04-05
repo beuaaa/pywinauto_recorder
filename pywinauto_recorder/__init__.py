@@ -8,7 +8,7 @@
     Pywinauto recorder uses accessibility technologies via the Pywinauto_ library.
 """
 
-__version__ = "0.0.3"
+__version__ = "0.0.4"
 
 from recorder import Recorder
 from player import *
