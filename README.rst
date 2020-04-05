@@ -47,11 +47,11 @@ Recorder.bat:
 
 - Double click on Recorder.bat to start the recorder.
 - When the recorder is started, it is in "Pause" mode.
-- Press ALT+r to switch to "Record" mode.
+- Press CTRL+ALT+r to switch to "Record" mode.
 - If the item below the mouse cursor can be uniquely identified, it will turn green, red or blue.
 - You can then click or perform another action on the user interface and the action is recorded in the generated Python script.
-- Repeat this process performing a few actions on the user interface and when you're done press ALT+r to return to "Pause" mode.
-- Eventually, press ALT+q to exit the recorder.
+- Repeat this process performing a few actions on the user interface and when you're done press CTRL+ALT+r to return to "Pause" mode.
+- Eventually, press CTRL+ALT+q to exit the recorder.
 - The generated Python script is saved in the "Record files" folder.
 - To replay a Python script, you can drag and drop it to Drag_n_drop_to_replay.bat. Modify the path of the Python interpreter if necessary.
 
@@ -59,7 +59,7 @@ Icons
 #####
 
 Two transparent icons are displayed at the top left of the screen:
- - the first icon corresponds to Record/Pause mode. Press ALT+r to switch.
+ - the first icon corresponds to Record/Pause mode. Press CTRL+ALT+r to switch.
  - the second icon displays a green bar at each iteration of the loop. It allows you to see how fast the loop is running.
 
 More explanations

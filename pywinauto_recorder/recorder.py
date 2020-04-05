@@ -13,6 +13,8 @@ import keyboard
 import mouse
 import core
 from collections import namedtuple
+import pyperclip
+
 
 ElementEvent = namedtuple('ElementEvent', ['strategy', 'rectangle', 'path'])
 SendKeysEvent = namedtuple('SendKeysEvent', ['line'])
@@ -20,6 +22,7 @@ MouseWheelEvent = namedtuple('MouseWheelEvent', ['delta'])
 DragAndDropEvent = namedtuple('DragAndDropEvent', ['path', 'dx1', 'dy1', 'dx2', 'dy2'])
 ClickEvent = namedtuple('ClickEvent', ['button', 'click_count', 'path', 'dx', 'dy', 'time'])
 CommonPathEvent = namedtuple('CommonPathEvent', ['path'])
+FindEvent = namedtuple('FindEvent', ['path', 'dx', 'dy', 'time'])
 
 reload(sys)
 sys.setdefaultencoding('utf-8')
@@ -48,23 +51,28 @@ def write_in_file(events):
 				record_file.write("\t")
 			record_file.write("mouse_wheel(" + str(e_i.delta) + ")\n")
 		elif type(e_i) is CommonPathEvent:
-			record_file.write('\nwith Region("""' + e_i.path + '""") as r:\n')
+			record_file.write('\nwith Region(r"' + e_i.path + '") as r:\n')
 			common_path = e_i.path
 		elif type(e_i) is DragAndDropEvent:
 			p, dx1, dy1, dx2, dy2 = e_i.path, str(e_i.dx1), str(e_i.dy1), str(e_i.dx2), str(e_i.dy2)
 			if common_path:
 				p = get_relative_path(common_path, p)
-			record_file.write('\tr.drag_and_drop("""' + p + '%(' + dx1 + ',' + dy1 + ')%(' + dx2 + ',' + dy2 + ')""")\n')
+			record_file.write('\tr.drag_and_drop(r"' + p + '%(' + dx1 + ',' + dy1 + ')%(' + dx2 + ',' + dy2 + ')")\n')
 		elif type(e_i) is ClickEvent:
 			p, dx, dy = e_i.path, str(e_i.dx), str(e_i.dy)
 			if common_path:
 				p = get_relative_path(common_path, p)
 			str_c = ['', '\tr.', '\tr.double_', '\tr.triple_']
-			record_file.write(str_c[e_i.click_count] + e_i.button + '_click("""' + p + '%(' + dx + ',' + dy + ')""")\n')
+			record_file.write(str_c[e_i.click_count] + e_i.button + '_click(r"' + p + '%(' + dx + ',' + dy + ')")\n')
+		elif type(e_i) is FindEvent:
+			p, dx, dy = e_i.path, str(e_i.dx), str(e_i.dy)
+			record_file.write('\twrapper = r.find(r"' + p + '%(' + dx + ',' + dy + ')")\n')
 		i = i + 1
 	record_file.close()
+	with open(record_file_name, 'r') as my_file:
+		data = my_file.read()
+		pyperclip.copy(data)
 	return record_file_name
-
 
 def clean_events(events):
 	"""
@@ -270,7 +278,9 @@ def get_wrapper_path(wrapper):
 			wrapper = wrapper.parent()
 
 		return wrapper.window_text() + core.type_separator + wrapper.element_info.control_type + path
-	except Exception:
+	except Exception as e:
+		traceback.print_exc()
+		print(e.message)
 		return ''
 
 
@@ -386,6 +396,7 @@ class Recorder(Thread):
 		self._is_running = False
 		self.daemon = True
 		self.event_list = []
+		self.last_element_event = None
 		self.start()
 
 	def __find_unique_element_array_1d(self, element_info, elements):
@@ -468,13 +479,33 @@ class Recorder(Thread):
 			self.event_list.append(mouse_event)
 
 	def __key_on(self, e):
-		if e.name == 'r' and e.event_type == 'up' and 56 in keyboard._pressed_events:
+		if (
+				e.name == 'r' and e.event_type == 'up'
+				and keyboard.key_to_scan_codes("alt")[0] in keyboard._pressed_events
+				and keyboard.key_to_scan_codes("ctrl")[0] in keyboard._pressed_events):
 			if not self.event_list:
 				self.start_recording()
 			else:
 				self.stop_recording()
-		elif e.name == 'q' and e.event_type == 'up' and 56 in keyboard._pressed_events:
+		elif (
+				(e.name == 'q') and (e.event_type == 'up')
+				and keyboard.key_to_scan_codes("alt")[0] in keyboard._pressed_events
+				and keyboard.key_to_scan_codes("ctrl")[0] in keyboard._pressed_events):
 			self.quit()
+		elif (
+				(e.name == 'F') and (e.event_type == 'up')
+				and keyboard.key_to_scan_codes("shift")[0] in keyboard._pressed_events
+				and keyboard.key_to_scan_codes("ctrl")[0] in keyboard._pressed_events):
+			# remplacer l'icone play_icon par une icone Clipboard animée
+			if self.last_element_event:
+				x, y = win32api.GetCursorPos()
+				l_e_e = self.last_element_event
+				rx, ry = l_e_e.rectangle.mid_point()
+				dx, dy = x - rx, y - ry
+				overlay_add_play_icon(self.main_overlay, x, y)
+				pyperclip.copy('wrapper = r.find(r"' + l_e_e.path + '%(' + str(dx) + ',' + str(dy) + ')")\n')
+				if self.event_list:
+					self.event_list.append(FindEvent(path=l_e_e.path, dx=dx, dy=dy, time=time.time()))
 		elif self.event_list:
 			self.event_list.append(e)
 
@@ -536,8 +567,10 @@ class Recorder(Thread):
 					unique_array_2d = self.__find_unique_element_array_2d(element_info, elements)
 					if unique_array_2d is not None:
 						unique_element_path = element_path + unique_array_2d
-				if self.event_list and unique_element_path is not None:
-					self.event_list.append(ElementEvent(strategy, element_info.rectangle, unique_element_path))
+				if unique_element_path is not None:
+					self.last_element_event = ElementEvent(strategy, element_info.rectangle, unique_element_path)
+					if self.event_list and unique_element_path is not None:
+						self.event_list.append(self.last_element_event)
 				if self.event_list:
 					overlay_add_record_icon(self.main_overlay, 10, 10)
 				else:
@@ -560,7 +593,7 @@ class Recorder(Thread):
 
 	def start_recording(self):
 		x, y = win32api.GetCursorPos()
-		self.event_list.append(mouse.MoveEvent(x, y, time.time()))
+		self.event_list = [mouse.MoveEvent(x, y, time.time())]
 		overlay_add_record_icon(self.main_overlay, 10, 10)
 		self.main_overlay.refresh()
 

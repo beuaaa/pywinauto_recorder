@@ -78,11 +78,17 @@ class Region(object):
                     else:
                         unique_element = None
             if unique_element is not None:
-                _, control_type0, _, _ = core.get_entry(entry_list[0])
-                _, control_type1, _, _ = core.get_entry(entry_list[-1])
+                # Wait if element is not clickable (greyed, not still visible) :
+                # So far, I didn't find better than wait_cpu_usage_lower but must be enhanced
+                for entry in entry_list:
+                    _, control_type0, _, _ = core.get_entry(entry)
+                    if control_type0 == 'Menu':
+                        break
+                for entry in entry_list:
+                    _, control_type1, _, _ = core.get_entry(entry)
+                    if control_type1 == 'TreeItem':
+                        break
                 if control_type0 == 'Menu' or control_type1 == 'TreeItem':
-                    # Wait if element is not clickable (greyed, not still visible) :
-                    # So far, I didn't find better than wait_cpu_usage_lower but must be enhanced
                     app = pywinauto.Application(backend='uia', allow_magic_lookup=False)
                     app.connect(process=unique_element.element_info.element.CurrentProcessId)
                     app.wait_cpu_usage_lower()
@@ -96,31 +102,47 @@ class Region(object):
         global unique_element_old
         global element_path_old
         global w_rOLD
-        entry_list = core.get_entry_list(element_path)
-        if element_path == element_path_old:
-            w_r = w_rOLD
-            unique_element = unique_element_old
-        else:
-            unique_element = self.find(element_path)
-            w_r = unique_element.rectangle()
+
         x, y = win32api.GetCursorPos()
-        _, control_type, _, _ = core.get_entry(entry_list[0])
-        if control_type == 'Menu':
-            entry_list_old = core.get_entry_list(element_path_old)
-            _, control_type_old, _, _ = core.get_entry(entry_list_old[0])
-            if control_type_old == 'Menu':
-                mode = MoveMode.x_first
+        if isinstance(element_path, basestring):
+            if common_path:
+                if common_path != element_path[0:len(common_path)]:
+                    element_path = common_path + core.path_separator + element_path
+            entry_list = core.get_entry_list(element_path)
+            if element_path == element_path_old:
+                w_r = w_rOLD
+                unique_element = unique_element_old
             else:
-                mode = MoveMode.y_first
-            xd, yd = w_r.mid_point()
+                unique_element = self.find(element_path)
+                w_r = unique_element.rectangle()
+            control_type = None
+            for entry in entry_list:
+                _, control_type, _, _ = core.get_entry(entry)
+                if control_type == 'Menu':
+                    break
+            if control_type == 'Menu':
+                entry_list_old = core.get_entry_list(element_path_old)
+                control_type_old = None
+                for entry in entry_list_old:
+                    _, control_type_old, _, _ = core.get_entry(entry)
+                    if control_type_old == 'Menu':
+                        break
+                if control_type_old == 'Menu':
+                    mode = MoveMode.x_first
+                else:
+                    mode = MoveMode.y_first
+                xd, yd = w_r.mid_point()
+            else:
+                _, _, _, dx_dy = core.get_entry(entry_list[-1])
+                if dx_dy:
+                    dx, dy = dx_dy[0], dx_dy[1]
+                else:
+                    dx, dy = 0, 0
+                xd, yd = w_r.mid_point()
+                xd, yd = xd + dx, yd + dy
         else:
-            _, _, _, dx_dy = core.get_entry(entry_list[-1])
-            if dx_dy:
-                dx, dy = dx_dy[0], dx_dy[1]
-            else:
-                dx, dy = 0, 0
-            xd, yd = w_r.mid_point()
-            xd, yd = xd + dx, yd + dy
+            (xd, yd) = element_path
+            unique_element = None
         if (x, y) != (xd, yd):
             dt = 0.01
             samples = duration/dt
@@ -151,6 +173,8 @@ class Region(object):
         nx = int(xd) * 65535 / win32api.GetSystemMetrics(0)
         ny = int(yd) * 65535 / win32api.GetSystemMetrics(1)
         win32api.mouse_event(win32con.MOUSEEVENTF_MOVE | win32con.MOUSEEVENTF_ABSOLUTE, nx, ny)
+        if unique_element is None:
+            return None
         unique_element_old = unique_element
         element_path_old = element_path
         w_rOLD = w_r
