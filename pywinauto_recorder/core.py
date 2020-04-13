@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import re
 from enum import Enum
 
 path_separator = "->"
@@ -36,6 +37,8 @@ def get_entry_list(path):
 
 def get_entry(entry):
     i = entry.find(type_separator)
+    if i == -1:
+        return '', None, None, None
     while i < len(entry) and entry[i] == type_separator[0]:
         i = i + 1
     i = i - len(type_separator)
@@ -89,6 +92,9 @@ def same_entry_list(element, entry_list):
             current_element_text = current_element.window_text()
             current_element_type = current_element.element_info.control_type
             entry_text, entry_type, _, _ = get_entry(entry_list[i])
+            if current_element == top_level_parent:
+                if re.match(entry_list[0], entry_text) and current_element_type == entry_type:
+                    return True
             if current_element_text == entry_text and current_element_type == entry_type:
                 if current_element == top_level_parent:
                     return True
@@ -148,7 +154,7 @@ def find_element(desktop, entry_list, window_candidates=[], visible_only=True, e
     if not window_candidates:
         title, control_type, _, _ = get_entry(entry_list[0])
         window_candidates = desktop.windows(
-            title=title, control_type=control_type, visible_only=visible_only,
+            title_re=title, control_type=control_type, visible_only=visible_only,
             enabled_only=enabled_only, active_only=active_only)
         if not window_candidates:
             if active_only:

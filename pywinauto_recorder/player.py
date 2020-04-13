@@ -14,38 +14,38 @@ class MoveMode(Enum):
     x_first = 2
 
 
-common_path = ''
 unique_element_old = None
 element_path_old = ''
 w_rOLD = None
-click_desktop = None
 
 
 class Region(object):
+    common_path = ''
+
     def __init__(self, relative_path):
+        self.click_desktop = None
         self.relative_path = relative_path
 
     def __enter__(self):
-        global common_path
-        if common_path:
-            common_path = common_path + core.path_separator + self.relative_path
+        if Region.common_path:
+            Region.common_path = Region.common_path + core.path_separator + self.relative_path
         else:
-            common_path = self.relative_path
+            Region.common_path = self.relative_path
         return self
 
     def __exit__(self, type, value, traceback):
-        global common_path
-        i = common_path.rfind(self.relative_path)
+        i = Region.common_path.find(self.relative_path)
         if i != -1:
-            common_path = common_path[0:i]
+            if i == 0:
+                Region.common_path = ''
+            else:
+                Region.common_path = Region.common_path[0:i-len(core.path_separator)]
 
     def find(self, element_path):
-        global common_path
-        global click_desktop
-        if not click_desktop:
-            click_desktop = pywinauto.Desktop(backend='uia', allow_magic_lookup=False)
-        if common_path:
-            element_path2 = common_path + core.path_separator + element_path
+        if not self.click_desktop:
+            self.click_desktop = pywinauto.Desktop(backend='uia', allow_magic_lookup=False)
+        if Region.common_path:
+            element_path2 = Region.common_path + core.path_separator + element_path
         else:
             element_path2 = element_path
         entry_list = core.get_entry_list(element_path2)
@@ -55,9 +55,9 @@ class Region(object):
         strategy = None
         while i < 99:
             try:
-                unique_element, elements = core.find_element(click_desktop, entry_list, window_candidates=[])
+                unique_element, elements = core.find_element(self.click_desktop, entry_list, window_candidates=[])
             except Exception:
-                time.sleep(0.1)
+                pass
             i += 1
             _, _, y_x, _ = core.get_entry(entry_list[-1])
             if y_x is not None:
@@ -65,8 +65,8 @@ class Region(object):
                 if core.is_int(y_x[0]):
                     unique_element = candidates[int(y_x[0])][int(y_x[1])]
                 else:
-                    ref_entry_list = core.get_entry_list(common_path) + [y_x[0]]
-                    ref_unique_element, _ = core.find_element(click_desktop, ref_entry_list, window_candidates=[])
+                    ref_entry_list = core.get_entry_list(Region.common_path) + [y_x[0]]
+                    ref_unique_element, _ = core.find_element(self.click_desktop, ref_entry_list, window_candidates=[])
                     ref_r = ref_unique_element.rectangle()
                     r_y = 0
                     while r_y < nb_y:
@@ -80,20 +80,14 @@ class Region(object):
             if unique_element is not None:
                 # Wait if element is not clickable (greyed, not still visible) :
                 # So far, I didn't find better than wait_cpu_usage_lower but must be enhanced
-                for entry in entry_list:
-                    _, control_type0, _, _ = core.get_entry(entry)
-                    if control_type0 == 'Menu':
-                        break
-                for entry in entry_list:
-                    _, control_type1, _, _ = core.get_entry(entry)
-                    if control_type1 == 'TreeItem':
-                        break
-                if control_type0 == 'Menu' or control_type1 == 'TreeItem':
+                _, control_type0, _, _ = core.get_entry(entry_list[-1])
+                if control_type0 in ('Menu', 'MenuItem', 'TreeItem'):
                     app = pywinauto.Application(backend='uia', allow_magic_lookup=False)
                     app.connect(process=unique_element.element_info.element.CurrentProcessId)
                     app.wait_cpu_usage_lower()
                 if unique_element.is_enabled():
                     break
+            time.sleep(0.1)
         if not unique_element:
             raise Exception("Unique element not found! ", element_path)
         return unique_element
@@ -105,11 +99,12 @@ class Region(object):
 
         x, y = win32api.GetCursorPos()
         if isinstance(element_path, basestring):
-            if common_path:
-                if common_path != element_path[0:len(common_path)]:
-                    element_path = common_path + core.path_separator + element_path
-            entry_list = core.get_entry_list(element_path)
-            if element_path == element_path_old:
+            element_path2 = element_path
+            if Region.common_path:
+                if Region.common_path != element_path[0:len(Region.common_path)]:
+                    element_path2 = Region.common_path + core.path_separator + element_path
+            entry_list = core.get_entry_list(element_path2)
+            if element_path2 == element_path_old:
                 w_r = w_rOLD
                 unique_element = unique_element_old
             else:
@@ -176,7 +171,7 @@ class Region(object):
         if unique_element is None:
             return None
         unique_element_old = unique_element
-        element_path_old = element_path
+        element_path_old = element_path2
         w_rOLD = w_r
         return unique_element
 
@@ -231,6 +226,29 @@ class Region(object):
         self.move(element_path2, duration=duration, mode=mode)
         win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0)
         return unique_element
+
+    def menu_click(self, element_path, menu_path, duration=0.5, mode=MoveMode.linear, menu_type='QT'):
+        menu_entry_list = menu_path.split(core.path_separator)
+        self.left_click(
+            element_path +
+            menu_entry_list[0] + core.type_separator + 'MenuBar' + core.path_separator +
+            menu_entry_list[1] + core.type_separator + 'MenuItem', duration=duration, mode=mode)
+
+        if menu_type is 'QT':
+            common_path_old = Region.common_path
+            Region.common_path = ''
+            for entry in menu_entry_list[2:]:
+                w = self.left_click(
+                    core.type_separator + 'Menu' + core.path_separator +
+                    entry + core.type_separator + 'MenuItem', duration=duration, mode=mode)
+            Region.common_path = common_path_old
+        else:
+            for i, entry in enumerate(menu_entry_list[2:]):
+                w = self.left_click(
+                    element_path +
+                    menu_entry_list[i - 3] + core.type_separator + 'Menu' + core.path_separator +
+                    entry + core.type_separator + 'MenuItem', duration=duration, mode=mode)
+        return w
 
 
 def mouse_wheel(steps):
