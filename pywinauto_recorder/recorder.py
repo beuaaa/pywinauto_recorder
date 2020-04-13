@@ -23,6 +23,7 @@ DragAndDropEvent = namedtuple('DragAndDropEvent', ['path', 'dx1', 'dy1', 'dx2', 
 ClickEvent = namedtuple('ClickEvent', ['button', 'click_count', 'path', 'dx', 'dy', 'time'])
 CommonPathEvent = namedtuple('CommonPathEvent', ['path'])
 FindEvent = namedtuple('FindEvent', ['path', 'dx', 'dy', 'time'])
+MenuEvent = namedtuple('MenuEvent', ['path', 'menu_path', 'menu_type'])
 
 reload(sys)
 sys.setdefaultencoding('utf-8')
@@ -44,29 +45,39 @@ def write_in_file(events):
 		e_i = events[i]
 		if type(e_i) is SendKeysEvent:
 			if common_path:
-				record_file.write("\t")
-			record_file.write("send_keys(" + e_i.line + ")\n")
+				record_file.write('\t')
+			record_file.write('send_keys(' + e_i.line + ')\n')
 		elif type(e_i) is MouseWheelEvent:
 			if common_path:
 				record_file.write("\t")
-			record_file.write("mouse_wheel(" + str(e_i.delta) + ")\n")
+			record_file.write('mouse_wheel(' + str(e_i.delta) + ')\n')
 		elif type(e_i) is CommonPathEvent:
-			record_file.write('\nwith Region(r"' + e_i.path + '") as r:\n')
+			if e_i.path != common_path:
+				record_file.write('\nwith Region(r"""' + e_i.path + '""") as r:\n')
 			common_path = e_i.path
 		elif type(e_i) is DragAndDropEvent:
 			p, dx1, dy1, dx2, dy2 = e_i.path, str(e_i.dx1), str(e_i.dy1), str(e_i.dx2), str(e_i.dy2)
 			if common_path:
 				p = get_relative_path(common_path, p)
-			record_file.write('\tr.drag_and_drop(r"' + p + '%(' + dx1 + ',' + dy1 + ')%(' + dx2 + ',' + dy2 + ')")\n')
+			record_file.write('\tr.drag_and_drop(r"""' + p + '%(' + dx1 + ',' + dy1 + ')%(' + dx2 + ',' + dy2 + ')""")\n')
 		elif type(e_i) is ClickEvent:
 			p, dx, dy = e_i.path, str(e_i.dx), str(e_i.dy)
 			if common_path:
 				p = get_relative_path(common_path, p)
 			str_c = ['', '\tr.', '\tr.double_', '\tr.triple_']
-			record_file.write(str_c[e_i.click_count] + e_i.button + '_click(r"' + p + '%(' + dx + ',' + dy + ')")\n')
+			record_file.write(str_c[e_i.click_count] + e_i.button + '_click(r"""' + p + '%(' + dx + ',' + dy + ')""")\n')
 		elif type(e_i) is FindEvent:
 			p, dx, dy = e_i.path, str(e_i.dx), str(e_i.dy)
-			record_file.write('\twrapper = r.find(r"' + p + '%(' + dx + ',' + dy + ')")\n')
+			record_file.write('\twrapper = r.find(r"""' + p + '%(' + dx + ',' + dy + ')""")\n')
+		elif type(e_i) is MenuEvent:
+			p, m_p = e_i.path, e_i.menu_path
+			if common_path:
+				p = get_relative_path(common_path, p)
+			record_file.write('\tr.menu_click(r"""' + p + '""", r"""' + m_p + '"""')
+			if e_i.menu_type == 'NPP':
+				record_file.write(', menu_type="NPP")\n')
+			else:
+				record_file.write(')\n')
 		i = i + 1
 	record_file.close()
 	with open(record_file_name, 'r') as my_file:
@@ -106,12 +117,16 @@ def process_events(events):
 		if type(events[i]) is mouse.ButtonEvent and events[i].event_type == 'up':
 			i = process_drag_and_drop_or_click_events(events, i)
 		i = i - 1
-
 	common_path = None
 	while i < len(events):
 		if type(events[i]) in [DragAndDropEvent, ClickEvent]:
 			common_path = process_common_path_events(events, i, common_path)
 		i = i + 1
+	i = len(events) - 1
+	while i >= 0:
+		if type(events[i]) is ClickEvent:
+			i = process_menu_select_events(events, i)
+		i = i - 1
 
 
 def process_keyboard_events(events, i):
@@ -213,6 +228,8 @@ def process_drag_and_drop_or_click_events(events, i):
 
 
 def get_relative_path(common_path, path):
+	if not path:
+		return ''
 	path = path[len(common_path) + len(core.path_separator):]
 	entry_list = core.get_entry_list(path)
 	str_name, str_type, y_x, dx_dy = core.get_entry(entry_list[-1])
@@ -266,6 +283,36 @@ def process_common_path_events(events, i, common_path):
 		return new_common_path
 	return common_path
 
+
+def process_menu_select_events(events, i):
+	i0 = i
+	i_processed_events = []
+	menu_bar_path = None
+	menu_path = []
+	menu_type = 'QT'
+	while i0 >= 0:
+		if type(events[i0]) is ClickEvent:
+			entry_list = core.get_entry_list(events[i0].path)
+			str_name, str_type, _, _ = core.get_entry(entry_list[-1])
+			if str_type == 'MenuItem':
+				menu_path.append(str_name)
+				str_name, str_type, _, _ = core.get_entry(entry_list[-2])
+				if str_type == 'MenuBar':
+					if str_name:
+						menu_type = 'NPP'
+					menu_path.append(str_name)
+					menu_bar_path = core.path_separator.join(entry_list[0:-2])
+					menu_path = core.path_separator.join(reversed(menu_path))
+					break
+				else:
+					i_processed_events.append(i0)
+		i0 = i0 - 1
+	if menu_path:
+		events[i0] = MenuEvent(path=menu_bar_path, menu_path=menu_path, menu_type=menu_type)
+		for i_p_e in sorted(i_processed_events, reverse=True):
+			del events[i_p_e]
+			i = i - 1
+	return i
 
 def get_wrapper_path(wrapper):
 	try:

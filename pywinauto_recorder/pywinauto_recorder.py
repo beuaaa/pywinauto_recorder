@@ -24,30 +24,31 @@ def display_splash_screen():
 	text_lines[2] = 'version ' + __version__
 	text_lines[4] = 'CTRL+ALT+R : Recording/Pause'
 	text_lines[6] = 'Search algorithm speed'
-	text_lines[8] = 'CTRL+ALT+Q : Quit'
-	text_lines[12] = 'Drag & drop a recorded file on pywinauto_recorder.exe'
-	text_lines[13] = ' to play it back'
+	text_lines[8] = 'CTRL+SHIFT+F : Copy element path in clipboard'
+	text_lines[10] = 'CTRL+ALT+Q : Quit'
+	text_lines[12] = 'Drag and drop a recorded file on '
+	text_lines[13] = 'pywinauto_recorder.exe to replay it'
 	for n in xrange(5):
 		splash_screen.clear_all()
 		color = [60, 70, 90]
 		i = 0
 		while i < nb_band:
 			splash_screen.add(
-				x=screen_width / 3, y=screen_height / 4 + i * line_height, width=screen_width / 3,
+				x=screen_width / 3 - i*8, y=screen_height / 4 + i * line_height, width=screen_width / 3 + i*8*2,
 				height=line_height, text=text_lines[i], text_color=(0, 0, 0), color=tuple(color),
 				geometry=oaam.Shape.rectangle, thickness=1, brush=oaam.Brush.solid, brush_color=tuple(color))
 			color[0], color[1], color[2] = color[0] + 2, color[1] + 1, color[2] + 3
 			i = i + 1
 		if n % 2 == 0:
 			overlay_add_record_icon(
-				splash_screen, screen_width / 3 + screen_width / 12, screen_height / 4 + line_height * 4)
+				splash_screen, screen_width / 3 + screen_width / 18, screen_height / 4 + line_height * 4)
 		else:
 			overlay_add_pause_icon(
-				splash_screen, screen_width / 3 + screen_width / 12, screen_height / 4 + line_height * 4)
+				splash_screen, screen_width / 3 + screen_width / 18, screen_height / 4 + line_height * 4)
 		overlay_add_progress_icon(
-			splash_screen, n % 5, screen_width / 3 + screen_width / 12, screen_height / 4 + line_height * 6)
+			splash_screen, n % 5, screen_width / 3 + screen_width / 18, screen_height / 4 + line_height * 6)
 		overlay_add_play_icon(
-			splash_screen, screen_width / 2 - 20, screen_height / 4 + line_height * 11 - 10)
+			splash_screen, screen_width / 3 + screen_width / 18, int(screen_height / 4 + line_height * 12.5))
 		splash_screen.refresh()
 		time.sleep(0.8)
 	splash_screen.clear_all()
