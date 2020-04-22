@@ -295,6 +295,9 @@ def process_menu_select_events(events, i):
 			entry_list = core.get_entry_list(events[i0].path)
 			str_name, str_type, _, _ = core.get_entry(entry_list[-1])
 			if str_type == 'MenuItem':
+				str_name, str_type, _, _ = core.get_entry(entry_list[0])
+				if str_name == 'Context' and str_type == 'Menu':
+					break
 				menu_path.append(str_name)
 				str_name, str_type, _, _ = core.get_entry(entry_list[-2])
 				if str_type == 'MenuBar':
@@ -307,12 +310,13 @@ def process_menu_select_events(events, i):
 				else:
 					i_processed_events.append(i0)
 		i0 = i0 - 1
-	if menu_path:
+	if menu_bar_path:
 		events[i0] = MenuEvent(path=menu_bar_path, menu_path=menu_path, menu_type=menu_type)
 		for i_p_e in sorted(i_processed_events, reverse=True):
 			del events[i_p_e]
 			i = i - 1
 	return i
+
 
 def get_wrapper_path(wrapper):
 	try:

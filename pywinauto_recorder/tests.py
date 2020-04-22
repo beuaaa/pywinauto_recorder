@@ -193,23 +193,23 @@ class TestCalculator(unittest.TestCase):
 			while line:
 				line = f.readline()
 				if "One" in line:
-					self.assertTrue(line[0:len("left_click")] == "left_click")
+					self.assertTrue(line.find("left_click") != -1)
 				elif "Two" in line:
-					self.assertTrue(line[0:len("double_left_click")] == "double_left_click")
+					self.assertTrue(line.find("double_left_click") != -1)
 				elif "Three" in line:
-					self.assertTrue(line[0:len("triple_left_click")] == "triple_left_click")
+					self.assertTrue(line.find("triple_left_click") != -1)
 				elif "Four" in line:
-					self.assertTrue(line[0:len("triple_left_click")] == "triple_left_click")
+					self.assertTrue(line.find("triple_left_click") != -1)
 					line = f.readline()
-					self.assertTrue(line[0:len("left_click")] == "left_click")
+					self.assertTrue(line.find("left_click") != -1)
 				elif "Five" in line:
-					self.assertTrue(line[0:len("triple_left_click")] == "triple_left_click")
+					self.assertTrue(line.find("triple_left_click") != -1)
 					line = f.readline()
-					self.assertTrue(line[0:len("double_left_click")] == "double_left_click")
+					self.assertTrue(line.find("double_left_click") != -1)
 				elif "Six" in line:
-					self.assertTrue(line[0:len("triple_left_click")] == "triple_left_click")
+					self.assertTrue(line.find("triple_left_click") != -1)
 					line = f.readline()
-					self.assertTrue(line[0:len("triple_left_click")] == "triple_left_click")
+					self.assertTrue(line.find("triple_left_click") != -1)
 		os.remove(record_file_name)
 
 
