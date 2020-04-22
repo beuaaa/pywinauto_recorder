@@ -4,6 +4,7 @@ import core
 import pywinauto
 import win32api
 import win32con
+import win32gui
 import time
 from enum import Enum
 
@@ -19,12 +20,55 @@ element_path_old = ''
 w_rOLD = None
 
 
+def wait_is_ready_try1(element):
+    """
+    Wait until element is ready (not greyed, not still visible, ...) :
+    So far, I didn't find better than wait_cpu_usage_lower but must be enhanced
+    """
+    while not element.is_enabled() or not element.is_visible():
+        try:
+            h_wait_cursor = win32gui.LoadCursor(0, win32con.IDC_WAIT)
+            _, h_cursor, _ = win32gui.GetCursorInfo()
+            app = pywinauto.Application(backend='uia', allow_magic_lookup=False)
+            app.connect(process=element.element_info.element.CurrentProcessId)
+            while h_cursor == h_wait_cursor:
+                app.wait_cpu_usage_lower()
+            spec = app.window(handle=element.handle, top_level_only=False)
+            while not element.is_enabled() or not element.is_visible():
+                spec.wait("exists enabled visible ready")
+        except Exception:
+            time.sleep(0.1)
+            pass
+
+
+def no_code():
+    t0 = time.time()
+    time_out = 120
+    while (time.time() - t0) < time_out:
+        try:
+            app = pywinauto.Application(backend='uia', allow_magic_lookup=False)
+            app.connect(process=element.element_info.element.CurrentProcessId)
+
+            h_wait_cursor = win32gui.LoadCursor(0, win32con.IDC_WAIT)
+            _, h_cursor, _ = win32gui.GetCursorInfo()
+            while h_cursor == h_wait_cursor:
+                app.wait_cpu_usage_lower()
+
+            spec = app.window(handle=element.handle, top_level_only=False)
+            spec.wait("exists enabled visible ready")
+            return
+        except Exception:
+            time.sleep(0.1)
+            pass
+
 class Region(object):
+    wait_element_is_ready = wait_is_ready_try1
     common_path = ''
 
-    def __init__(self, relative_path):
+    def __init__(self, relative_path, regex_title=False):
         self.click_desktop = None
         self.relative_path = relative_path
+        self.regex_title = regex_title
 
     def __enter__(self):
         if Region.common_path:
@@ -55,7 +99,8 @@ class Region(object):
         strategy = None
         while i < 99:
             try:
-                unique_element, elements = core.find_element(self.click_desktop, entry_list, window_candidates=[])
+                unique_element, elements = core.find_element(
+                    self.click_desktop, entry_list, window_candidates=[], regex_title=self.regex_title)
             except Exception:
                 pass
             i += 1
@@ -66,7 +111,8 @@ class Region(object):
                     unique_element = candidates[int(y_x[0])][int(y_x[1])]
                 else:
                     ref_entry_list = core.get_entry_list(Region.common_path) + [y_x[0]]
-                    ref_unique_element, _ = core.find_element(self.click_desktop, ref_entry_list, window_candidates=[])
+                    ref_unique_element, _ = core.find_element(
+                        self.click_desktop, ref_entry_list, window_candidates=[], regex_title=self.regex_title)
                     ref_r = ref_unique_element.rectangle()
                     r_y = 0
                     while r_y < nb_y:
@@ -78,15 +124,9 @@ class Region(object):
                     else:
                         unique_element = None
             if unique_element is not None:
-                # Wait if element is not clickable (greyed, not still visible) :
-                # So far, I didn't find better than wait_cpu_usage_lower but must be enhanced
-                _, control_type0, _, _ = core.get_entry(entry_list[-1])
-                if control_type0 in ('Menu', 'MenuItem', 'TreeItem'):
-                    app = pywinauto.Application(backend='uia', allow_magic_lookup=False)
-                    app.connect(process=unique_element.element_info.element.CurrentProcessId)
-                    app.wait_cpu_usage_lower()
-                if unique_element.is_enabled():
-                    break
+                #Region.wait_element_is_ready(unique_element)
+                wait_is_ready_try1(unique_element)
+                break
             time.sleep(0.1)
         if not unique_element:
             raise Exception("Unique element not found! ", element_path)
@@ -177,6 +217,10 @@ class Region(object):
 
     def click(self, element_path, duration=0.5, mode=MoveMode.linear, button='left'):
         unique_element = self.move(element_path, duration=duration, mode=mode)
+        if isinstance(element_path, basestring):
+            wait_is_ready_try1(unique_element)
+        else:
+            unique_element = None
         if button == 'left' or button == 'double_left' or button == 'triple_left':
             win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0)
             time.sleep(.01)
@@ -233,7 +277,7 @@ class Region(object):
             element_path +
             menu_entry_list[0] + core.type_separator + 'MenuBar' + core.path_separator +
             menu_entry_list[1] + core.type_separator + 'MenuItem', duration=duration, mode=mode)
-
+        w = None
         if menu_type is 'QT':
             common_path_old = Region.common_path
             Region.common_path = ''

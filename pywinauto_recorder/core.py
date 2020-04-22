@@ -83,7 +83,7 @@ def get_entry(entry):
     return str_name, str_type, y_x, dx_dy
 
 
-def same_entry_list(element, entry_list):
+def same_entry_list(element, entry_list, regex_title=False):
     try:
         i = len(entry_list) - 1
         top_level_parent = element.top_level_parent()
@@ -92,7 +92,7 @@ def same_entry_list(element, entry_list):
             current_element_text = current_element.window_text()
             current_element_type = current_element.element_info.control_type
             entry_text, entry_type, _, _ = get_entry(entry_list[i])
-            if current_element == top_level_parent:
+            if current_element == top_level_parent and regex_title:
                 if re.match(entry_list[0], entry_text) and current_element_type == entry_type:
                     return True
             if current_element_text == entry_text and current_element_type == entry_type:
@@ -150,17 +150,22 @@ def get_sorted_region(elements, min_height=8, max_height=9999, min_width=8, max_
     return h + 1, w, arrays
 
 
-def find_element(desktop, entry_list, window_candidates=[], visible_only=True, enabled_only=True, active_only=True):
+def find_element(desktop, entry_list, window_candidates=[], visible_only=True, enabled_only=True, active_only=True, regex_title=False):
     if not window_candidates:
         title, control_type, _, _ = get_entry(entry_list[0])
-        window_candidates = desktop.windows(
-            title_re=title, control_type=control_type, visible_only=visible_only,
-            enabled_only=enabled_only, active_only=active_only)
+        if regex_title:
+            window_candidates = desktop.windows(
+                title_re=title, control_type=control_type, visible_only=visible_only,
+                enabled_only=enabled_only, active_only=active_only)
+        else:
+            window_candidates = desktop.windows(
+                title=title, control_type=control_type, visible_only=visible_only,
+                enabled_only=enabled_only, active_only=active_only)
         if not window_candidates:
             if active_only:
                 return find_element(
                     desktop, entry_list, window_candidates=[], visible_only=True,
-                    enabled_only=False, active_only=False)
+                    enabled_only=False, active_only=False, regex_title=regex_title)
             else:
                 print ("Warning: No window '" + title + "' with control type '" + control_type + "' found! ")
                 return None, []
@@ -173,7 +178,7 @@ def find_element(desktop, entry_list, window_candidates=[], visible_only=True, e
         title, control_type, _, _ = get_entry(entry_list[-1])
         descendants = window.descendants(title=title, control_type=control_type)
         for descendant in descendants:
-            if same_entry_list(descendant, entry_list):
+            if same_entry_list(descendant, entry_list, regex_title=regex_title):
                 candidates.append(descendant)
             else:
                 continue
@@ -182,7 +187,7 @@ def find_element(desktop, entry_list, window_candidates=[], visible_only=True, e
         if active_only:
             return find_element(
                 desktop, entry_list, window_candidates=[], visible_only=True,
-                enabled_only=False, active_only=False)
+                enabled_only=False, active_only=False, regex_title=regex_title)
         else:
             return None, []
     elif len(candidates) == 1:
