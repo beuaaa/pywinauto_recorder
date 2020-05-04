@@ -22,7 +22,7 @@ def is_int(s):
 
 
 def get_entry_list(path):
-    path = path.decode('utf-8')
+    #path = path.decode('utf-8')
     i = path.rfind("#[")
     if i != -1:
         i = path.rfind(path_separator, 0, i)
