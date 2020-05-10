@@ -7,6 +7,7 @@ import win32con
 import win32gui
 import time
 from enum import Enum
+import copy
 
 
 class MoveMode(Enum):
@@ -20,70 +21,56 @@ element_path_old = ''
 w_rOLD = None
 
 
-def wait_is_ready_try1(element):
+def wait_is_ready_try1(wrapper, time_out=120):
     """
-    Wait until element is ready (not greyed, not still visible, ...) :
+    Wait until element is ready (greyed, not visible yet, ...) :
     So far, I didn't find better than wait_cpu_usage_lower but must be enhanced
     """
-    while not element.is_enabled() or not element.is_visible():
-        try:
-            h_wait_cursor = win32gui.LoadCursor(0, win32con.IDC_WAIT)
-            _, h_cursor, _ = win32gui.GetCursorInfo()
-            app = pywinauto.Application(backend='uia', allow_magic_lookup=False)
-            app.connect(process=element.element_info.element.CurrentProcessId)
-            while h_cursor == h_wait_cursor:
-                app.wait_cpu_usage_lower()
-            spec = app.window(handle=element.handle, top_level_only=False)
-            while not element.is_enabled() or not element.is_visible():
-                spec.wait("exists enabled visible ready")
-        except Exception:
-            time.sleep(0.1)
-            pass
-
-
-def no_code():
     t0 = time.time()
-    time_out = 120
-    while (time.time() - t0) < time_out:
+    while not wrapper.is_enabled() or not wrapper.is_visible():
         try:
-            app = pywinauto.Application(backend='uia', allow_magic_lookup=False)
-            app.connect(process=element.element_info.element.CurrentProcessId)
-
             h_wait_cursor = win32gui.LoadCursor(0, win32con.IDC_WAIT)
             _, h_cursor, _ = win32gui.GetCursorInfo()
+            app = pywinauto.Application(backend='uia', allow_magic_lookup=False)
+            app.connect(process=wrapper.element_info.element.CurrentProcessId)
             while h_cursor == h_wait_cursor:
                 app.wait_cpu_usage_lower()
-
-            spec = app.window(handle=element.handle, top_level_only=False)
-            spec.wait("exists enabled visible ready")
-            return
+            spec = app.window(handle=wrapper.handle, top_level_only=False)
+            while not wrapper.is_enabled() or not wrapper.is_visible():
+                spec.wait("exists enabled visible ready")
+            if (time.time() - t0) > time_out:
+                break
         except Exception:
             time.sleep(0.1)
             pass
+        if (time.time() - t0) > time_out:
+            raise Exception("Time out! ", wrapper)
+
 
 class Region(object):
     wait_element_is_ready = wait_is_ready_try1
     common_path = ''
+    list_path = []
+    regex_title = False
 
-    def __init__(self, relative_path, regex_title=False):
+    def __init__(self, relative_path=None, regex_title=False):
         self.click_desktop = None
         self.relative_path = relative_path
         self.regex_title = regex_title
 
     def __enter__(self):
-        if Region.common_path:
-            Region.common_path = Region.common_path + core.path_separator + self.relative_path
+        if not Region.list_path:
+            Region.regex_title = self.regex_title
         else:
-            Region.common_path = self.relative_path
+            self.regex_title = Region.regex_title
+        if self.relative_path:
+            Region.list_path.append(self.relative_path)
+        Region.common_path = core.path_separator.join(self.list_path)
         return self
 
     def __exit__(self, type, value, traceback):
-        i = Region.common_path.find(self.relative_path)
-        if i != -1:
-            if i == 0:
-                Region.common_path = ''
-            else:
-                Region.common_path = Region.common_path[0:i-len(core.path_separator)]
+        Region.list_path = Region.list_path[0:-1]
+        Region.common_path = core.path_separator.join(self.list_path)
 
     def find(self, element_path):
         if not self.click_desktop:
@@ -98,11 +85,14 @@ class Region(object):
         elements = None
         strategy = None
         while i < 99:
-            try:
-                unique_element, elements = core.find_element(
-                    self.click_desktop, entry_list, window_candidates=[], regex_title=self.regex_title)
-            except Exception:
-                pass
+            while unique_element is None and not elements:
+                try:
+                    unique_element, elements = core.find_element(
+                        self.click_desktop, entry_list, window_candidates=[], regex_title=self.regex_title)
+                    if unique_element is None and not elements:
+                        time.sleep(2.0)
+                except Exception:
+                    pass
             i += 1
             _, _, y_x, _ = core.get_entry(entry_list[-1])
             if y_x is not None:
@@ -110,7 +100,7 @@ class Region(object):
                 if core.is_int(y_x[0]):
                     unique_element = candidates[int(y_x[0])][int(y_x[1])]
                 else:
-                    ref_entry_list = core.get_entry_list(Region.common_path) + [y_x[0]]
+                    ref_entry_list = core.get_entry_list(Region.common_path) + core.get_entry_list(y_x[0])
                     ref_unique_element, _ = core.find_element(
                         self.click_desktop, ref_entry_list, window_candidates=[], regex_title=self.regex_title)
                     ref_r = ref_unique_element.rectangle()
@@ -129,7 +119,7 @@ class Region(object):
                 break
             time.sleep(0.1)
         if not unique_element:
-            raise Exception("Unique element not found! ", element_path)
+            raise Exception("Unique element not found! ", element_path2)
         return unique_element
 
     def move(self, element_path, duration=0.5, mode=MoveMode.linear):
@@ -174,7 +164,7 @@ class Region(object):
                 else:
                     dx, dy = 0, 0
                 xd, yd = w_r.mid_point()
-                xd, yd = xd + dx, yd + dy
+                xd, yd = xd + round(dx/100.0*w_r.width(), 0), round(yd + dy/100.0*w_r.height(), 0)
         else:
             (xd, yd) = element_path
             unique_element = None
@@ -254,19 +244,9 @@ class Region(object):
     def triple_left_click(self, element_path, duration=0.5, mode=MoveMode.linear):
         return self.click(element_path, duration=duration, mode=mode, button='triple_left')
 
-    def drag_and_drop(self, element_path, duration=0.5, mode=MoveMode.linear):
-        words = element_path.split("%(")
-        element_path1 = words[0] + "%(" + words[1]
+    def drag_and_drop(self, element_path1, element_path2, duration=0.5, mode=MoveMode.linear):
         unique_element = self.move(element_path1, duration=duration, mode=mode)
         win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0)
-        words = element_path.split("%(")
-        last_word = words[-1]
-        words = words[:-1]
-        words = words[:-1]
-        element_path2 = ''
-        for w in words:
-            element_path2 = element_path2 + w + "%("
-        element_path2 = element_path2 + last_word
         self.move(element_path2, duration=duration, mode=mode)
         win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0)
         return unique_element
@@ -293,6 +273,9 @@ class Region(object):
                     menu_entry_list[i - 3] + core.type_separator + 'Menu' + core.path_separator +
                     entry + core.type_separator + 'MenuItem', duration=duration, mode=mode)
         return w
+
+
+Window = Region
 
 
 def mouse_wheel(steps):

@@ -72,10 +72,9 @@ The main of "Pywinauto recorder" is an infinite loop where where at each iterati
 
 .. note::  The mouse coordinates recorded are relative to the center of the element recognized with a unique path.
 
-It looks for an unambiguous path using three strategies in the following order:
- (1) The path of the element under the mouse cursor is unique. In this case, the region of the element is colored green.
- (2) All elements having the same path are ordered in a 2D array. Element regions are colored red. The path of the element region under the mouse cursor is made unambiguous by adding a row index and a column index so that it is colored orange.
- (3) If an element having an unambiguous path, a static control_type and a window_text is found on the same line, its region is colored blue and the element under the mouse cursor is colored orange.
+If the path of the element under the mouse cursor is not ambiguous, the region of the element is colored green. Otherwise two strategies are used to try to disambiguate the path in the following order:
+ (1) All elements having the same path are ordered in a 2D array. The path of the element region under the mouse cursor is disambiguated by adding a row index and a column index so that it is colored orange. The other element regions are colored red
+ (2) An element whose path is unambiguous is searched on the same line on the left, if found its region is colored blue and the element under the mouse cursor is colored orange.
 
 Functions
 **********************
