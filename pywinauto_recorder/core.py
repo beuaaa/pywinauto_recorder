@@ -75,8 +75,8 @@ def get_entry(entry):
         y_x = None
     if str_dx_dy:
         words = str_dx_dy.split(',')
-        dx = int(words[0])
-        dy = int(words[1][:-1])
+        dx = float(words[0])
+        dy = float(words[1][:-1])
         dx_dy = (dx, dy)
     else:
         dx_dy = None

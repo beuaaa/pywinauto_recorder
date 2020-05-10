@@ -17,7 +17,7 @@ import pyperclip
 ElementEvent = namedtuple('ElementEvent', ['strategy', 'rectangle', 'path'])
 SendKeysEvent = namedtuple('SendKeysEvent', ['line'])
 MouseWheelEvent = namedtuple('MouseWheelEvent', ['delta'])
-DragAndDropEvent = namedtuple('DragAndDropEvent', ['path', 'dx1', 'dy1', 'dx2', 'dy2'])
+DragAndDropEvent = namedtuple('DragAndDropEvent', ['path', 'dx1', 'dy1', 'path2', 'dx2', 'dy2'])
 ClickEvent = namedtuple('ClickEvent', ['button', 'click_count', 'path', 'dx', 'dy', 'time'])
 CommonPathEvent = namedtuple('CommonPathEvent', ['path'])
 FindEvent = namedtuple('FindEvent', ['path', 'dx', 'dy', 'time'])
@@ -28,10 +28,10 @@ MenuEvent = namedtuple('MenuEvent', ['path', 'menu_path', 'menu_type'])
 # sys.setdefaultencoding('utf-8')
 
 
-def escape_special_char(string_with_escaped_char):
-	for r in (("\n", "\\n"), ("\t", "\\t"), ('"', '\"')):
-		string_with_escaped_char = string_with_escaped_char.replace(*r)
-	return string_with_escaped_char
+def escape_special_char(string):
+	for r in (("\t", "\\t"), ("\n", "\\n"), ("\r", "\\r"), ("\v", "\\v"), ("\f", "\\f"), ('"', '\\"')):
+		string = string.replace(*r)
+	return string
 
 
 def write_in_file(events):
@@ -46,43 +46,57 @@ def write_in_file(events):
 	record_file.write("from pywinauto_recorder import *\n\n")
 	i = 0
 	common_path = ''
+	common_window = ''
 	while i < len(events):
 		e_i = events[i]
 		if type(e_i) is SendKeysEvent:
 			if common_path:
-				record_file.write('\t')
+				record_file.write('\t\t')
 			record_file.write('send_keys(' + e_i.line + ')\n')
 		elif type(e_i) is MouseWheelEvent:
 			if common_path:
-				record_file.write("\t")
+				record_file.write("\t\t")
 			record_file.write('mouse_wheel(' + str(e_i.delta) + ')\n')
 		elif type(e_i) is CommonPathEvent:
 			if e_i.path != common_path:
-				record_file.write('\nwith Region(u"' + e_i.path.escape_special_char() + '") as r:\n')
-			common_path = e_i.path
+				entry_list = core.get_entry_list(e_i.path)
+				e_i_window = entry_list[0]
+				if e_i_window != common_window:
+					record_file.write('\nwith Window(u"' + escape_special_char(e_i_window) + '") as w:\n')
+					common_window = e_i_window
+				rel_path = core.path_separator.join(entry_list[1:])
+				if rel_path:
+					record_file.write('\twith Region(u"' + escape_special_char(rel_path) + '") as r:\n')
+				else:
+					record_file.write('\twith Region() as r:\n')
+				common_path = e_i.path
 		elif type(e_i) is DragAndDropEvent:
-			p, dx1, dy1, dx2, dy2 = e_i.path, str(e_i.dx1), str(e_i.dy1), str(e_i.dx2), str(e_i.dy2)
+			p1, p2 = e_i.path, e_i.path2
+			dx1, dy1 = "{:.2f}".format(round(e_i.dx1 * 100, 2)), "{:.2f}".format(round(e_i.dy1 * 100, 2))
+			dx2, dy2 = "{:.2f}".format(round(e_i.dx2 * 100, 2)), "{:.2f}".format(round(e_i.dy2 * 100, 2))
 			if common_path:
-				p = get_relative_path(common_path, p)
-			record_file.write(
-				'\tr.drag_and_drop(u"' + p.escape_special_char() +
-				'%(' + dx1 + ',' + dy1 + ')%(' + dx2 + ',' + dy2 + ')")\n')
+				p1 = get_relative_path(common_path, p1)
+				p2 = get_relative_path(common_path, p2)
+			record_file.write('\t\tr.drag_and_drop(u"' + escape_special_char(p1) + '%(' + dx1 + ',' + dy1 + ')", ')
+			record_file.write('u"' + escape_special_char(p2) + '%(' + dx2 + ',' + dy2 + ')")\n')
 		elif type(e_i) is ClickEvent:
-			p, dx, dy = e_i.path, str(e_i.dx), str(e_i.dy)
+			p = e_i.path
+			dx, dy = "{:.2f}".format(round(e_i.dx * 100, 2)), "{:.2f}".format(round(e_i.dy * 100, 2))
 			if common_path:
 				p = get_relative_path(common_path, p)
-			str_c = ['', '\tr.', '\tr.double_', '\tr.triple_']
+			str_c = ['', '\t\tr.', '\tr.double_', '\tr.triple_']
 			record_file.write(
-				str_c[e_i.click_count] + e_i.button + '_click(u"' + p.escape_special_char() +
+				str_c[e_i.click_count] + e_i.button + '_click(u"' + escape_special_char(p) +
 				'%(' + dx + ',' + dy + ')")\n')
 		elif type(e_i) is FindEvent:
-			p, dx, dy = e_i.path, str(e_i.dx), str(e_i.dy)
-			record_file.write('\twrapper = r.find(u"' + p.escape_special_char() + '%(' + dx + ',' + dy + ')")\n')
+			p = e_i.path
+			dx, dy = "{:.2f}".format(round(e_i.dx * 100, 2)), "{:.2f}".format(round(e_i.dy * 100, 2))
+			record_file.write('\t\twrapper = r.find(u"' + escape_special_char(p) + '%(' + dx + ',' + dy + ')")\n')
 		elif type(e_i) is MenuEvent:
 			p, m_p = e_i.path, e_i.menu_path
 			if common_path:
 				p = get_relative_path(common_path, p)
-			record_file.write('\tr.menu_click(u"' + p.escape_special_char() + '", r"' + m_p.escape_special_char() + '"')
+			record_file.write('\t\tr.menu_click(u"' + escape_special_char(p) + '", r"' + escape_special_char(m_p) + '"')
 			if e_i.menu_type == 'NPP':
 				record_file.write(', menu_type="NPP")\n')
 			else:
@@ -179,26 +193,33 @@ def process_wheel_events(events, i):
 
 def process_drag_and_drop_or_click_events(events, i):
 	i0 = i - 1
-	move_event_end = None
+	while i0 >= 0:
+		if type(events[i0]) == ElementEvent:
+			element_event_before_button_up = events[i0]
+			break
+		i0 = i0 - 1
+	while i0 >= 0:
+		if type(events[i0]) == mouse.MoveEvent:
+			move_event_end = events[i0]
+			break
+		i0 = i0 - 1
+	i0 = i - 1
 	drag_and_drop = False
 	click_count = 0
 	while i0 >= 0:
 		if type(events[i0]) == mouse.MoveEvent:
-			if move_event_end:
-				if events[i0].x != move_event_end.x or events[i0].y != move_event_end.y:
-					drag_and_drop = True
-			else:
-				move_event_end = events[i0]
+			if events[i0].x != move_event_end.x or events[i0].y != move_event_end.y:
+				drag_and_drop = True
 		elif type(events[i0]) == mouse.ButtonEvent and events[i0].event_type in ['down', 'double']:
 			click_count = click_count + 1
 			if events[i0].event_type == 'down' or click_count == 3:
 				i1 = i0
 				break
 		i0 = i0 - 1
-	element_event_before_click = None
+	element_event_before_button_down = None
 	while i0 >= 0:
 		if type(events[i0]) == ElementEvent:
-			element_event_before_click = events[i0]
+			element_event_before_button_down = events[i0]
 			break
 		i0 = i0 - 1
 	if drag_and_drop:
@@ -208,23 +229,23 @@ def process_drag_and_drop_or_click_events(events, i):
 				move_event_start = events[i0]
 				break
 			i0 = i0 - 1
-		rx, ry = element_event_before_click.rectangle.mid_point()
-		dx1, dy1 = move_event_start.x - rx, move_event_start.y - ry
-		dx2, dy2 = move_event_end.x - rx, move_event_end.y - ry
-		events[i] = DragAndDropEvent(path=element_event_before_click.path, dx1=dx1, dy1=dy1, dx2=dx2, dy2=dy2)
+		w_r = element_event_before_button_down.rectangle
+		rx, ry = w_r.mid_point()
+		dx1, dy1 = float(move_event_start.x - rx)/w_r.width(), float(move_event_start.y - ry)/w_r.height()
+		w_r = element_event_before_button_up.rectangle
+		rx, ry = w_r.mid_point()
+		dx2, dy2 = float(move_event_end.x - rx)/w_r.width(), float(move_event_end.y - ry)/w_r.height()
+		events[i] = DragAndDropEvent(
+			path=element_event_before_button_down.path, dx1=dx1, dy1=dy1,
+			path2=element_event_before_button_up.path, dx2=dx2, dy2=dy2)
 	else:
-		while i0 >= 0:
-			if move_event_end:
-				break
-			if type(events[i0]) == mouse.MoveEvent:
-				move_event_end = events[i0]
-				break
-			i0 = i0 - 1
 		up_event = events[i]
-		rx, ry = element_event_before_click.rectangle.mid_point()
-		dx, dy = move_event_end.x - rx, move_event_end.y - ry
-		events[i] = ClickEvent(button=up_event.button, click_count=click_count,
-							   path=element_event_before_click.path, dx=dx, dy=dy, time=up_event.time)
+		w_r = element_event_before_button_down.rectangle
+		rx, ry = w_r.mid_point()
+		dx, dy = float(move_event_end.x - rx) / w_r.width(), float(move_event_end.y - ry) / w_r.height()
+		events[i] = ClickEvent(
+			button=up_event.button, click_count=click_count,
+			path=element_event_before_button_down.path, dx=dx, dy=dy, time=up_event.time)
 	i_processed_events = []
 	i0 = i - 1
 	while i0 >= i1:
@@ -342,7 +363,30 @@ def get_wrapper_path(wrapper):
 		return ''
 
 
-def get_type_strings(keyboard_events, allow_backspace=True):
+def get_typed_keys(keyboard_events):
+	string = ''
+	for event in keyboard_events:
+		if event.name in keyboard.all_modifiers | {'maj'}:
+			string = string + '"' + "{VK_"
+			if 'left' in event.name:
+				string = string + "L"
+			if 'right' in event.name or 'gr' in event.name:
+				string = string + "R"
+			if 'alt' in event.name:
+				string = string + "MENU"
+			elif 'ctrl' in event.name:
+				string = string + "CONTROL"
+			elif 'shift' in event.name or 'maj' in event.name:
+				string = string + "SHIFT"
+			elif 'windows' in event.name:
+				string = string + "WIN"
+			string = string + ' ' + event.event_type + "}" + '"'
+		else:
+			string = string + '"{' + event.name + ' ' + event.event_type + '}"'
+	return string
+
+
+def get_typed_strings(keyboard_events, allow_backspace=True):
 	"""
 	Given a sequence of events, tries to deduce what strings were typed.
 	Strings are separated when a non-textual key is pressed (such as tab or
@@ -385,7 +429,23 @@ def get_type_strings(keyboard_events, allow_backspace=True):
 
 
 def get_send_keys_strings(keyboard_events):
-	return ''.join(format(code) for code in get_type_strings(keyboard_events))
+	print keyboard_events
+	is_typed_words = True
+	alnum_count = 0
+	for event in keyboard_events:
+		if event.name in keyboard.all_modifiers:
+			is_typed_words = False
+			break
+		if event.name.isalnum():
+			alnum_count += 1
+			if alnum_count > 1:
+				break
+	if alnum_count <= 1:
+		is_typed_words = False
+	if is_typed_words:
+		return ''.join(format(code) for code in get_typed_strings(keyboard_events))
+	else:
+		return get_typed_keys(keyboard_events)
 
 
 def overlay_add_play_icon(main_overlay, x, y):
@@ -559,7 +619,7 @@ class Recorder(Thread):
 				dx, dy = x - rx, y - ry
 				overlay_add_play_icon(self.main_overlay, x, y)
 				pyperclip.copy(
-					'wrapper = r.find(u"' + l_e_e.path.escape_special_char() + '%(' + str(dx) + ',' + str(dy) + ')")\n')
+					'wrapper = r.find(u"' + escape_special_char(l_e_e.path) + '%(' + str(dx) + ',' + str(dy) + ')")\n')
 				if self.event_list:
 					self.event_list.append(FindEvent(path=l_e_e.path, dx=dx, dy=dy, time=time.time()))
 		elif self.event_list:
@@ -653,7 +713,21 @@ class Recorder(Thread):
 
 	def stop_recording(self):
 		if self.event_list:
-			events = list(self.event_list[0:-4])
+			alt_ctrl = 0
+			i = 0
+			while alt_ctrl < 2:
+				if type(self.event_list[i]) == keyboard.KeyboardEvent and self.event_list[i].name in {'alt', 'ctrl'}:
+					alt_ctrl += 1
+					self.event_list.pop(i)
+				else:
+					i += 1
+			alt_ctrl = 0
+			i = len(self.event_list) - 1
+			while alt_ctrl < 2:
+				if type(self.event_list[i]) == keyboard.KeyboardEvent and self.event_list[i].name in {'alt', 'ctrl'}:
+					alt_ctrl += 1
+				i -= 1
+			events = list(self.event_list[0:i])
 			self.event_list = []
 			clean_events(events)
 			process_events(events)
