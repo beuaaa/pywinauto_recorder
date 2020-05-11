@@ -253,6 +253,10 @@ class Region(object):
 
     def menu_click(self, element_path, menu_path, duration=0.5, mode=MoveMode.linear, menu_type='QT'):
         menu_entry_list = menu_path.split(core.path_separator)
+        if menu_type is 'QT':
+            menu_entry_list = [''] + menu_entry_list
+        else:
+            menu_entry_list = ['Application'] + menu_entry_list
         self.left_click(
             element_path +
             menu_entry_list[0] + core.type_separator + 'MenuBar' + core.path_separator +
@@ -270,7 +274,7 @@ class Region(object):
             for i, entry in enumerate(menu_entry_list[2:]):
                 w = self.left_click(
                     element_path +
-                    menu_entry_list[i - 3] + core.type_separator + 'Menu' + core.path_separator +
+                    menu_entry_list[i - 2] + core.type_separator + 'Menu' + core.path_separator +
                     entry + core.type_separator + 'MenuItem', duration=duration, mode=mode)
         return w
 

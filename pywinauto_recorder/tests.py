@@ -102,41 +102,38 @@ class TestNotepad(unittest.TestCase):
 		time.sleep(0.5)
 		send_keys("{LWIN}Notepad{ENTER}")
 
-		with Region("Untitled - Notepad||Window") as r:
-			r.left_click("Application||MenuBar->Format||MenuItem")
-			r.left_click("Format||Menu->Font...||MenuItem")
+		with Window("Untitled - Notepad||Window") as w:
+			w.menu_click("", "Format->Font...", menu_type='NPP')
 
-		with Region("Untitled - Notepad||Window->Font||Window") as r:
-			line_down = r.find("Size:||ComboBox->Size:||List->Vertical||ScrollBar->Line down||Button")
-			position = r.find("Size:||ComboBox->Size:||List->Vertical||ScrollBar->Position||Thumb")
-			dy = str(line_down.rectangle().top - (position.rectangle().top + position.rectangle().bottom)/2)
-			r.drag_and_drop("Size:||ComboBox->Size:||List->Vertical||ScrollBar->Position||Thumb%(0,0)%(0," + dy + ")")
-			size_list_box = r.find("Size:||ComboBox->Size:||List%(0,0)")
-			r.left_click("Size:||ComboBox->Size:||List->Vertical||ScrollBar->Line down||Button%(-20,0)")
+		with Window("Untitled - Notepad||Window->Font||Window") as w:
+			size_list_box = w.find("Size:||ComboBox->Size:||List")
+			with Region("Size:||ComboBox->Size:||List") as r:
+				r.drag_and_drop("Vertical||ScrollBar->Position||Thumb", "Vertical||ScrollBar->Line down||Button")
+				r.left_click("Vertical||ScrollBar->Line down||Button%(-200,0)")
 			self.assertEqual(size_list_box.get_selection()[0].name, size_list_box.children_texts()[-1])
-			r.left_click("Cancel||Button")
+			w.left_click("Cancel||Button")
 
-		with Region("Untitled - Notepad||Window") as r:
-			r.left_click("||TitleBar->Close||Button")
+		with Window("Untitled - Notepad||Window") as w:
+			w.left_click("||TitleBar->Close||Button")
 
 	def test_wheel(self):
 		time.sleep(0.5)
 		send_keys("{LWIN}Notepad{ENTER}")
 
-		with Region("Untitled - Notepad||Window") as r:
-			r.left_click("Application||MenuBar->Format||MenuItem")
-			r.left_click("Format||Menu->Font...||MenuItem")
+		with Window("Untitled - Notepad||Window") as w:
+			w.menu_click("", "Format->Font...", menu_type='NPP')
 
-		with Region("Untitled - Notepad||Window->Font||Window") as r:
-			r.left_click("Size:||ComboBox->Size:||List->Vertical||ScrollBar->Position||Thumb")
-			mouse_wheel(-10)
-			size_list_box = r.find("Size:||ComboBox->Size:||List%(0,0)")
-			r.left_click("Size:||ComboBox->Size:||List->Vertical||ScrollBar->Line down||Button%(-20,0)")
+		with Window("Untitled - Notepad||Window->Font||Window") as w:
+			size_list_box = w.find("Size:||ComboBox->Size:||List")
+			with Region("Size:||ComboBox->Size:||List") as r:
+				r.left_click("Vertical||ScrollBar->Position||Thumb")
+				mouse_wheel(-10)
+				r.left_click("Vertical||ScrollBar->Line down||Button%(-200,0)")
 			self.assertEqual(size_list_box.get_selection()[0].name, size_list_box.children_texts()[-1])
-			r.left_click("Cancel||Button")
+			w.left_click("Cancel||Button")
 
-		with Region("Untitled - Notepad||Window") as r:
-			r.left_click("||TitleBar->Close||Button")
+		with Window("Untitled - Notepad||Window") as w:
+			w.left_click("||TitleBar->Close||Button")
 
 
 class TestCalculator(unittest.TestCase):
