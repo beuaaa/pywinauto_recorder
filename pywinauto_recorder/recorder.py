@@ -429,7 +429,6 @@ def get_typed_strings(keyboard_events, allow_backspace=True):
 
 
 def get_send_keys_strings(keyboard_events):
-	print keyboard_events
 	is_typed_words = True
 	alnum_count = 0
 	for event in keyboard_events:
