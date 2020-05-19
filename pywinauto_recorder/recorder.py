@@ -599,12 +599,12 @@ class Recorder(Thread):
 				and keyboard.key_to_scan_codes("alt")[0] in keyboard._pressed_events
 				and keyboard.key_to_scan_codes("ctrl")[0] in keyboard._pressed_events):
 			if not self.event_list:
-				keyboard.read_event(suppress=True)
-				keyboard.read_event(suppress=True)
+				#keyboard.read_event(suppress=True)
+				#keyboard.read_event(suppress=True)
 				self.start_recording()
 			else:
-				keyboard.read_event(suppress=True)
-				keyboard.read_event(suppress=True)
+				#keyboard.read_event(suppress=True)
+				#keyboard.read_event(suppress=True)
 				self.stop_recording()
 		elif (
 				(e.name == 'q') and (e.event_type == 'up')
@@ -620,32 +620,19 @@ class Recorder(Thread):
 				x, y = win32api.GetCursorPos()
 				l_e_e = self.last_element_event
 				rx, ry = l_e_e.rectangle.mid_point()
-				dx, dy = x - rx, y - ry
+				dx, dy = float(x - rx) / l_e_e.rectangle.width(), float(y - ry) / l_e_e.rectangle.height()
+				str_dx, str_dy = "{:.2f}".format(round(dx * 100, 2)), "{:.2f}".format(round(dy * 100, 2))
 				overlay_add_play_icon(self.main_overlay, x, y)
+				l_e_e_path = escape_special_char(l_e_e.path)
+				i = l_e_e_path.find(core.path_separator)
+				window_title = l_e_e_path[0:i]
+				element_path = l_e_e_path[i+len(core.path_separator):]
 				pyperclip.copy(
-					'wrapper = r.find(u"' + escape_special_char(l_e_e.path) + '%(' + str(dx) + ',' + str(dy) + ')")\n')
+					'with Window(u"' + window_title + '") as w:\n' +
+					'\twrapper = w.find(u"' + element_path + '%(' + str_dx + ',' + str_dy + ')")\n')
 				if self.event_list:
 					self.event_list.append(FindEvent(path=l_e_e.path, dx=dx, dy=dy, time=time.time()))
 		elif self.event_list:
-			if False:
-				alt_ctrl = 0
-				i = 0
-				while alt_ctrl < 2:
-					if type(self.event_list[i]) == keyboard.KeyboardEvent and self.event_list[i].name in {'alt',
-																										  'ctrl'}:
-						alt_ctrl += 1
-						self.event_list.pop(i)
-					else:
-						i += 1
-
-				alt_ctrl = 0
-				i = len(self.event_list) - 1
-				while alt_ctrl < 2:
-					if type(self.event_list[i]) == keyboard.KeyboardEvent and self.event_list[i].name in {'alt',
-																										  'ctrl'}:
-						alt_ctrl += 1
-					i -= 1
-
 			self.event_list.append(e)
 
 	def run(self):

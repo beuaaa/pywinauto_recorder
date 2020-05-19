@@ -21,7 +21,7 @@ element_path_old = ''
 w_rOLD = None
 
 
-def wait_is_ready_try1(wrapper, time_out=120):
+def wait_is_ready_try1(wrapper, timeout=120):
     """
     Wait until element is ready (greyed, not visible yet, ...) :
     So far, I didn't find better than wait_cpu_usage_lower but must be enhanced
@@ -38,12 +38,12 @@ def wait_is_ready_try1(wrapper, time_out=120):
             spec = app.window(handle=wrapper.handle, top_level_only=False)
             while not wrapper.is_enabled() or not wrapper.is_visible():
                 spec.wait("exists enabled visible ready")
-            if (time.time() - t0) > time_out:
-                break
+                if (time.time() - t0) > timeout:
+                    break
         except Exception:
             time.sleep(0.1)
             pass
-        if (time.time() - t0) > time_out:
+        if (time.time() - t0) > timeout:
             raise Exception("Time out! ", wrapper)
 
 
@@ -72,7 +72,7 @@ class Region(object):
         Region.list_path = Region.list_path[0:-1]
         Region.common_path = core.path_separator.join(self.list_path)
 
-    def find(self, element_path):
+    def find(self, element_path, timeout=60*5):
         if not self.click_desktop:
             self.click_desktop = pywinauto.Desktop(backend='uia', allow_magic_lookup=False)
         if Region.common_path:
@@ -80,11 +80,11 @@ class Region(object):
         else:
             element_path2 = element_path
         entry_list = core.get_entry_list(element_path2)
-        i = 0
         unique_element = None
         elements = None
         strategy = None
-        while i < 99:
+        t0 = time.time()
+        while (time.time() - t0) < timeout:
             while unique_element is None and not elements:
                 try:
                     unique_element, elements = core.find_element(
@@ -93,7 +93,9 @@ class Region(object):
                         time.sleep(2.0)
                 except Exception:
                     pass
-            i += 1
+                if (time.time() - t0) > timeout:
+                    raise Exception("Time out! ", element_path2)
+
             _, _, y_x, _ = core.get_entry(entry_list[-1])
             if y_x is not None:
                 nb_y, nb_x, candidates = core.get_sorted_region(elements)
@@ -115,7 +117,7 @@ class Region(object):
                         unique_element = None
             if unique_element is not None:
                 #Region.wait_element_is_ready(unique_element)
-                wait_is_ready_try1(unique_element)
+                wait_is_ready_try1(unique_element, timeout=timeout)
                 break
             time.sleep(0.1)
         if not unique_element:
