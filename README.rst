@@ -4,7 +4,7 @@ Pywinauto recorder
 ******************
 
 **WARNING:**
-This recorder is still at a very early stage of development.
+This recorder is still at a very early stage of development. It has been developed with Pyhton 2.7. It has not been tested with Pyhton 3.
 
 
 Description

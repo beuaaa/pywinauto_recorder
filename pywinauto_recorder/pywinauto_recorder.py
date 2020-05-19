@@ -71,7 +71,7 @@ if __name__ == '__main__':
 			strCode = data.encode('utf-8').replace("from pywinauto_recorder import *", "")
 			print("Replaying: " + args.filename)
 			code = compile(strCode, '<string>', 'exec')
-			exec code
+			exec(code)
 		else:
 			print("Error: file '" + args.filename + "' not found.")
 		main_overlay.clear_all()
