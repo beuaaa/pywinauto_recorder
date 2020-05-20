@@ -2,6 +2,7 @@
 
 import unittest
 import os
+import platform
 from core import *
 from player import *
 from recorder import Recorder
@@ -136,6 +137,7 @@ class TestNotepad(unittest.TestCase):
 			w.left_click("||TitleBar->Close||Button")
 
 
+@unittest.skipUnless(platform.system() == 'Windows' and platform.release() == '10', "requires Windows 10")
 class TestCalculator(unittest.TestCase):
 
 	def test_clicks(self):
