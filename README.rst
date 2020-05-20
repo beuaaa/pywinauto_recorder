@@ -1,10 +1,9 @@
-
 ******************
 Pywinauto recorder
 ******************
 
 **WARNING:**
-This recorder is still at a very early stage of development. It has been developed with Pyhton 2.7. It has not been tested with Pyhton 3.
+This recorder is still at a very early stage of development.
 
 
 Description
@@ -38,7 +37,7 @@ Usage
 #####
 - Double click on Pywinauto_recorder.exe to start the recorder.
 - When the recorder is started, it is in "Pause" mode.
-- Press CTRL+SHIFT+f to copy the code that finds the item's envelope colored green or orange to the clipboard.
+- Press CTRL+SHIFT+f to copy the code that finds the element colored green or orange to the clipboard.
 - Press CTRL+ALT+r to switch to "Record" mode.
 - If the element below the mouse cursor can be uniquely identified, it will turn green, red or blue.
 - You can then click or perform another action on the user interface and the action is recorded in the generated Python script.
