@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+from six import string_types
 import core
 import pywinauto
 import win32api
@@ -130,7 +131,7 @@ class Region(object):
         global w_rOLD
 
         x, y = win32api.GetCursorPos()
-        if isinstance(element_path, basestring):
+        if isinstance(element_path, string_types):
             element_path2 = element_path
             if Region.common_path:
                 if Region.common_path != element_path[0:len(Region.common_path)]:
@@ -179,26 +180,26 @@ class Region(object):
                 for i in range(int(samples)):
                     x = x+step_x
                     time.sleep(0.01)
-                    nx = int(x) * 65535 / win32api.GetSystemMetrics(0)
-                    ny = int(y) * 65535 / win32api.GetSystemMetrics(1)
+                    nx = int(x * 65535 / win32api.GetSystemMetrics(0))
+                    ny = int(y * 65535 / win32api.GetSystemMetrics(1))
                     win32api.mouse_event(win32con.MOUSEEVENTF_MOVE | win32con.MOUSEEVENTF_ABSOLUTE, nx, ny)
                 step_x = 0
             if mode == MoveMode.y_first:
                 for i in range(int(samples)):
                     y = y+step_y
                     time.sleep(0.01)
-                    nx = int(x) * 65535 / win32api.GetSystemMetrics(0)
-                    ny = int(y) * 65535 / win32api.GetSystemMetrics(1)
+                    nx = int(x * 65535 / win32api.GetSystemMetrics(0))
+                    ny = int(y * 65535 / win32api.GetSystemMetrics(1))
                     win32api.mouse_event(win32con.MOUSEEVENTF_MOVE | win32con.MOUSEEVENTF_ABSOLUTE, nx, ny)
                 step_y = 0
             for i in range(int(samples)):
                 x, y = x+step_x, y+step_y
                 time.sleep(0.01)
-                nx = int(x) * 65535 / win32api.GetSystemMetrics(0)
-                ny = int(y) * 65535 / win32api.GetSystemMetrics(1)
+                nx = int(x * 65535 / win32api.GetSystemMetrics(0))
+                ny = int(y * 65535 / win32api.GetSystemMetrics(1))
                 win32api.mouse_event(win32con.MOUSEEVENTF_MOVE | win32con.MOUSEEVENTF_ABSOLUTE, nx, ny)
-        nx = int(xd) * 65535 / win32api.GetSystemMetrics(0)
-        ny = int(yd) * 65535 / win32api.GetSystemMetrics(1)
+        nx = int(xd * 65535 / win32api.GetSystemMetrics(0))
+        ny = int(yd * 65535 / win32api.GetSystemMetrics(1))
         win32api.mouse_event(win32con.MOUSEEVENTF_MOVE | win32con.MOUSEEVENTF_ABSOLUTE, nx, ny)
         if unique_element is None:
             return None
@@ -209,7 +210,7 @@ class Region(object):
 
     def click(self, element_path, duration=0.5, mode=MoveMode.linear, button='left'):
         unique_element = self.move(element_path, duration=duration, mode=mode)
-        if isinstance(element_path, basestring):
+        if isinstance(element_path, string_types):
             wait_is_ready_try1(unique_element)
         else:
             unique_element = None
@@ -255,7 +256,7 @@ class Region(object):
 
     def menu_click(self, element_path, menu_path, duration=0.5, mode=MoveMode.linear, menu_type='QT'):
         menu_entry_list = menu_path.split(core.path_separator)
-        if menu_type is 'QT':
+        if menu_type == 'QT':
             menu_entry_list = [''] + menu_entry_list
         else:
             menu_entry_list = ['Application'] + menu_entry_list
@@ -264,7 +265,7 @@ class Region(object):
             menu_entry_list[0] + core.type_separator + 'MenuBar' + core.path_separator +
             menu_entry_list[1] + core.type_separator + 'MenuItem', duration=duration, mode=mode)
         w = None
-        if menu_type is 'QT':
+        if menu_type == 'QT':
             common_path_old = Region.common_path
             Region.common_path = ''
             for entry in menu_entry_list[2:]:
