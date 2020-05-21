@@ -44,9 +44,9 @@ def write_in_file(events):
 	record_file = open(record_file_name, "w")
 	record_file.write("# coding: utf-8\n\n")
 	record_file.write("from pywinauto_recorder import *\n\n")
-	i = 0
 	common_path = ''
 	common_window = ''
+	i = 0
 	while i < len(events):
 		e_i = events[i]
 		if type(e_i) is SendKeysEvent:
@@ -111,9 +111,21 @@ def write_in_file(events):
 
 def clean_events(events):
 	""""
+	remove the 2 first up events due to (CRTL+ALT+r) when starting record mode
 	remove duplicate or useless events
+	remove all the last down events due to (CRTL+ALT+r) when ending record mode
 	:param events: the copy of recorded event list
 	"""
+	i = 0
+	i_up = 0
+	while i < len(events):
+		if type(events[i]) is keyboard.KeyboardEvent and events[i].event_type == 'up':
+			i_up = i_up + 1
+			events.pop(i)
+			if i_up == 2:
+				break
+		else:
+			i = i + 1
 	i = 0
 	previous_event_type = None
 	while i < len(events):
@@ -126,6 +138,13 @@ def clean_events(events):
 		else:
 			previous_event_type = type(events[i])
 			i = i + 1
+	i = len(events) - 1
+	while i > 0:
+		if type(events[i]) is keyboard.KeyboardEvent and events[i].event_type == 'down':
+			events.pop(i)
+		if type(events[i]) is keyboard.KeyboardEvent and events[i].event_type == 'up':
+			break
+		i = i - 1
 
 
 def process_events(events):
@@ -366,23 +385,25 @@ def get_wrapper_path(wrapper):
 def get_typed_keys(keyboard_events):
 	string = ''
 	for event in keyboard_events:
-		if event.name in keyboard.all_modifiers | {'maj'}:
+		event_name = event.name.replace('windows gauche', 'left windows')
+		event_name = event_name.replace('windows droite', 'right windows')
+		if event_name in keyboard.all_modifiers | {'maj'}:
 			string = string + '"' + "{VK_"
-			if 'left' in event.name:
+			if 'left' in event_name:
 				string = string + "L"
-			if 'right' in event.name or 'gr' in event.name:
+			if 'right' in event_name or 'gr' in event_name:
 				string = string + "R"
-			if 'alt' in event.name:
+			if 'alt' in event_name:
 				string = string + "MENU"
-			elif 'ctrl' in event.name:
+			elif 'ctrl' in event_name:
 				string = string + "CONTROL"
-			elif 'shift' in event.name or 'maj' in event.name:
+			elif 'shift' in event_name or 'maj' in event_name:
 				string = string + "SHIFT"
-			elif 'windows' in event.name:
+			elif 'windows' in event_name:
 				string = string + "WIN"
 			string = string + ' ' + event.event_type + "}" + '"'
 		else:
-			string = string + '"{' + event.name + ' ' + event.event_type + '}"'
+			string = string + '"{' + event_name + ' ' + event.event_type + '}"'
 	return string
 
 
