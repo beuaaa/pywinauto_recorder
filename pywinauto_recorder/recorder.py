@@ -5,6 +5,7 @@ import os
 import traceback
 import time
 import win32api
+import win32con
 from threading import Thread
 import pywinauto
 import overlay_arrows_and_more as oaam
@@ -499,6 +500,15 @@ def overlay_add_pause_icon(main_overlay, x, y):
 		color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(0, 0, 0))
 
 
+def overlay_add_stop_icon(main_overlay, x, y):
+	main_overlay.add(
+		geometry=oaam.Shape.rectangle, x=x, y=y, width=40, height=40,
+		color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 255, 254))
+	main_overlay.add(
+		geometry=oaam.Shape.rectangle, x=x + 5, y=y + 5, width=29, height=30,
+		color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(0, 0, 0))
+
+
 def overlay_add_progress_icon(main_overlay, i, x, y):
 	main_overlay.add(
 		geometry=oaam.Shape.rectangle, x=x, y=y, width=40, height=40,
@@ -531,14 +541,15 @@ class Recorder(Thread):
 		core.type_separator = type_separator
 		self.main_overlay = oaam.Overlay(transparency=0.5)
 		self.desktop = pywinauto.Desktop(backend='uia', allow_magic_lookup=False)
-		self._is_running = False
 		self.daemon = True
 		self.event_list = []
+		self.mode = 'Pause'
 		self.last_element_event = None
 		self.start()
 
 	def __find_unique_element_array_1d(self, wrapper_rectangle, elements):
 		nb_y, nb_x, candidates = core.get_sorted_region(elements)
+		window_title = core.get_entry_list((get_wrapper_path(elements[0])))[0]
 		for r_y in range(nb_y):
 			for r_x in range(nb_x):
 				try:
@@ -548,7 +559,7 @@ class Recorder(Thread):
 				if r == wrapper_rectangle:
 					xx, yy = r.left, r.mid_point()[1]
 					previous_wrapper_path2 = None
-					while xx > 0:
+					while xx > 0:	# TODO: limiter la recherche à la fenètre courante
 						xx = xx - 9
 						wrapper2 = self.desktop.from_point(xx, yy)
 						if wrapper2 is None:
@@ -560,6 +571,8 @@ class Recorder(Thread):
 						if not wrapper_path2:
 							continue
 						if wrapper_path2 == previous_wrapper_path2:
+							continue
+						if core.get_entry_list(wrapper_path2)[0] != window_title:
 							continue
 
 						previous_wrapper_path2 = wrapper_path2
@@ -618,18 +631,20 @@ class Recorder(Thread):
 				e.name == 'r' and e.event_type == 'up'
 				and keyboard.key_to_scan_codes("alt")[0] in keyboard._pressed_events
 				and keyboard.key_to_scan_codes("ctrl")[0] in keyboard._pressed_events):
-			if not self.event_list:
-				#keyboard.read_event(suppress=True)
-				#keyboard.read_event(suppress=True)
+			# if not self.event_list:
+			if self.mode == 'Pause':
 				self.start_recording()
-			else:
-				#keyboard.read_event(suppress=True)
-				#keyboard.read_event(suppress=True)
+				self.mode = 'Record'
+			elif self.mode == 'Record':
 				self.stop_recording()
+				self.mode = 'Stop'
+			elif self.mode == 'Stop':
+				self.mode = 'Pause'
 		elif (
 				(e.name == 'q') and (e.event_type == 'up')
 				and keyboard.key_to_scan_codes("alt")[0] in keyboard._pressed_events
 				and keyboard.key_to_scan_codes("ctrl")[0] in keyboard._pressed_events):
+			self.mode = 'Quit'
 			self.quit()
 		elif (
 				(e.name == 'F') and (e.event_type == 'up')
@@ -652,12 +667,23 @@ class Recorder(Thread):
 					'\twrapper = w.find(u"' + element_path + '%(' + str_dx + ',' + str_dy + ')")\n')
 				if self.event_list:
 					self.event_list.append(FindEvent(path=l_e_e.path, dx=dx, dy=dy, time=time.time()))
-		elif self.event_list:
+		elif self.mode == 'Record':
 			self.event_list.append(e)
 
 	def run(self):
+		dir_path = os.path.dirname(os.path.realpath(__file__))
+		print(dir_path)
 		keyboard.hook(self.__key_on)
 		mouse.hook(self.__mouse_on)
+		keyboard.start_recording()
+		win32api.keybd_event(160, 0, win32con.KEYEVENTF_EXTENDEDKEY |
+					win32con.KEYEVENTF_KEYUP, 0)
+		ev_list = keyboard.stop_recording()
+		if not ev_list:
+			print("Couldn't set keyboard hooks. Trying once again...\n")
+			time.sleep(2)
+			os.system(dir_path + r"\pywinauto_recorder.exe --no_splash_screen")
+			sys.exit(1)
 		unique_candidate = None
 		elements = []
 		i = 0
@@ -665,8 +691,7 @@ class Recorder(Thread):
 		unique_wrapper_path = None
 		strategies = [core.Strategy.unique_path, core.Strategy.array_2D, core.Strategy.array_1D]
 		i_strategy = 0
-		self._is_running = True
-		while self._is_running:
+		while self.mode != "Quit":
 			try:
 				self.main_overlay.clear_all()
 				x, y = win32api.GetCursorPos()
@@ -701,13 +726,13 @@ class Recorder(Thread):
 							self.main_overlay.add(
 								geometry=oaam.Shape.rectangle, x=r.left, y=r.top, width=r.width(), height=r.height(),
 								thickness=1, color=(0, 128, 0), brush=oaam.Brush.solid, brush_color=(255, 0, 0))
-				if strategy == core.Strategy.array_1D:
+				if strategy == core.Strategy.array_1D and elements:
 					unique_array_1d = self.__find_unique_element_array_1d(wrapper.rectangle(), elements)
 					if unique_array_1d is not None:
 						unique_wrapper_path = wrapper_path + unique_array_1d
 					else:
 						strategy = core.Strategy.array_2D
-				if strategy == core.Strategy.array_2D:
+				if strategy == core.Strategy.array_2D and elements:
 					unique_array_2d = self.__find_unique_element_array_2d(wrapper.rectangle(), elements)
 					if unique_array_2d is not None:
 						unique_wrapper_path = wrapper_path + unique_array_2d
@@ -715,10 +740,16 @@ class Recorder(Thread):
 					self.last_element_event = ElementEvent(strategy, wrapper.rectangle(), unique_wrapper_path)
 					if self.event_list and unique_wrapper_path is not None:
 						self.event_list.append(self.last_element_event)
-				if self.event_list:
+				if self.mode == 'Record':
 					overlay_add_record_icon(self.main_overlay, 10, 10)
-				else:
+				elif self.mode == 'Pause':
 					overlay_add_pause_icon(self.main_overlay, 10, 10)
+				elif self.mode == 'Stop':
+					self.main_overlay.clear_all()
+					overlay_add_stop_icon(self.main_overlay, 10, 10)
+					self.main_overlay.refresh()
+					while self.mode == 'Stop':
+						time.sleep(1.0)
 				overlay_add_progress_icon(self.main_overlay, i, 60, 10)
 				overlay_add_search_mode_icon(self.main_overlay, 110, 10)
 				i = i + 1
@@ -734,6 +765,7 @@ class Recorder(Thread):
 		mouse.unhook_all()
 		keyboard.unhook_all()
 		print("Run end")
+		# sys.exit(1)
 
 	def start_recording(self):
 		x, y = win32api.GetCursorPos()
@@ -742,7 +774,7 @@ class Recorder(Thread):
 		self.main_overlay.refresh()
 
 	def stop_recording(self):
-		if self.event_list:
+		if self.mode == 'Record' and len(self.event_list) > 2:
 			events = list(self.event_list)
 			self.event_list = []
 			clean_events(events)
@@ -755,4 +787,3 @@ class Recorder(Thread):
 
 	def quit(self):
 		print("Quit")
-		self._is_running = False

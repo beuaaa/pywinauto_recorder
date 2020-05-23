@@ -1,3 +1,6 @@
+.. image:: https://raw.githubusercontent.com/beuaaa/pywinauto_recorder/master/Images/logo.png?sanitize=true
+
+
 ******************
 Pywinauto recorder
 ******************
