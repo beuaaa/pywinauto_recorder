@@ -55,7 +55,7 @@ def display_splash_screen():
 		xyrgb_array=((x, y, 200, 0, 0), (x+w, y, 0, 128, 0), (x+w, y+h, 0, 0, 155)))
 	splash_screen3.add(
 		geometry=oaam.Shape.triangle, thickness=0,
-		xyrgb_array=((x+w+1, y+h-1, 0, 0, 155), (x, y+h-1, 22, 128, 66), (x+1, y-1, 200, 0, 0)))
+		xyrgb_array=((x+w+1, y+h-1, 0, 0, 155), (x, y+h-1, 22, 128, 66), (x, y-1, 200, 0, 0)))
 	splash_screen2.refresh()
 	splash_screen3.refresh()
 
@@ -114,8 +114,17 @@ if __name__ == '__main__':
 				data = python_file.read()
 			strCode = data.encode('utf-8').replace("from pywinauto_recorder import *", "")
 			print("Replaying: " + args.filename)
-			code = compile(strCode, '<string>', 'exec')
-			exec(code)
+			try:
+				compiled_code = compile(strCode, '<string>', 'exec')
+				exit_code = eval(compiled_code)
+			except Exception as e:
+				ctypes.windll.user32.ShowWindow(ctypes.windll.kernel32.GetConsoleWindow(), 3)
+				exc_type, exc_value, exc_traceback = sys.exc_info()
+				print(
+					"Error on" + traceback.format_exception(exc_type, exc_value, exc_traceback)[-2:-1][0].split(",")[1]
+					+ ": " + traceback.format_exception(exc_type, exc_value, exc_traceback)[-1:][0]
+				)
+				input("Press Enter to continue...")
 		else:
 			print("Error: file '" + args.filename + "' not found.")
 		main_overlay.clear_all()
