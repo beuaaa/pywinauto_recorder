@@ -24,8 +24,8 @@ w_rOLD = None
 
 def wait_is_ready_try1(wrapper, timeout=120):
     """
-    Wait until element is ready (greyed, not visible yet, ...) :
-    So far, I didn't find better than wait_cpu_usage_lower but must be enhanced
+    Wait until element is ready (wait while greyed, not enabled, not visible, not ready, ...) :
+    So far, I didn't find better than wait_cpu_usage_lower when greyed but must be enhanced
     """
     t0 = time.time()
     while not wrapper.is_enabled() or not wrapper.is_visible():
@@ -77,7 +77,10 @@ class Region(object):
         if not self.click_desktop:
             self.click_desktop = pywinauto.Desktop(backend='uia', allow_magic_lookup=False)
         if Region.common_path:
-            element_path2 = Region.common_path + core.path_separator + element_path
+            if element_path:
+                element_path2 = Region.common_path + core.path_separator + element_path
+            else:
+                element_path2 = Region.common_path
         else:
             element_path2 = element_path
         entry_list = core.get_entry_list(element_path2)
@@ -117,8 +120,6 @@ class Region(object):
                     else:
                         unique_element = None
             if unique_element is not None:
-                #Region.wait_element_is_ready(unique_element)
-                wait_is_ready_try1(unique_element, timeout=timeout)
                 break
             time.sleep(0.1)
         if not unique_element:
@@ -210,6 +211,7 @@ class Region(object):
 
     def click(self, element_path, duration=0.5, mode=MoveMode.linear, button='left'):
         unique_element = self.move(element_path, duration=duration, mode=mode)
+        wait_is_ready_try1(unique_element, timeout=60*5)
         if isinstance(element_path, string_types):
             wait_is_ready_try1(unique_element)
         else:
@@ -289,5 +291,5 @@ def mouse_wheel(steps):
     win32api.mouse_event(win32con.MOUSEEVENTF_WHEEL, 0, 0, win32con.WHEEL_DELTA * steps, 0)
 
 
-def send_keys(str_keys):
-    pywinauto.keyboard.send_keys(str_keys, with_spaces=True)
+def send_keys(str_keys, pause=0.1):
+    pywinauto.keyboard.send_keys(str_keys, with_spaces=True, pause=pause)

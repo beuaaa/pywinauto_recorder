@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import re
+import traceback
 from enum import Enum
 
 path_separator = "->"
@@ -19,6 +20,20 @@ def is_int(s):
         return True
     except ValueError:
         return False
+
+
+def get_wrapper_path(wrapper):
+    try:
+        path = ''
+        wrapper_top_level_parent = wrapper.top_level_parent()
+        while wrapper != wrapper_top_level_parent:
+            path = path_separator + wrapper.window_text() + type_separator + wrapper.element_info.control_type + path
+            wrapper = wrapper.parent()
+        return wrapper.window_text() + type_separator + wrapper.element_info.control_type + path
+    except Exception as e:
+        traceback.print_exc()
+        print(e.message)
+        return ''
 
 
 def get_entry_list(path):
@@ -88,22 +103,21 @@ def same_entry_list(element, entry_list, regex_title=False):
         i = len(entry_list) - 1
         top_level_parent = element.top_level_parent()
         current_element = element
-        while True:
+        while i >= 0:
             current_element_text = current_element.window_text()
             current_element_type = current_element.element_info.control_type
             entry_text, entry_type, _, _ = get_entry(entry_list[i])
-            if current_element == top_level_parent and regex_title:
-                if re.match(entry_list[0], entry_text) and current_element_type == entry_type:
-                    return True
-            if current_element_text == entry_text and current_element_type == entry_type:
-                if current_element == top_level_parent:
-                    return True
+            if i == 0 and current_element == top_level_parent:
+                if regex_title:
+                    return re.match(entry_list[0], entry_text) and current_element_type == entry_type
+                else:
+                    return current_element_text == entry_text and current_element_type == entry_type
+            elif current_element_text == entry_text and current_element_type == entry_type:
                 i -= 1
                 current_element = current_element.parent()
             else:
                 return False
-            if i == -1:
-                return False
+        return False
     except Exception:
         return False
 
