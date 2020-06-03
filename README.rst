@@ -29,7 +29,7 @@ You can download it here: Download_zip_archive_.
 You just have to unzip the zip archive and then you can directly launch Pywinauto_recorder.exe.
 If you drag and drop a file from the "Record files" folder to "pywinauto_recorder.exe", it will replay previously recorded user actions.
 
-.. _Download_zip_archive: https://raw.githubusercontent.com/beuaaa/pywinauto_recorder/master/pywinauto_recorder.dist.zip
+.. _Download_zip_archive: https://raw.githubusercontent.com/beuaaa/pywinauto_recorder/master/bin/pywinauto_recorder.dist.zip
 
 Setup
 #####
