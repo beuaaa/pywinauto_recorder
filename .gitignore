@@ -25,6 +25,8 @@ share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+*.build
+*.dist
 MANIFEST
 upload_pypi.bat
 
