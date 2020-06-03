@@ -11,10 +11,10 @@ import pywinauto
 import overlay_arrows_and_more as oaam
 import keyboard
 import mouse
-import core
 from collections import namedtuple
 import pyperclip
 import math
+from .core import *
 
 ElementEvent = namedtuple('ElementEvent', ['strategy', 'rectangle', 'path'])
 SendKeysEvent = namedtuple('SendKeysEvent', ['line'])
@@ -60,16 +60,16 @@ def write_in_file(events):
             record_file.write('mouse_wheel(' + str(e_i.delta) + ')\n')
         elif type(e_i) is CommonPathEvent:
             if e_i.path != common_path:
-                entry_list = core.get_entry_list(e_i.path)
+                entry_list = get_entry_list(e_i.path)
                 e_i_window = entry_list[0]
                 if e_i_window != common_window:
-                    record_file.write('\nwith Window(u"' + escape_special_char(e_i_window) + '") as w:\n')
+                    record_file.write('\nwith Window(u"' + escape_special_char(e_i_window) + '"):\n')
                     common_window = e_i_window
-                rel_path = core.path_separator.join(entry_list[1:])
+                rel_path = path_separator.join(entry_list[1:])
                 if rel_path:
-                    record_file.write('\twith Region(u"' + escape_special_char(rel_path) + '") as r:\n')
+                    record_file.write('\twith Region(u"' + escape_special_char(rel_path) + '"):\n')
                 else:
-                    record_file.write('\twith Region() as r:\n')
+                    record_file.write('\twith Region():\n')
                 common_path = e_i.path
         elif type(e_i) is DragAndDropEvent:
             p1, p2 = e_i.path, e_i.path2
@@ -78,26 +78,26 @@ def write_in_file(events):
             if common_path:
                 p1 = get_relative_path(common_path, p1)
                 p2 = get_relative_path(common_path, p2)
-            record_file.write('\t\tr.drag_and_drop(u"' + escape_special_char(p1) + '%(' + dx1 + ',' + dy1 + ')", ')
+            record_file.write('\t\tdrag_and_drop(u"' + escape_special_char(p1) + '%(' + dx1 + ',' + dy1 + ')", ')
             record_file.write('u"' + escape_special_char(p2) + '%(' + dx2 + ',' + dy2 + ')")\n')
         elif type(e_i) is ClickEvent:
             p = e_i.path
             dx, dy = "{:.2f}".format(round(e_i.dx * 100, 2)), "{:.2f}".format(round(e_i.dy * 100, 2))
             if common_path:
                 p = get_relative_path(common_path, p)
-            str_c = ['', '\t\tr.', '\t\tr.double_', '\t\tr.triple_']
+            str_c = ['', '\t\t', '\t\tdouble_', '\t\ttriple_']
             record_file.write(
                 str_c[e_i.click_count] + e_i.button + '_click(u"' + escape_special_char(p) +
                 '%(' + dx + ',' + dy + ')")\n')
         elif type(e_i) is FindEvent:
             p = e_i.path
             dx, dy = "{:.2f}".format(round(e_i.dx * 100, 2)), "{:.2f}".format(round(e_i.dy * 100, 2))
-            record_file.write('\t\twrapper = r.find(u"' + escape_special_char(p) + '%(' + dx + ',' + dy + ')")\n')
+            record_file.write('\t\twrapper = find(u"' + escape_special_char(p) + '%(' + dx + ',' + dy + ')")\n')
         elif type(e_i) is MenuEvent:
             p, m_p = e_i.path, e_i.menu_path
             if common_path:
                 p = get_relative_path(common_path, p)
-            record_file.write('\t\tr.menu_click(u"' + escape_special_char(p) + '", r"' + escape_special_char(m_p) + '"')
+            record_file.write('\t\tmenu_click(u"' + escape_special_char(p) + '", r"' + escape_special_char(m_p) + '"')
             if e_i.menu_type == 'NPP':
                 record_file.write(', menu_type="NPP")\n')
             else:
@@ -282,36 +282,36 @@ def process_drag_and_drop_or_click_events(events, i):
 def get_relative_path(common_path, path):
     if not path:
         return ''
-    path = path[len(common_path) + len(core.path_separator):]
-    entry_list = core.get_entry_list(path)
-    str_name, str_type, y_x, dx_dy = core.get_entry(entry_list[-1])
-    if (y_x is not None) and not core.is_int(y_x[0]):
+    path = path[len(common_path) + len(path_separator):]
+    entry_list = get_entry_list(path)
+    str_name, str_type, y_x, dx_dy = get_entry(entry_list[-1])
+    if (y_x is not None) and not is_int(y_x[0]):
         y_x[0] = y_x[0][len(common_path) + 2:]
-        path = core.path_separator.join(entry_list[:-1]) + core.path_separator + str_name
-        path = path + core.type_separator + str_type + "#[" + y_x[0] + "," + str(y_x[1]) + "]"
+        path = path_separator.join(entry_list[:-1]) + path_separator + str_name
+        path = path + type_separator + str_type + "#[" + y_x[0] + "," + str(y_x[1]) + "]"
         if dx_dy is not None:
             path = path + "%(" + str(dx_dy[0]) + "," + str(dx_dy[1]) + ")"
     return path
 
 
 def find_common_path(current_path, next_path):
-    current_entry_list = core.get_entry_list(current_path)
-    _, _, y_x, _ = core.get_entry(current_entry_list[-1])
-    if (y_x is not None) and not core.is_int(y_x[0]):
-        current_entry_list = core.get_entry_list(y_x[0])[:-1]
+    current_entry_list = get_entry_list(current_path)
+    _, _, y_x, _ = get_entry(current_entry_list[-1])
+    if (y_x is not None) and not is_int(y_x[0]):
+        current_entry_list = get_entry_list(y_x[0])[:-1]
     else:
         current_entry_list = current_entry_list[:-1]
 
-    next_entry_list = core.get_entry_list(next_path)
+    next_entry_list = get_entry_list(next_path)
     next_entry_list = next_entry_list[:-1]
     n = 0
     try:
         while current_entry_list[n] == next_entry_list[n]:
             n = n + 1
     except IndexError:
-        common_path = core.path_separator.join(current_entry_list[0:n])
+        common_path = path_separator.join(current_entry_list[0:n])
         return common_path
-    common_path = core.path_separator.join(current_entry_list[0:n])
+    common_path = path_separator.join(current_entry_list[0:n])
     return common_path
 
 
@@ -344,20 +344,20 @@ def process_menu_select_events(events, i):
     menu_type = 'QT'
     while i0 >= 0:
         if type(events[i0]) is ClickEvent:
-            entry_list = core.get_entry_list(events[i0].path)
-            str_name, str_type, _, _ = core.get_entry(entry_list[-1])
+            entry_list = get_entry_list(events[i0].path)
+            str_name, str_type, _, _ = get_entry(entry_list[-1])
             if str_type == 'MenuItem':
-                str_name, str_type, _, _ = core.get_entry(entry_list[0])
+                str_name, str_type, _, _ = get_entry(entry_list[0])
                 if str_name == 'Context' and str_type == 'Menu':
                     break
                 menu_path.append(str_name)
-                str_name, str_type, _, _ = core.get_entry(entry_list[-2])
+                str_name, str_type, _, _ = get_entry(entry_list[-2])
                 if str_type == 'MenuBar':
                     if str_name:
                         menu_type = 'NPP'
                     menu_path.append(str_name)
-                    menu_bar_path = core.path_separator.join(entry_list[0:-2])
-                    menu_path = core.path_separator.join(reversed(menu_path))
+                    menu_bar_path = path_separator.join(entry_list[0:-2])
+                    menu_path = path_separator.join(reversed(menu_path))
                     break
                 else:
                     i_processed_events.append(i0)
@@ -555,8 +555,8 @@ def overlay_add_search_mode_icon(main_overlay, x, y):
 class Recorder(Thread):
     def __init__(self, path_separator='->', type_separator='||'):
         Thread.__init__(self)
-        core.path_separator = path_separator
-        core.type_separator = type_separator
+        path_separator = path_separator
+        type_separator = type_separator
         self.main_overlay = oaam.Overlay(transparency=0.5)
         self.desktop = pywinauto.Desktop(backend='uia', allow_magic_lookup=False)
         self.daemon = True
@@ -570,8 +570,8 @@ class Recorder(Thread):
         self.start()
 
     def __find_unique_element_array_1d(self, wrapper_rectangle, elements):
-        nb_y, nb_x, candidates = core.get_sorted_region(elements)
-        window_title = core.get_entry_list((core.get_wrapper_path(elements[0])))[0]
+        nb_y, nb_x, candidates = get_sorted_region(elements)
+        window_title = get_entry_list((get_wrapper_path(elements[0])))[0]
         for r_y in range(nb_y):
             for r_x in range(nb_x):
                 try:
@@ -589,18 +589,18 @@ class Recorder(Thread):
                         wrapper2_rectangle = wrapper2.rectangle()
                         if wrapper2_rectangle.height() > wrapper_rectangle.height() * 2:
                             continue
-                        wrapper_path2 = core.get_wrapper_path(wrapper2)
+                        wrapper_path2 = get_wrapper_path(wrapper2)
                         if not wrapper_path2:
                             continue
                         if wrapper_path2 == previous_wrapper_path2:
                             continue
-                        if core.get_entry_list(wrapper_path2)[0] != window_title:
+                        if get_entry_list(wrapper_path2)[0] != window_title:
                             continue
 
                         previous_wrapper_path2 = wrapper_path2
 
-                        entry_list2 = core.get_entry_list(wrapper_path2)
-                        unique_candidate2, _ = core.find_element(self.desktop, entry_list2, window_candidates=[])
+                        entry_list2 = get_entry_list(wrapper_path2)
+                        unique_candidate2, _ = find_element(self.desktop, entry_list2, window_candidates=[])
 
                         if unique_candidate2 is not None:
                             r = wrapper2_rectangle
@@ -621,7 +621,7 @@ class Recorder(Thread):
         return None
 
     def __find_unique_element_array_2d(self, wrapper_rectangle, elements):
-        nb_y, nb_x, candidates = core.get_sorted_region(elements)
+        nb_y, nb_x, candidates = get_sorted_region(elements)
         unique_array_2d = ''
         for r_y in range(nb_y):
             for r_x in range(nb_x):
@@ -710,12 +710,12 @@ class Recorder(Thread):
                 str_dx, str_dy = "{:.2f}".format(round(dx * 100, 2)), "{:.2f}".format(round(dy * 100, 2))
                 overlay_add_play_icon(self.main_overlay, x, y)
                 l_e_e_path = escape_special_char(l_e_e.path)
-                i = l_e_e_path.find(core.path_separator)
+                i = l_e_e_path.find(path_separator)
                 window_title = l_e_e_path[0:i]
-                element_path = l_e_e_path[i+len(core.path_separator):]
+                element_path = l_e_e_path[i+len(path_separator):]
                 pyperclip.copy(
-                    'with Window(u"' + window_title + '") as w:\n' +
-                    '\twrapper = w.find(u"' + element_path + '%(' + str_dx + ',' + str_dy + ')")\n')
+                    'with Window(u"' + window_title + '"):\n' +
+                    '\twrapper = find(u"' + element_path + '%(' + str_dx + ',' + str_dy + ')")\n')
                 if self.event_list:
                     self.event_list.append(FindEvent(path=l_e_e.path, dx=dx, dy=dy, time=time.time()))
         elif self.mode == 'Record':
@@ -740,7 +740,7 @@ class Recorder(Thread):
         i = 0
         previous_wrapper_path = None
         unique_wrapper_path = None
-        strategies = [core.Strategy.unique_path, core.Strategy.array_2D, core.Strategy.array_1D]
+        strategies = [Strategy.unique_path, Strategy.array_2D, Strategy.array_1D]
         i_strategy = 0
         while self.mode != "Quit":
             try:
@@ -749,24 +749,24 @@ class Recorder(Thread):
                 wrapper = self.desktop.from_point(x, y)
                 if wrapper is None:
                     continue
-                wrapper_path = core.get_wrapper_path(wrapper)
+                wrapper_path = get_wrapper_path(wrapper)
                 if not wrapper_path:
                     continue
                 if wrapper_path == previous_wrapper_path:
-                    if (unique_wrapper_path is None) or (strategies[i_strategy] == core.Strategy.array_2D):
+                    if (unique_wrapper_path is None) or (strategies[i_strategy] == Strategy.array_2D):
                         i_strategy = i_strategy + 1
                         if i_strategy >= len(strategies):
                             i_strategy = len(strategies) - 1
                 else:
                     i_strategy = 0
                     previous_wrapper_path = wrapper_path
-                    entry_list = core.get_entry_list(wrapper_path)
-                    unique_candidate, elements = core.find_element(self.desktop, entry_list, window_candidates=[])
+                    entry_list = get_entry_list(wrapper_path)
+                    unique_candidate, elements = find_element(self.desktop, entry_list, window_candidates=[])
                 strategy = strategies[i_strategy]
                 unique_wrapper_path = None
-                if strategy == core.Strategy.unique_path:
+                if strategy == Strategy.unique_path:
                     if unique_candidate is not None:
-                        unique_wrapper_path = core.get_wrapper_path(unique_candidate)
+                        unique_wrapper_path = get_wrapper_path(unique_candidate)
                         r = wrapper.rectangle()
                         self.main_overlay.add(
                             geometry=oaam.Shape.rectangle, x=r.left, y=r.top, width=r.width(), height=r.height(),
@@ -777,13 +777,13 @@ class Recorder(Thread):
                             self.main_overlay.add(
                                 geometry=oaam.Shape.rectangle, x=r.left, y=r.top, width=r.width(), height=r.height(),
                                 thickness=1, color=(0, 128, 0), brush=oaam.Brush.solid, brush_color=(255, 0, 0))
-                if strategy == core.Strategy.array_1D and elements:
+                if strategy == Strategy.array_1D and elements:
                     unique_array_1d = self.__find_unique_element_array_1d(wrapper.rectangle(), elements)
                     if unique_array_1d is not None:
                         unique_wrapper_path = wrapper_path + unique_array_1d
                     else:
-                        strategy = core.Strategy.array_2D
-                if strategy == core.Strategy.array_2D and elements:
+                        strategy = Strategy.array_2D
+                if strategy == Strategy.array_2D and elements:
                     unique_array_2d = self.__find_unique_element_array_2d(wrapper.rectangle(), elements)
                     if unique_array_2d is not None:
                         unique_wrapper_path = wrapper_path + unique_array_2d
