@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 
+# print('__file__={0:<35} | __name__={1:<20} | __package__={2:<20}'.format(__file__, __name__, str(__package__)))
 from six import string_types
-import core
+from .core import *
 import pywinauto
 import win32api
 import win32con
@@ -53,235 +54,245 @@ class Region(object):
     common_path = ''
     list_path = []
     regex_title = False
+    click_desktop = None
+    current = None
 
     def __init__(self, relative_path=None, regex_title=False):
-        self.click_desktop = None
         self.relative_path = relative_path
         self.regex_title = regex_title
 
     def __enter__(self):
+        Region.current = self
         if not Region.list_path:
             Region.regex_title = self.regex_title
         else:
             self.regex_title = Region.regex_title
         if self.relative_path:
             Region.list_path.append(self.relative_path)
-        Region.common_path = core.path_separator.join(self.list_path)
+        Region.common_path = path_separator.join(self.list_path)
         return self
 
     def __exit__(self, type, value, traceback):
         Region.list_path = Region.list_path[0:-1]
-        Region.common_path = core.path_separator.join(self.list_path)
+        Region.common_path = path_separator.join(self.list_path)
 
-    def find(self, element_path, timeout=60*5):
-        if not self.click_desktop:
-            self.click_desktop = pywinauto.Desktop(backend='uia', allow_magic_lookup=False)
-        if Region.common_path:
-            if element_path:
-                element_path2 = Region.common_path + core.path_separator + element_path
-            else:
-                element_path2 = Region.common_path
+
+def find(element_path, timeout=60*5):
+    if not Region.click_desktop:
+        Region.click_desktop = pywinauto.Desktop(backend='uia', allow_magic_lookup=False)
+    if Region.common_path:
+        if element_path:
+            element_path2 = Region.common_path + path_separator + element_path
         else:
-            element_path2 = element_path
-        entry_list = core.get_entry_list(element_path2)
-        unique_element = None
-        elements = None
-        strategy = None
-        t0 = time.time()
-        while (time.time() - t0) < timeout:
-            while unique_element is None and not elements:
-                try:
-                    unique_element, elements = core.find_element(
-                        self.click_desktop, entry_list, window_candidates=[], regex_title=self.regex_title)
-                    if unique_element is None and not elements:
-                        time.sleep(2.0)
-                except Exception:
-                    pass
-                if (time.time() - t0) > timeout:
-                    raise Exception("Time out! ", element_path2)
+            element_path2 = Region.common_path
+    else:
+        element_path2 = element_path
+    entry_list = get_entry_list(element_path2)
+    unique_element = None
+    elements = None
+    strategy = None
+    t0 = time.time()
+    while (time.time() - t0) < timeout:
+        while unique_element is None and not elements:
+            try:
+                unique_element, elements = find_element(
+                    Region.click_desktop, entry_list, window_candidates=[], regex_title=Region.current.regex_title)
+                if unique_element is None and not elements:
+                    time.sleep(2.0)
+            except Exception:
+                pass
+            if (time.time() - t0) > timeout:
+                raise Exception("Time out! ", element_path2)
 
-            _, _, y_x, _ = core.get_entry(entry_list[-1])
-            if y_x is not None:
-                nb_y, nb_x, candidates = core.get_sorted_region(elements)
-                if core.is_int(y_x[0]):
-                    unique_element = candidates[int(y_x[0])][int(y_x[1])]
-                else:
-                    ref_entry_list = core.get_entry_list(Region.common_path) + core.get_entry_list(y_x[0])
-                    ref_unique_element, _ = core.find_element(
-                        self.click_desktop, ref_entry_list, window_candidates=[], regex_title=self.regex_title)
-                    ref_r = ref_unique_element.rectangle()
-                    r_y = 0
-                    while r_y < nb_y:
-                        y_candidate = candidates[r_y][0].rectangle().mid_point()[1]
-                        if ref_r.top < y_candidate < ref_r.bottom:
-                            unique_element = candidates[r_y][y_x[1]]
-                            break
-                        r_y = r_y + 1
-                    else:
-                        unique_element = None
-            if unique_element is not None:
-                break
-            time.sleep(0.1)
-        if not unique_element:
-            raise Exception("Unique element not found! ", element_path2)
-        return unique_element
-
-    def move(self, element_path, duration=0.5, mode=MoveMode.linear):
-        global unique_element_old
-        global element_path_old
-        global w_rOLD
-
-        x, y = win32api.GetCursorPos()
-        if isinstance(element_path, string_types):
-            element_path2 = element_path
-            if Region.common_path:
-                if Region.common_path != element_path[0:len(Region.common_path)]:
-                    element_path2 = Region.common_path + core.path_separator + element_path
-            entry_list = core.get_entry_list(element_path2)
-            if element_path2 == element_path_old:
-                w_r = w_rOLD
-                unique_element = unique_element_old
+        _, _, y_x, _ = get_entry(entry_list[-1])
+        if y_x is not None:
+            nb_y, nb_x, candidates = get_sorted_region(elements)
+            if is_int(y_x[0]):
+                unique_element = candidates[int(y_x[0])][int(y_x[1])]
             else:
-                unique_element = self.find(element_path)
-                w_r = unique_element.rectangle()
-            control_type = None
-            for entry in entry_list:
-                _, control_type, _, _ = core.get_entry(entry)
-                if control_type == 'Menu':
-                    break
-            if control_type == 'Menu':
-                entry_list_old = core.get_entry_list(element_path_old)
-                control_type_old = None
-                for entry in entry_list_old:
-                    _, control_type_old, _, _ = core.get_entry(entry)
-                    if control_type_old == 'Menu':
+                ref_entry_list = get_entry_list(Region.common_path) + get_entry_list(y_x[0])
+                ref_unique_element, _ = find_element(
+                    Region.click_desktop, ref_entry_list, window_candidates=[], regex_title=Region.current.regex_title)
+                ref_r = ref_unique_element.rectangle()
+                r_y = 0
+                while r_y < nb_y:
+                    y_candidate = candidates[r_y][0].rectangle().mid_point()[1]
+                    if ref_r.top < y_candidate < ref_r.bottom:
+                        unique_element = candidates[r_y][y_x[1]]
                         break
-                if control_type_old == 'Menu':
-                    mode = MoveMode.x_first
+                    r_y = r_y + 1
                 else:
-                    mode = MoveMode.y_first
-                xd, yd = w_r.mid_point()
-            else:
-                _, _, _, dx_dy = core.get_entry(entry_list[-1])
-                if dx_dy:
-                    dx, dy = dx_dy[0], dx_dy[1]
-                else:
-                    dx, dy = 0, 0
-                xd, yd = w_r.mid_point()
-                xd, yd = xd + round(dx/100.0*w_r.width(), 0), round(yd + dy/100.0*w_r.height(), 0)
+                    unique_element = None
+        if unique_element is not None:
+            break
+        time.sleep(0.1)
+    if not unique_element:
+        raise Exception("Unique element not found! ", element_path2)
+    return unique_element
+
+
+def move(element_path, duration=0.5, mode=MoveMode.linear):
+    global unique_element_old
+    global element_path_old
+    global w_rOLD
+
+    x, y = win32api.GetCursorPos()
+    if isinstance(element_path, string_types):
+        element_path2 = element_path
+        if Region.common_path:
+            if Region.common_path != element_path[0:len(Region.common_path)]:
+                element_path2 = Region.common_path + path_separator + element_path
+        entry_list = get_entry_list(element_path2)
+        if element_path2 == element_path_old:
+            w_r = w_rOLD
+            unique_element = unique_element_old
         else:
-            (xd, yd) = element_path
-            unique_element = None
-        if (x, y) != (xd, yd):
-            dt = 0.01
-            samples = duration/dt
-            step_x = (xd-x)/samples
-            step_y = (yd-y)/samples
-            if mode == MoveMode.x_first:
-                for i in range(int(samples)):
-                    x = x+step_x
-                    time.sleep(0.01)
-                    nx = int(x * 65535 / win32api.GetSystemMetrics(0))
-                    ny = int(y * 65535 / win32api.GetSystemMetrics(1))
-                    win32api.mouse_event(win32con.MOUSEEVENTF_MOVE | win32con.MOUSEEVENTF_ABSOLUTE, nx, ny)
-                step_x = 0
-            if mode == MoveMode.y_first:
-                for i in range(int(samples)):
-                    y = y+step_y
-                    time.sleep(0.01)
-                    nx = int(x * 65535 / win32api.GetSystemMetrics(0))
-                    ny = int(y * 65535 / win32api.GetSystemMetrics(1))
-                    win32api.mouse_event(win32con.MOUSEEVENTF_MOVE | win32con.MOUSEEVENTF_ABSOLUTE, nx, ny)
-                step_y = 0
+            unique_element = find(element_path)
+            w_r = unique_element.rectangle()
+        control_type = None
+        for entry in entry_list:
+            _, control_type, _, _ = get_entry(entry)
+            if control_type == 'Menu':
+                break
+        if control_type == 'Menu':
+            entry_list_old = get_entry_list(element_path_old)
+            control_type_old = None
+            for entry in entry_list_old:
+                _, control_type_old, _, _ = get_entry(entry)
+                if control_type_old == 'Menu':
+                    break
+            if control_type_old == 'Menu':
+                mode = MoveMode.x_first
+            else:
+                mode = MoveMode.y_first
+            xd, yd = w_r.mid_point()
+        else:
+            _, _, _, dx_dy = get_entry(entry_list[-1])
+            if dx_dy:
+                dx, dy = dx_dy[0], dx_dy[1]
+            else:
+                dx, dy = 0, 0
+            xd, yd = w_r.mid_point()
+            xd, yd = xd + round(dx/100.0*w_r.width(), 0), round(yd + dy/100.0*w_r.height(), 0)
+    else:
+        (xd, yd) = element_path
+        unique_element = None
+    if (x, y) != (xd, yd):
+        dt = 0.01
+        samples = duration/dt
+        step_x = (xd-x)/samples
+        step_y = (yd-y)/samples
+        if mode == MoveMode.x_first:
             for i in range(int(samples)):
-                x, y = x+step_x, y+step_y
+                x = x+step_x
                 time.sleep(0.01)
                 nx = int(x * 65535 / win32api.GetSystemMetrics(0))
                 ny = int(y * 65535 / win32api.GetSystemMetrics(1))
                 win32api.mouse_event(win32con.MOUSEEVENTF_MOVE | win32con.MOUSEEVENTF_ABSOLUTE, nx, ny)
-        nx = int(xd * 65535 / win32api.GetSystemMetrics(0))
-        ny = int(yd * 65535 / win32api.GetSystemMetrics(1))
-        win32api.mouse_event(win32con.MOUSEEVENTF_MOVE | win32con.MOUSEEVENTF_ABSOLUTE, nx, ny)
-        if unique_element is None:
-            return None
-        unique_element_old = unique_element
-        element_path_old = element_path2
-        w_rOLD = w_r
-        return unique_element
+            step_x = 0
+        if mode == MoveMode.y_first:
+            for i in range(int(samples)):
+                y = y+step_y
+                time.sleep(0.01)
+                nx = int(x * 65535 / win32api.GetSystemMetrics(0))
+                ny = int(y * 65535 / win32api.GetSystemMetrics(1))
+                win32api.mouse_event(win32con.MOUSEEVENTF_MOVE | win32con.MOUSEEVENTF_ABSOLUTE, nx, ny)
+            step_y = 0
+        for i in range(int(samples)):
+            x, y = x+step_x, y+step_y
+            time.sleep(0.01)
+            nx = int(x * 65535 / win32api.GetSystemMetrics(0))
+            ny = int(y * 65535 / win32api.GetSystemMetrics(1))
+            win32api.mouse_event(win32con.MOUSEEVENTF_MOVE | win32con.MOUSEEVENTF_ABSOLUTE, nx, ny)
+    nx = int(xd * 65535 / win32api.GetSystemMetrics(0))
+    ny = int(yd * 65535 / win32api.GetSystemMetrics(1))
+    win32api.mouse_event(win32con.MOUSEEVENTF_MOVE | win32con.MOUSEEVENTF_ABSOLUTE, nx, ny)
+    if unique_element is None:
+        return None
+    unique_element_old = unique_element
+    element_path_old = element_path2
+    w_rOLD = w_r
+    return unique_element
 
-    def click(self, element_path, duration=0.5, mode=MoveMode.linear, button='left'):
-        unique_element = self.move(element_path, duration=duration, mode=mode)
+
+def click(element_path, duration=0.5, mode=MoveMode.linear, button='left'):
+    unique_element = move(element_path, duration=duration, mode=mode)
+    if isinstance(element_path, string_types):
         wait_is_ready_try1(unique_element, timeout=60*5)
-        if isinstance(element_path, string_types):
-            wait_is_ready_try1(unique_element)
-        else:
-            unique_element = None
-        if button == 'left' or button == 'double_left' or button == 'triple_left':
-            win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0)
-            time.sleep(.01)
-            win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0)
-            time.sleep(.1)
-        if button == 'double_left' or button == 'triple_left':
-            win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0)
-            time.sleep(.01)
-            win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0)
-            time.sleep(.1)
-        if button == 'triple_left':
-            win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0)
-            time.sleep(.01)
-            win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0)
-        if button == 'right':
-            win32api.mouse_event(win32con.MOUSEEVENTF_RIGHTDOWN, 0, 0)
-            time.sleep(.01)
-            win32api.mouse_event(win32con.MOUSEEVENTF_RIGHTUP, 0, 0)
-            time.sleep(.01)
-        return unique_element
-
-    def left_click(self, element_path, duration=0.5, mode=MoveMode.linear):
-        return self.click(element_path, duration=duration, mode=mode, button='left')
-
-    def right_click(self, element_path, duration=0.5, mode=MoveMode.linear):
-        return self.click(element_path, duration=duration, mode=mode, button='right')
-
-    def double_left_click(self, element_path, duration=0.5, mode=MoveMode.linear):
-        return self.click(element_path, duration=duration, mode=mode, button='double_left')
-
-    def triple_left_click(self, element_path, duration=0.5, mode=MoveMode.linear):
-        return self.click(element_path, duration=duration, mode=mode, button='triple_left')
-
-    def drag_and_drop(self, element_path1, element_path2, duration=0.5, mode=MoveMode.linear):
-        unique_element = self.move(element_path1, duration=duration, mode=mode)
+    else:
+        unique_element = None
+    if button == 'left' or button == 'double_left' or button == 'triple_left':
         win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0)
-        self.move(element_path2, duration=duration, mode=mode)
+        time.sleep(.01)
         win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0)
-        return unique_element
+        time.sleep(.1)
+    if button == 'double_left' or button == 'triple_left':
+        win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0)
+        time.sleep(.01)
+        win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0)
+        time.sleep(.1)
+    if button == 'triple_left':
+        win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0)
+        time.sleep(.01)
+        win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0)
+    if button == 'right':
+        win32api.mouse_event(win32con.MOUSEEVENTF_RIGHTDOWN, 0, 0)
+        time.sleep(.01)
+        win32api.mouse_event(win32con.MOUSEEVENTF_RIGHTUP, 0, 0)
+        time.sleep(.01)
+    return unique_element
 
-    def menu_click(self, element_path, menu_path, duration=0.5, mode=MoveMode.linear, menu_type='QT'):
-        menu_entry_list = menu_path.split(core.path_separator)
-        if menu_type == 'QT':
-            menu_entry_list = [''] + menu_entry_list
-        else:
-            menu_entry_list = ['Application'] + menu_entry_list
-        self.left_click(
-            element_path +
-            menu_entry_list[0] + core.type_separator + 'MenuBar' + core.path_separator +
-            menu_entry_list[1] + core.type_separator + 'MenuItem', duration=duration, mode=mode)
-        w = None
-        if menu_type == 'QT':
-            common_path_old = Region.common_path
-            Region.common_path = ''
-            for entry in menu_entry_list[2:]:
-                w = self.left_click(
-                    core.type_separator + 'Menu' + core.path_separator +
-                    entry + core.type_separator + 'MenuItem', duration=duration, mode=mode)
-            Region.common_path = common_path_old
-        else:
-            for i, entry in enumerate(menu_entry_list[2:]):
-                w = self.left_click(
-                    element_path +
-                    menu_entry_list[i - 2] + core.type_separator + 'Menu' + core.path_separator +
-                    entry + core.type_separator + 'MenuItem', duration=duration, mode=mode)
-        return w
+
+def left_click(element_path, duration=0.5, mode=MoveMode.linear):
+    return click(element_path, duration=duration, mode=mode, button='left')
+
+
+def right_click(element_path, duration=0.5, mode=MoveMode.linear):
+    return click(element_path, duration=duration, mode=mode, button='right')
+
+
+def double_left_click(element_path, duration=0.5, mode=MoveMode.linear):
+    return click(element_path, duration=duration, mode=mode, button='double_left')
+
+
+def triple_left_click(element_path, duration=0.5, mode=MoveMode.linear):
+    return click(element_path, duration=duration, mode=mode, button='triple_left')
+
+
+def drag_and_drop(element_path1, element_path2, duration=0.5, mode=MoveMode.linear):
+    unique_element = move(element_path1, duration=duration, mode=mode)
+    win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0)
+    move(element_path2, duration=duration, mode=mode)
+    win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0)
+    return unique_element
+
+
+def menu_click(element_path, menu_path, duration=0.5, mode=MoveMode.linear, menu_type='QT'):
+    menu_entry_list = menu_path.split(path_separator)
+    if menu_type == 'QT':
+        menu_entry_list = [''] + menu_entry_list
+    else:
+        menu_entry_list = ['Application'] + menu_entry_list
+    left_click(
+        element_path +
+        menu_entry_list[0] + type_separator + 'MenuBar' + path_separator +
+        menu_entry_list[1] + type_separator + 'MenuItem', duration=duration, mode=mode)
+    w = None
+    if menu_type == 'QT':
+        common_path_old = Region.common_path
+        Region.common_path = ''
+        for entry in menu_entry_list[2:]:
+            w = left_click(
+                type_separator + 'Menu' + path_separator +
+                entry + type_separator + 'MenuItem', duration=duration, mode=mode)
+        Region.common_path = common_path_old
+    else:
+        for i, entry in enumerate(menu_entry_list[2:]):
+            w = left_click(
+                element_path +
+                menu_entry_list[i - 2] + type_separator + 'Menu' + path_separator +
+                entry + type_separator + 'MenuItem', duration=duration, mode=mode)
+    return w
 
 
 Window = Region
