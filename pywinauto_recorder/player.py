@@ -302,5 +302,21 @@ def mouse_wheel(steps):
     win32api.mouse_event(win32con.MOUSEEVENTF_WHEEL, 0, 0, win32con.WHEEL_DELTA * steps, 0)
 
 
-def send_keys(str_keys, pause=0.1):
-    pywinauto.keyboard.send_keys(str_keys, with_spaces=True, pause=pause)
+def send_keys(
+    str_keys,
+    pause=0.1,
+    with_spaces=True,
+    with_tabs=True,
+    with_newlines=True,
+    turn_off_numlock=True,
+    vk_packet=True):
+    """Parse the keys and type them"""
+    pywinauto.keyboard.send_keys(
+        str_keys,
+        pause=pause,
+        with_spaces=with_spaces,
+        with_tabs=with_tabs,
+        with_newlines=with_newlines,
+        turn_off_numlock=turn_off_numlock,
+        vk_packet=vk_packet
+    )
