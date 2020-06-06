@@ -44,7 +44,7 @@ def write_in_file(events):
     print('Recording in file: ' + record_file_name)
     record_file = open(record_file_name, "w")
     record_file.write("# coding: utf-8\n\n")
-    record_file.write("from pywinauto_recorder import *\n\n")
+    record_file.write("from pywinauto_recorder.player import *\n\n")
     common_path = ''
     common_window = ''
     i = 0
@@ -553,10 +553,8 @@ def overlay_add_search_mode_icon(main_overlay, x, y):
 
 
 class Recorder(Thread):
-    def __init__(self, path_separator='->', type_separator='||'):
+    def __init__(self):
         Thread.__init__(self)
-        path_separator = path_separator
-        type_separator = type_separator
         self.main_overlay = oaam.Overlay(transparency=0.5)
         self.desktop = pywinauto.Desktop(backend='uia', allow_magic_lookup=False)
         self.daemon = True
