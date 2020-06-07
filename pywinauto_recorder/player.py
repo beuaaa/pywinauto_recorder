@@ -309,7 +309,7 @@ def send_keys(
     with_tabs=True,
     with_newlines=True,
     turn_off_numlock=True,
-    vk_packet=False):
+    vk_packet=True):
     """Parse the keys and type them"""
     pywinauto.keyboard.send_keys(
         str_keys,
