@@ -72,3 +72,10 @@ If the path of the element under the mouse cursor is not ambiguous, the region o
 Functions
 **********************
 To be completed
+
+
+.. module:: player
+
+Detailed API documentation
+
+.. autofunction:: player.send_keys

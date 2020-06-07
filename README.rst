@@ -25,5 +25,5 @@ functions.
 Quickstart
 ##########
 
-See https://pywinauto-recorder.readthedocs.io for documentation
+See https://pywinauto-recorder.readthedocs.io for documentation.
 
