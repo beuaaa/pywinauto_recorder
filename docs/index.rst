@@ -78,4 +78,4 @@ To be completed
 
 Detailed API documentation
 
-.. autofunction:: player.send_keys
+.. automodule:: pywinauto_recorder.player
