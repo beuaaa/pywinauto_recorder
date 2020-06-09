@@ -33,6 +33,6 @@ See https://pywinauto-recorder.readthedocs.io for documentation.
    :target: https://pypi.org/project/pywinauto-recorder
 .. |Docs badge| image:: https://img.shields.io/badge/docs-latest-brightgreen.svg
    :target: https://pywinauto-recorder.readthedocs.io/
-   .. |License| image:: https://img.shields.io/badge/License-MIT-yellow.svg
+.. |License| image:: https://img.shields.io/badge/License-MIT-yellow.svg
    :target: https://opensource.org/licenses/MIT
    :alt: Repository License
