@@ -29,3 +29,10 @@ Quickstart
 
 See https://pywinauto-recorder.readthedocs.io for documentation.
 
+.. |PyPI version| image:: https://img.shields.io/pypi/v/ansible.svg
+   :target: https://pypi.org/project/ansible
+.. |Docs badge| image:: https://img.shields.io/badge/docs-latest-brightgreen.svg
+   :target: https://docs.ansible.com/ansible/latest/
+.. |License| image:: https://img.shields.io/badge/License-MIT-yellow.svg
+   :target: COPYING
+   :alt: Repository License
