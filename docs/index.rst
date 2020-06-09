@@ -47,7 +47,7 @@ Usage
 - You can then click or perform another action on the user interface and the action is recorded in the generated Python script.
 - Repeat this process performing a few actions on the user interface and when you're done press CTRL+ALT+r to return to "Pause" mode.
 - Eventually, press CTRL+ALT+q to exit the recorder.
-- The generated Python script is saved in the "Record files" folder and in the clipboard.
+- The generated Python script is saved in the "Record files" folder and copied in the clipboard.
 - To replay a Python script, you can drag and drop it to Pywinauto_recorder.exe
 
 Icons
@@ -58,7 +58,7 @@ Two transparent icons are displayed at the top left of the screen:
 
 More explanations
 #################
-The main of "Pywinauto recorder" is an infinite loop where where at each iteration it:
+The main of "Pywinauto recorder" is an infinite loop where at each iteration it:
  (1) finds the path of the element under the mouse cursor. The path is formed by the window_text and control_type pair of the element and all its ancestors.
  (2) searches for an unambiguous path, if found, it colors the element region green or orange.
  (3) records a user action in a file involving the last recognized unique path.
