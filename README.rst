@@ -4,16 +4,10 @@
     :align: center
     :width: 200
 
-******************
-Pywinauto recorder
-******************
-
-**WARNING:**
-This recorder is still at a very early stage of development.
-
+.. warning::  This recorder is still at a very early stage of development.
 
 Description
-###########
+===========
 "Pywinauto recorder" records user interface actions and saves them in a Python script.
 The generated Python script plays back user interface actions in the order in which the user recorded them.
 
@@ -25,7 +19,7 @@ functions.
 .. _Pywinauto: https://github.com/pywinauto/pywinauto/
 
 Quickstart
-##########
+==========
 
 See https://pywinauto-recorder.readthedocs.io for documentation.
 
