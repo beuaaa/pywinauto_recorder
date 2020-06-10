@@ -4,8 +4,6 @@
     :align: center
     :width: 200
 
-.. warning::  This recorder is still at a very early stage of development.
-
 Description
 ===========
 "Pywinauto recorder" records user interface actions and saves them in a Python script.
