@@ -6,8 +6,7 @@
 Pywinauto recorder
 ==================
 
-**WARNING:**
-This recorder is still at a very early stage of development.
+.. warning::  This recorder is still at a very early stage of development.
 
 
 Description
