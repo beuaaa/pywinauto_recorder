@@ -84,7 +84,7 @@ Functions
 To be completed
 
 
-.. module:: ../pywinauto_recorder/player
+.. automodule:: ../pywinauto_recorder/player
 
 Detailed API documentation
 
