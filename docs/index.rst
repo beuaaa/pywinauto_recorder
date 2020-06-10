@@ -2,10 +2,6 @@
     :align: center
     :width: 200
 
-==================
-Pywinauto recorder
-==================
-
 .. warning::  This recorder is still at a very early stage of development.
 
 
