@@ -84,6 +84,7 @@ To be completed
 
 
 .. automodule:: ../pywinauto_recorder/player
+    :members:
 
 Detailed API documentation
 
