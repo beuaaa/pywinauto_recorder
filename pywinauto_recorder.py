@@ -30,10 +30,9 @@ def overlay_add_pywinauto_recorder_icon(overlay, x, y):
 
 
 def display_splash_screen():
-	splash_screen = oaam.Overlay(transparency=0.0)
+	splash_foreground = oaam.Overlay(transparency=0.0)
 	time.sleep(0.2)
-	splash_screen2 = oaam.Overlay(transparency=0.1)
-	splash_screen3 = oaam.Overlay(transparency=0.1)
+	splash_background = oaam.Overlay(transparency=0.1)
 	screen_width = GetSystemMetrics(0)
 	screen_height = GetSystemMetrics(1)
 	nb_band = 20
@@ -48,29 +47,28 @@ def display_splash_screen():
 	text_lines[17] = 'Drag and drop a recorded file on '
 	text_lines[18] = 'pywinauto_recorder.exe to replay it'
 
-	splash_screen2.clear_all()
-	splash_screen3.clear_all()
+	splash_background.clear_all()
 	x, y, w, h = screen_width / 3, screen_height / 4, screen_width / 3, line_height * nb_band
-	splash_screen2.add(
+	splash_background.add(
 		geometry=oaam.Shape.triangle, thickness=0,
 		xyrgb_array=((x, y, 200, 0, 0), (x+w, y, 0, 128, 0), (x+w, y+h, 0, 0, 155)))
-	splash_screen3.add(
+	splash_background.add(
 		geometry=oaam.Shape.triangle, thickness=0,
-		xyrgb_array=((x+w+1, y+h-1, 0, 0, 155), (x, y+h-1, 22, 128, 66), (x, y-1, 200, 0, 0)))
-	splash_screen2.refresh()
-	splash_screen3.refresh()
+		xyrgb_array=((x + w, y + h, 0, 0, 155), (x, y + h, 22, 128, 66), (x, y, 200, 0, 0)))
 
-	overlay_add_pywinauto_recorder_icon(splash_screen2, screen_width / 3 + screen_width / 6 - 100, screen_height /4 + 30)
+	splash_background.refresh()
+
+	overlay_add_pywinauto_recorder_icon(splash_background, screen_width / 3 + screen_width / 6 - 100, screen_height /4 + 30)
 
 	for n in range(10):
-		splash_screen.clear_all()
+		splash_foreground.clear_all()
 		i = 0
 		while i < nb_band:
 			if i < 2:
 				font_size = 44
 			else:
 				font_size = 20
-			splash_screen.add(
+			splash_foreground.add(
 				x=screen_width / 3, y=screen_height / 4 + i * line_height, width=screen_width / 3, height=line_height,
 				text=text_lines[i], font_size=font_size, text_color=(254, 255, 255), color=(255, 255, 255),
 				geometry=oaam.Shape.rectangle, thickness=0
@@ -78,25 +76,23 @@ def display_splash_screen():
 			i = i + 1
 		if n % 3 == 0:
 			overlay_add_record_icon(
-				splash_screen, screen_width / 3 + screen_width / 18, screen_height / 4 + line_height * 8.6)
+				splash_foreground, screen_width / 3 + screen_width / 18, screen_height / 4 + line_height * 8.6)
 		if n % 3 == 1:
 			overlay_add_pause_icon(
-				splash_screen, screen_width / 3 + screen_width / 18, screen_height / 4 + line_height * 8.6)
+				splash_foreground, screen_width / 3 + screen_width / 18, screen_height / 4 + line_height * 8.6)
 		if n % 3 == 2:
 			overlay_add_stop_icon(
-				splash_screen, screen_width / 3 + screen_width / 18, screen_height / 4 + line_height * 8.6)
+				splash_foreground, screen_width / 3 + screen_width / 18, screen_height / 4 + line_height * 8.6)
 		overlay_add_progress_icon(
-			splash_screen, n % 5, screen_width / 3 + screen_width / 18, screen_height / 4 + line_height * 10.8)
+			splash_foreground, n % 5, screen_width / 3 + screen_width / 18, screen_height / 4 + line_height * 10.8)
 		overlay_add_play_icon(
-			splash_screen, screen_width / 3 + screen_width / 18, int(screen_height / 4 + line_height * 17.3))
-		splash_screen.refresh()
+			splash_foreground, screen_width / 3 + screen_width / 18, int(screen_height / 4 + line_height * 17.3))
+		splash_foreground.refresh()
 		time.sleep(0.4)
-	splash_screen.clear_all()
-	splash_screen.refresh()
-	splash_screen2.clear_all()
-	splash_screen2.refresh()
-	splash_screen3.clear_all()
-	splash_screen3.refresh()
+	splash_foreground.clear_all()
+	splash_foreground.refresh()
+	splash_background.clear_all()
+	splash_background.refresh()
 
 
 if __name__ == '__main__':
