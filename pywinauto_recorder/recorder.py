@@ -14,6 +14,7 @@ import mouse
 from collections import namedtuple
 import pyperclip
 import math
+import codecs
 from .core import *
 
 ElementEvent = namedtuple('ElementEvent', ['strategy', 'rectangle', 'path'])
@@ -42,9 +43,13 @@ def write_in_file(events):
     record_file_name = './Record files/recorded ' + time.asctime() + '.py'
     record_file_name = record_file_name.replace(':', '_')
     print('Recording in file: ' + record_file_name)
-    record_file = open(record_file_name, "w")
-    record_file.write("# coding: utf-8\n\n")
-    record_file.write("from pywinauto_recorder.player import *\n\n")
+    #record_file = open(record_file_name, "w")
+    #record_file.write("# coding: utf-8\n\n")
+    script = "# encoding: {}\n\n".format(sys.getdefaultencoding())
+    script += u"import os, sys\n"
+    script += u"script_dir = os.path.dirname(__file__)\n"
+    script += u"sys.path.append(script_dir)\n"
+    script += "from pywinauto_recorder.player import *\n\n"
     common_path = ''
     common_window = ''
     i = 0
@@ -52,24 +57,24 @@ def write_in_file(events):
         e_i = events[i]
         if type(e_i) is SendKeysEvent:
             if common_path:
-                record_file.write('\t\t')
-            record_file.write('send_keys(' + e_i.line + ')\n')
+                script += '\t\t'
+            script += 'send_keys(' + e_i.line + ')\n'
         elif type(e_i) is MouseWheelEvent:
             if common_path:
-                record_file.write("\t\t")
-            record_file.write('mouse_wheel(' + str(e_i.delta) + ')\n')
+                script += "\t\t"
+            script += 'mouse_wheel(' + str(e_i.delta) + ')\n'
         elif type(e_i) is CommonPathEvent:
             if e_i.path != common_path:
                 entry_list = get_entry_list(e_i.path)
                 e_i_window = entry_list[0]
                 if e_i_window != common_window:
-                    record_file.write('\nwith Window(u"' + escape_special_char(e_i_window) + '"):\n')
+                    script += '\nwith Window(u"' + escape_special_char(e_i_window) + '"):\n'
                     common_window = e_i_window
                 rel_path = path_separator.join(entry_list[1:])
                 if rel_path:
-                    record_file.write('\twith Region(u"' + escape_special_char(rel_path) + '"):\n')
+                    script += '\twith Region(u"' + escape_special_char(rel_path) + '"):\n'
                 else:
-                    record_file.write('\twith Region():\n')
+                    script += '\twith Region():\n'
                 common_path = e_i.path
         elif type(e_i) is DragAndDropEvent:
             p1, p2 = e_i.path, e_i.path2
@@ -78,35 +83,33 @@ def write_in_file(events):
             if common_path:
                 p1 = get_relative_path(common_path, p1)
                 p2 = get_relative_path(common_path, p2)
-            record_file.write('\t\tdrag_and_drop(u"' + escape_special_char(p1) + '%(' + dx1 + ',' + dy1 + ')", ')
-            record_file.write('u"' + escape_special_char(p2) + '%(' + dx2 + ',' + dy2 + ')")\n')
+            script += '\t\tdrag_and_drop(u"' + escape_special_char(p1) + '%(' + dx1 + ',' + dy1 + ')", '
+            script +=  + escape_special_char(p2) + '%(' + dx2 + ',' + dy2 + ')")\n'
         elif type(e_i) is ClickEvent:
             p = e_i.path
             dx, dy = "{:.2f}".format(round(e_i.dx * 100, 2)), "{:.2f}".format(round(e_i.dy * 100, 2))
             if common_path:
                 p = get_relative_path(common_path, p)
             str_c = ['', '\t\t', '\t\tdouble_', '\t\ttriple_']
-            record_file.write(
-                str_c[e_i.click_count] + e_i.button + '_click(u"' + escape_special_char(p) +
-                '%(' + dx + ',' + dy + ')")\n')
+            script += str_c[e_i.click_count] + e_i.button + '_click(u"' + escape_special_char(p) + \
+                '%(' + dx + ',' + dy + ')")\n'
         elif type(e_i) is FindEvent:
             p = e_i.path
             dx, dy = "{:.2f}".format(round(e_i.dx * 100, 2)), "{:.2f}".format(round(e_i.dy * 100, 2))
-            record_file.write('\t\twrapper = find(u"' + escape_special_char(p) + '%(' + dx + ',' + dy + ')")\n')
+            script += '\t\twrapper = find(u"' + escape_special_char(p) + '%(' + dx + ',' + dy + ')")\n'
         elif type(e_i) is MenuEvent:
             p, m_p = e_i.path, e_i.menu_path
             if common_path:
                 p = get_relative_path(common_path, p)
-            record_file.write('\t\tmenu_click(u"' + escape_special_char(p) + '", r"' + escape_special_char(m_p) + '"')
+            script += '\t\tmenu_click(u"' + escape_special_char(p) + '", r"' + escape_special_char(m_p) + '"'
             if e_i.menu_type == 'NPP':
-                record_file.write(', menu_type="NPP")\n')
+                script += ', menu_type="NPP")\n'
             else:
-                record_file.write(')\n')
+                script += ')\n'
         i = i + 1
-    record_file.close()
-    with open(record_file_name, 'r') as my_file:
-        data = my_file.read()
-        pyperclip.copy(data)
+    with codecs.open(record_file_name, "w", encoding=sys.getdefaultencoding()) as f:
+        f.write(script)
+    pyperclip.copy(script)
     return record_file_name
 
 
@@ -493,7 +496,12 @@ def overlay_add_play_icon(main_overlay, x, y):
         color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 255, 254))
     main_overlay.add(
         geometry=oaam.Shape.triangle,
-        xyrgb_array=((x + 5, y + 5, 0, 255, 0), (x + 5, y + 35, 0, 255, 0), (x + 35, y + 20, 0, 255, 0)))
+        xyrgb_array=((x + 1, y + 1, 255, 255, 254), (x + 1, y + 40, 128, 128, 128), (x + 39, y + 40, 255, 255, 254)),
+        thickness=0)
+    main_overlay.add(
+        geometry=oaam.Shape.triangle,
+        xyrgb_array=((x + 5, y + 5, 0, 255, 0), (x + 5, y + 35, 0, 128, 0), (x + 35, y + 20, 50, 255, 99)),
+        thickness=1, color=(0, 128, 0))
     main_overlay.refresh()
 
 
@@ -501,6 +509,10 @@ def overlay_add_record_icon(main_overlay, x, y):
     main_overlay.add(
         geometry=oaam.Shape.rectangle, x=x, y=y, width=40, height=40,
         color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 255, 254))
+    main_overlay.add(
+        geometry=oaam.Shape.triangle,
+        xyrgb_array=((x + 1, y + 1, 255, 255, 254), (x + 1, y + 40, 128, 128, 128), (x + 39, y + 40, 255, 255, 254)),
+        thickness=0)
     main_overlay.add(
         geometry=oaam.Shape.ellipse, x=x + 5, y=y + 5, width=29, height=29,
         color=(255, 99, 99), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 0, 0))
@@ -510,6 +522,10 @@ def overlay_add_pause_icon(main_overlay, x, y):
     main_overlay.add(
         geometry=oaam.Shape.rectangle, x=x, y=y, width=40, height=40,
         color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 255, 254))
+    main_overlay.add(
+        geometry=oaam.Shape.triangle,
+        xyrgb_array=((x + 1, y + 1, 255, 255, 254), (x + 1, y + 40, 128, 128, 128), (x + 39, y + 40, 255, 255, 254)),
+        thickness=0)
     main_overlay.add(
         geometry=oaam.Shape.rectangle, x=x + 5, y=y + 5, width=12, height=30,
         color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(0, 0, 0))
@@ -523,6 +539,10 @@ def overlay_add_stop_icon(main_overlay, x, y):
         geometry=oaam.Shape.rectangle, x=x, y=y, width=40, height=40,
         color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 255, 254))
     main_overlay.add(
+        geometry=oaam.Shape.triangle,
+        xyrgb_array=((x + 1, y + 1, 255, 255, 254), (x + 1, y + 40, 128, 128, 128), (x + 39, y + 40, 255, 255, 254)),
+        thickness=0)
+    main_overlay.add(
         geometry=oaam.Shape.rectangle, x=x + 5, y=y + 5, width=29, height=30,
         color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(0, 0, 0))
 
@@ -531,6 +551,10 @@ def overlay_add_progress_icon(main_overlay, i, x, y):
     main_overlay.add(
         geometry=oaam.Shape.rectangle, x=x, y=y, width=40, height=40,
         color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 255, 254))
+    main_overlay.add(
+        geometry=oaam.Shape.triangle,
+        xyrgb_array=((x + 1, y + 1, 255, 255, 254), (x + 1, y + 40, 128, 128, 128), (x + 39, y + 40, 255, 255, 254)),
+        thickness=0)
     for b in range(i % 5):
         main_overlay.add(
             geometry=oaam.Shape.rectangle, x=x + 5, y=y + 5 + b * 8, width=30, height=6,
@@ -541,6 +565,10 @@ def overlay_add_search_mode_icon(main_overlay, x, y):
     main_overlay.add(
         geometry=oaam.Shape.rectangle, x=x, y=y, width=40, height=40,
         color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 255, 254))
+    main_overlay.add(
+        geometry=oaam.Shape.triangle,
+        xyrgb_array=((x + 1, y + 1, 255, 255, 254), (x + 1, y + 40, 128, 128, 128), (x + 39, y + 40, 255, 255, 254)),
+        thickness=0)
     main_overlay.add(
         geometry=oaam.Shape.rectangle, x=x + 5, y=y + 5, width=30, height=30,
         color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(0, 255, 0))
@@ -728,7 +756,7 @@ class Recorder(Thread):
         win32api.keybd_event(160, 0, win32con.KEYEVENTF_EXTENDEDKEY |
                     win32con.KEYEVENTF_KEYUP, 0)
         ev_list = keyboard.stop_recording()
-        if not ev_list:
+        if not ev_list and os.path.isfile(dir_path + r"\pywinauto_recorder.exe"):
             print("Couldn't set keyboard hooks. Trying once again...\n")
             time.sleep(0.5)
             os.system(dir_path + r"\pywinauto_recorder.exe --no_splash_screen")
