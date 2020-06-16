@@ -592,6 +592,7 @@ class Recorder(Thread):
         self.distance_inside = 0.0
         self.mouse_x_inside = 99
         self.mouse_y_inside = 99
+        self.hicon = None
         self.started_recording_with_keyboard = False
         self.start()
 
@@ -734,7 +735,9 @@ class Recorder(Thread):
                 rx, ry = l_e_e.rectangle.mid_point()
                 dx, dy = float(x - rx) / l_e_e.rectangle.width(), float(y - ry) / l_e_e.rectangle.height()
                 str_dx, str_dy = "{:.2f}".format(round(dx * 100, 2)), "{:.2f}".format(round(dy * 100, 2))
-                overlay_add_play_icon(self.main_overlay, x, y)
+                #overlay_add_play_icon(self.main_overlay, x, y)
+                self.main_overlay.add(
+                    geometry=oaam.Shape.image, hicon=self.hicon, x=x, y=l_e_e.rectangle.top - 70)
                 l_e_e_path = escape_special_char(l_e_e.path)
                 i = l_e_e_path.find(path_separator)
                 window_title = l_e_e_path[0:i]
@@ -761,6 +764,7 @@ class Recorder(Thread):
             time.sleep(0.5)
             os.system(dir_path + r"\pywinauto_recorder.exe --no_splash_screen")
             sys.exit(1)
+        self.hicon = oaam.load_png(dir_path + r'\copy_clipboard.png', 64, 64)
         unique_candidate = None
         elements = []
         i = 0
