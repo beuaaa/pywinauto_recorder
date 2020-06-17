@@ -266,7 +266,7 @@ def process_drag_and_drop_or_click_events(events, i):
         up_event = events[i]
         w_r = element_event_before_button_down.rectangle
         rx, ry = w_r.mid_point()
-        dx, dy = float(move_event_end.x - rx) / w_r.width(), float(move_event_end.y - ry) / w_r.height()
+        dx, dy = float(move_event_end.x - rx) / (w_r.width()-1), float(move_event_end.y - ry) / (w_r.height()-1)
         events[i] = ClickEvent(
             button=up_event.button, click_count=click_count,
             path=element_event_before_button_down.path, dx=dx, dy=dy, time=up_event.time)
@@ -728,14 +728,12 @@ class Recorder(Thread):
                 (e.name == 'F') and (e.event_type == 'up')
                 and keyboard.key_to_scan_codes("shift")[0] in keyboard._pressed_events
                 and keyboard.key_to_scan_codes("ctrl")[0] in keyboard._pressed_events):
-            # remplacer l'icone play_icon par une icone Clipboard animée
             if self.last_element_event:
                 x, y = win32api.GetCursorPos()
                 l_e_e = self.last_element_event
                 rx, ry = l_e_e.rectangle.mid_point()
-                dx, dy = float(x - rx) / l_e_e.rectangle.width(), float(y - ry) / l_e_e.rectangle.height()
+                dx, dy = float(x - rx) / (l_e_e.rectangle.width()-1), float(y - ry) / (l_e_e.rectangle.height()-1)
                 str_dx, str_dy = "{:.2f}".format(round(dx * 100, 2)), "{:.2f}".format(round(dy * 100, 2))
-                #overlay_add_play_icon(self.main_overlay, x, y)
                 self.main_overlay.add(
                     geometry=oaam.Shape.image, hicon=self.hicon, x=x, y=l_e_e.rectangle.top - 70)
                 l_e_e_path = escape_special_char(l_e_e.path)

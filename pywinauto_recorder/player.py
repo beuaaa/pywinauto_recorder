@@ -73,7 +73,8 @@ class Region(object):
         return self
 
     def __exit__(self, type, value, traceback):
-        Region.list_path = Region.list_path[0:-1]
+        if self.relative_path:
+            Region.list_path = Region.list_path[0:-1]
         Region.common_path = path_separator.join(self.list_path)
 
 
@@ -173,11 +174,13 @@ def move(element_path, duration=0.5, mode=MoveMode.linear):
             else:
                 dx, dy = 0, 0
             xd, yd = w_r.mid_point()
-            xd, yd = xd + round(dx/100.0*w_r.width(), 0), round(yd + dy/100.0*w_r.height(), 0)
+            xd, yd = xd + round(dx/100.0*(w_r.width()-1), 0), round(yd + dy/100.0*(w_r.height()-1), 0)
     else:
         (xd, yd) = element_path
         unique_element = None
-    if (x, y) != (xd, yd):
+    x_max = win32api.GetSystemMetrics(0) - 1
+    y_max = win32api.GetSystemMetrics(1) - 1
+    if (x, y) != (xd, yd) and duration>0:
         dt = 0.01
         samples = duration/dt
         step_x = (xd-x)/samples
@@ -186,26 +189,26 @@ def move(element_path, duration=0.5, mode=MoveMode.linear):
             for i in range(int(samples)):
                 x = x+step_x
                 time.sleep(0.01)
-                nx = int(x * 65535 / win32api.GetSystemMetrics(0))
-                ny = int(y * 65535 / win32api.GetSystemMetrics(1))
+                nx = int(x * 65535 / x_max)
+                ny = int(y * 65535 / y_max)
                 win32api.mouse_event(win32con.MOUSEEVENTF_MOVE | win32con.MOUSEEVENTF_ABSOLUTE, nx, ny)
             step_x = 0
         if mode == MoveMode.y_first:
             for i in range(int(samples)):
                 y = y+step_y
                 time.sleep(0.01)
-                nx = int(x * 65535 / win32api.GetSystemMetrics(0))
-                ny = int(y * 65535 / win32api.GetSystemMetrics(1))
+                nx = int(x * 65535 / x_max)
+                ny = int(y * 65535 / y_max)
                 win32api.mouse_event(win32con.MOUSEEVENTF_MOVE | win32con.MOUSEEVENTF_ABSOLUTE, nx, ny)
             step_y = 0
         for i in range(int(samples)):
             x, y = x+step_x, y+step_y
             time.sleep(0.01)
-            nx = int(x * 65535 / win32api.GetSystemMetrics(0))
-            ny = int(y * 65535 / win32api.GetSystemMetrics(1))
+            nx = int(x * 65535 / x_max)
+            ny = int(y * 65535 / y_max)
             win32api.mouse_event(win32con.MOUSEEVENTF_MOVE | win32con.MOUSEEVENTF_ABSOLUTE, nx, ny)
-    nx = int(xd * 65535 / win32api.GetSystemMetrics(0))
-    ny = int(yd * 65535 / win32api.GetSystemMetrics(1))
+    nx = int(xd * 65535 / x_max)
+    ny = int(yd * 65535 / y_max)
     win32api.mouse_event(win32con.MOUSEEVENTF_MOVE | win32con.MOUSEEVENTF_ABSOLUTE, nx, ny)
     if unique_element is None:
         return None
