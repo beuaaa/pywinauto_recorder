@@ -37,7 +37,6 @@ class TestMouseMethods(unittest.TestCase):
 			self.assertEqual(x0, x)
 			self.assertEqual(y0, y)
 
-
 			time.sleep(0.5)
 			send_keys("{VK_CONTROL down}""{VK_SHIFT down}""f""{VK_SHIFT up}""{VK_CONTROL up}", vk_packet=False)
 			time.sleep(0.5)
