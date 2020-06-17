@@ -180,7 +180,7 @@ def move(element_path, duration=0.5, mode=MoveMode.linear):
         unique_element = None
     x_max = win32api.GetSystemMetrics(0) - 1
     y_max = win32api.GetSystemMetrics(1) - 1
-    if (x, y) != (xd, yd) and duration>0:
+    if (x, y) != (xd, yd) and duration > 0:
         dt = 0.01
         samples = duration/dt
         step_x = (xd-x)/samples
