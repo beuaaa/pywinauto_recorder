@@ -29,7 +29,7 @@ class TestMouseMethods(unittest.TestCase):
 		wrapper.draw_outline()
 
 		time.sleep(0.5)
-		for i in range(10):
+		for i in range(20):
 			x0 = random.randint(wrapper.rectangle().left, wrapper.rectangle().right)
 			y0 = random.randint(wrapper.rectangle().top, wrapper.rectangle().bottom)
 			move((x0, y0))
