@@ -5,6 +5,52 @@ import os
 import platform
 from pywinauto_recorder.player import *
 from pywinauto_recorder.recorder import Recorder
+import pyperclip
+import random
+
+
+class TestMouseMethods(unittest.TestCase):
+
+	def setUp(self):
+		"""Set some data and ensure the application is in the state we want"""
+		self.app = pywinauto.Application()
+		self.app.start("mspaint.exe")
+		self.recorder = Recorder()
+		self.recorder.start_recording()
+
+	def tearDown(self):
+		self.app.kill()
+		self.recorder.stop_recording()
+
+	def test_mouse_move(self):
+		with Window(u"Sans titre - Paint||Window"):
+			wrapper = find(u"||Pane->||Pane")
+		wrapper.draw_outline()
+
+		for i in range(10):
+			x0 = random.randint(wrapper.rectangle().left, wrapper.rectangle().right)
+			y0 = random.randint(wrapper.rectangle().top, wrapper.rectangle().bottom)
+			move((x0, y0))
+			x, y = win32api.GetCursorPos()
+			print("0 " + str(x) + " " + str(y))
+
+			self.assertEqual(x0, x)
+			self.assertEqual(y0, y)
+
+
+			time.sleep(0.5)
+			send_keys("{VK_CONTROL down}""{VK_SHIFT down}""f""{VK_SHIFT up}""{VK_CONTROL up}", vk_packet=False)
+			time.sleep(0.5)
+			code = pyperclip.paste()
+			words = code.split("%(")
+			words = words[1].split(')"')
+			with Window(u"Sans titre - Paint||Window"):
+				move(u"||Pane->||Pane%(" + words[0] + ")")
+			x, y = win32api.GetCursorPos()
+			print("1 " + str(x) + " " + str(y))
+
+			self.assertEqual(x0, x)
+			self.assertEqual(y0, y)
 
 
 class TestEntryMethods(unittest.TestCase):
