@@ -19,14 +19,16 @@ class TestMouseMethods(unittest.TestCase):
 		self.recorder.start_recording()
 
 	def tearDown(self):
-		self.app.kill()
 		self.recorder.stop_recording()
+		time.sleep(0.5)
+		self.app.kill()
 
 	def test_mouse_move(self):
 		with Window(u"Sans titre - Paint||Window"):
 			wrapper = find(u"||Pane->||Pane")
 		wrapper.draw_outline()
 
+		time.sleep(0.5)
 		for i in range(10):
 			x0 = random.randint(wrapper.rectangle().left, wrapper.rectangle().right)
 			y0 = random.randint(wrapper.rectangle().top, wrapper.rectangle().bottom)
@@ -37,14 +39,13 @@ class TestMouseMethods(unittest.TestCase):
 			self.assertEqual(x0, x)
 			self.assertEqual(y0, y)
 
-			time.sleep(0.5)
 			send_keys("{VK_CONTROL down}""{VK_SHIFT down}""f""{VK_SHIFT up}""{VK_CONTROL up}", vk_packet=False)
 			time.sleep(0.5)
 			code = pyperclip.paste()
 			words = code.split("%(")
 			words = words[1].split(')"')
 			with Window(u"Sans titre - Paint||Window"):
-				move(u"||Pane->||Pane%(" + words[0] + ")")
+				move(u"||Pane->||Pane%(" + words[0] + ")", duration=0)
 			x, y = win32api.GetCursorPos()
 			print("1 " + str(x) + " " + str(y))
 
