@@ -207,8 +207,8 @@ def move(element_path, duration=0.5, mode=MoveMode.linear):
             nx = int(x * 65535 / x_max)
             ny = int(y * 65535 / y_max)
             win32api.mouse_event(win32con.MOUSEEVENTF_MOVE | win32con.MOUSEEVENTF_ABSOLUTE, nx, ny)
-    nx = int(xd * 65535 / x_max)
-    ny = int(yd * 65535 / y_max)
+    nx = round(xd * 65535 / x_max)
+    ny = round(yd * 65535 / y_max)
     win32api.mouse_event(win32con.MOUSEEVENTF_MOVE | win32con.MOUSEEVENTF_ABSOLUTE, nx, ny)
     if unique_element is None:
         return None
