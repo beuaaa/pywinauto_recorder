@@ -37,10 +37,7 @@ def escape_special_char(string):
 
 
 def write_in_file(events):
-    new_path = 'Record files'
-    if not os.path.exists(new_path):
-        os.makedirs(new_path)
-    record_file_name = './Record files/recorded ' + time.asctime() + '.py'
+    record_file_name = './recorded ' + time.asctime() + '.py'
     record_file_name = record_file_name.replace(':', '_')
     print('Recording in file: ' + record_file_name)
     #record_file = open(record_file_name, "w")
