@@ -28,7 +28,7 @@ Download "pywinauto_recorder.exe" here: |download|
 
 .. |download| image:: https://raw.githubusercontent.com/beuaaa/pywinauto_recorder/master/Images/Download.png?sanitize=true
             :target: https://raw.githubusercontent.com/beuaaa/pywinauto_recorder/master/bin/pywinauto_recorder.exe
-            :width: 300 px
+            :width: 200 px
 
 
 Usage
