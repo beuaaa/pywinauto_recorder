@@ -24,7 +24,6 @@ functions.
 Pywinauto_recorder.exe for Windows
 ==================================
 "pywinauto_recorder.exe" is a standalone application, it's the compiled version for Windows.
-Download "pywinauto_recorder.exe":
 
 .. image:: https://raw.githubusercontent.com/beuaaa/pywinauto_recorder/master/Images/Download.png?sanitize=true
             :target: https://raw.githubusercontent.com/beuaaa/pywinauto_recorder/master/bin/pywinauto_recorder.exe
@@ -33,7 +32,7 @@ Download "pywinauto_recorder.exe":
 
 Usage
 -----
-- Double click on Pywinauto_recorder.exe to start the recorder.
+- Double click on "pywinauto_recorder.exe" to start the recorder.
 - When the recorder is started, it is in "Pause" mode.
 - Press CTRL+SHIFT+f to copy the code that finds the element colored green or orange to the clipboard.
 - Press CTRL+ALT+r to switch to "Record" mode.
