@@ -43,7 +43,7 @@ Usage
 - Repeat this process performing a few actions on the user interface and when you're done press CTRL+ALT+r to return to "Pause" mode.
 - Eventually, press CTRL+ALT+q to exit the recorder.
 - The generated Python script is saved in the "Record files" folder and copied in the clipboard.
-- To replay a Python script, you can drag and drop it to Pywinauto_recorder.exe
+- To replay a Python script, you can drag and drop it to "pywinauto_recorder.exe_"
 
 Icons
 -----
