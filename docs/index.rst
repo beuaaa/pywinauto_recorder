@@ -97,8 +97,9 @@ Indices and tables
 * :ref:`modindex`
 * :ref:`search`
 
-Pywinauto recorder API
-======================
+
+
+
 
 .. toctree::
    :maxdepth: 1
