@@ -58,7 +58,7 @@ The main of "Pywinauto recorder" is an infinite loop where at each iteration it:
  (2) searches for an unambiguous path, if found, it colors the element region green or orange.
  (3) records a user action in a file involving the last recognized unique path.
 
-.. note::  The mouse coordinates recorded are relative to the center of the element recognized with a unique path.
+.. note::  To reflect the position of the mouse cursor as closely as possible, an offset is added to the commands recorded in the generated Python script. This offset is proportional to the size of the element and relative to the center of the element.
 
 If the path of the element under the mouse cursor is not ambiguous, the region of the element is colored green. Otherwise two strategies are used to try to disambiguate the path in the following order:
  (1) All elements having the same path are ordered in a 2D array. The path of the element region under the mouse cursor is disambiguated by adding a row index and a column index so that it is colored orange. The other element regions are colored red
