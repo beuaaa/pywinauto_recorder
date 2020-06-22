@@ -1,3 +1,7 @@
+.. image:: https://raw.githubusercontent.com/beuaaa/pywinauto_recorder/master/Images/logo.png?sanitize=true
+    :align: center
+    :width: 200
+
 Description
 ===========
 .. warning::  This recorder is still at a very early stage of development.
