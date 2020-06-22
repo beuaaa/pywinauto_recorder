@@ -103,7 +103,6 @@ Indices and tables
 
 .. toctree::
    :maxdepth: 1
-   :hidden:
    :caption: About Pywinauto recorder
 
    description
