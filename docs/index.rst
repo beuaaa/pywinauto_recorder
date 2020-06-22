@@ -8,6 +8,10 @@
 
 .. include:: api.rst
 
+.. include:: contribute.rst
+
+.. include:: code-of-conduct.rst
+
 .. toctree::
    :maxdepth: 2
    :caption: About Pywinauto recorder
