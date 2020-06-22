@@ -96,3 +96,14 @@ Indices and tables
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
+
+Pywinauto recorder API
+======================
+
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+   :caption: About Pywinauto recorder
+
+   contribute
+   code-of-conduct
