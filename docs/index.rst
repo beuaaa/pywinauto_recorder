@@ -105,5 +105,6 @@ Pywinauto recorder API
    :hidden:
    :caption: About Pywinauto recorder
 
+   description
    contribute
    code-of-conduct
