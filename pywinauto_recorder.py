@@ -2,17 +2,11 @@
 
 # print('__file__={0:<35} | __name__={1:<20} | __package__={2:<20}'.format(__file__, __name__, str(__package__)))
 
-from pywinauto_recorder import __version__
-
-from pywinauto_recorder.recorder import *
-import overlay_arrows_and_more as oaam
-import time
+from ctypes import windll
 import argparse
-import os
-import sys
-import codecs
-from win32api import GetSystemMetrics
-import ctypes
+import overlay_arrows_and_more as oaam
+from os.path import isfile as os_path_isfile
+from sys import exit as sys_exit
 
 
 def overlay_add_pywinauto_recorder_icon(overlay, x, y):
@@ -96,7 +90,7 @@ def display_splash_screen():
 
 
 if __name__ == '__main__':
-	ctypes.windll.user32.ShowWindow(ctypes.windll.kernel32.GetConsoleWindow(), 6)
+	windll.user32.ShowWindow(windll.kernel32.GetConsoleWindow(), 6)
 	parser = argparse.ArgumentParser()
 	parser.add_argument(
 		"filename", metavar='path', help="replay a python script", type=str, action='store', nargs='?', default='')
@@ -105,8 +99,11 @@ if __name__ == '__main__':
 	args = parser.parse_args()
 	if args.filename:
 		main_overlay = oaam.Overlay(transparency=0.5)
+		from pywinauto_recorder.recorder import overlay_add_play_icon
+		import traceback
+		import codecs
 		overlay_add_play_icon(main_overlay, 10, 10)
-		if os.path.isfile(args.filename):
+		if os_path_isfile(args.filename):
 			with codecs.open(args.filename, "r", encoding='utf-8') as python_file:
 				data = python_file.read()
 			print("Replaying: " + args.filename)
@@ -114,7 +111,7 @@ if __name__ == '__main__':
 				compiled_code = compile(data, '<string>', 'exec')
 				exit_code = eval(compiled_code)
 			except Exception as e:
-				ctypes.windll.user32.ShowWindow(ctypes.windll.kernel32.GetConsoleWindow(), 3)
+				windll.user32.ShowWindow(windll.kernel32.GetConsoleWindow(), 3)
 				exc_type, exc_value, exc_traceback = sys.exc_info()
 				output = traceback.format_exception(exc_type, exc_value, exc_traceback)
 				for line in output:
@@ -133,11 +130,14 @@ if __name__ == '__main__':
 		main_overlay.refresh()
 		print("Exit")
 	else:
+		from pywinauto_recorder.recorder import *
 		if not args.no_splash_screen:
+			from pywinauto_recorder import __version__
+			from win32api import GetSystemMetrics
 			display_splash_screen()
 		recorder = Recorder()
 		while recorder.is_alive():
 			time.sleep(1.0)
 		print("Exit")
 
-	sys.exit(0)
+	sys_exit(0)
