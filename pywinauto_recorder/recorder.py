@@ -91,7 +91,7 @@ def write_in_file(events):
                     p = get_relative_path(common_path, p)
                 str_c = ['', '', 'double_', 'triple_']
                 script += str_c[e_i.click_count] + e_i.button + '_click(u"' + escape_special_char(p)
-                if dx != 0 and dy != 0:
+                if eval(dx) != 0 and eval(dy) != 0:
                     script += '%(' + dx + ',' + dy + ')'
                 script += '")\n'
             elif type(e_i) is FindEvent:
