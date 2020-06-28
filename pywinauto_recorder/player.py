@@ -4,12 +4,22 @@
 from six import string_types
 from .core import *
 import pywinauto
-import win32api
-import win32con
-import win32gui
+from win32api import GetCursorPos as win32api_GetCursorPos
+from win32api import GetSystemMetrics as win32api_GetSystemMetrics
+from win32api import mouse_event as win32api_mouse_event
+from win32gui import LoadCursor as win32gui_LoadCursor
+from win32gui import GetCursorInfo as win32gui_GetCursorInfo
+from win32con import IDC_WAIT
+from win32con import MOUSEEVENTF_MOVE
+from win32con import MOUSEEVENTF_ABSOLUTE
+from win32con import MOUSEEVENTF_LEFTDOWN
+from win32con import MOUSEEVENTF_LEFTUP
+from win32con import MOUSEEVENTF_RIGHTDOWN
+from win32con import MOUSEEVENTF_RIGHTUP
+from win32con import MOUSEEVENTF_WHEEL
+from win32con import WHEEL_DELTA
 import time
 from enum import Enum
-import copy
 
 
 class MoveMode(Enum):
@@ -31,8 +41,8 @@ def wait_is_ready_try1(wrapper, timeout=120):
     t0 = time.time()
     while not wrapper.is_enabled() or not wrapper.is_visible():
         try:
-            h_wait_cursor = win32gui.LoadCursor(0, win32con.IDC_WAIT)
-            _, h_cursor, _ = win32gui.GetCursorInfo()
+            h_wait_cursor = win32gui_LoadCursor(0, IDC_WAIT)
+            _, h_cursor, _ = win32gui_GetCursorInfo()
             app = pywinauto.Application(backend='uia', allow_magic_lookup=False)
             app.connect(process=wrapper.element_info.element.CurrentProcessId)
             while h_cursor == h_wait_cursor:
@@ -137,7 +147,7 @@ def move(element_path, duration=0.5, mode=MoveMode.linear):
     global element_path_old
     global w_rOLD
 
-    x, y = win32api.GetCursorPos()
+    x, y = win32api_GetCursorPos()
     if isinstance(element_path, string_types):
         element_path2 = element_path
         if Region.common_path:
@@ -178,8 +188,8 @@ def move(element_path, duration=0.5, mode=MoveMode.linear):
     else:
         (xd, yd) = element_path
         unique_element = None
-    x_max = win32api.GetSystemMetrics(0) - 1
-    y_max = win32api.GetSystemMetrics(1) - 1
+    x_max = win32api_GetSystemMetrics(0) - 1
+    y_max = win32api_GetSystemMetrics(1) - 1
     if (x, y) != (xd, yd) and duration > 0:
         dt = 0.01
         samples = duration/dt
@@ -191,7 +201,7 @@ def move(element_path, duration=0.5, mode=MoveMode.linear):
                 time.sleep(0.01)
                 nx = int(x * 65535 / x_max)
                 ny = int(y * 65535 / y_max)
-                win32api.mouse_event(win32con.MOUSEEVENTF_MOVE | win32con.MOUSEEVENTF_ABSOLUTE, nx, ny)
+                win32api_mouse_event(MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE, nx, ny)
             step_x = 0
         if mode == MoveMode.y_first:
             for i in range(int(samples)):
@@ -199,17 +209,17 @@ def move(element_path, duration=0.5, mode=MoveMode.linear):
                 time.sleep(0.01)
                 nx = int(x * 65535 / x_max)
                 ny = int(y * 65535 / y_max)
-                win32api.mouse_event(win32con.MOUSEEVENTF_MOVE | win32con.MOUSEEVENTF_ABSOLUTE, nx, ny)
+                win32api_mouse_event(MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE, nx, ny)
             step_y = 0
         for i in range(int(samples)):
             x, y = x+step_x, y+step_y
             time.sleep(0.01)
             nx = int(x * 65535 / x_max)
             ny = int(y * 65535 / y_max)
-            win32api.mouse_event(win32con.MOUSEEVENTF_MOVE | win32con.MOUSEEVENTF_ABSOLUTE, nx, ny)
+            win32api_mouse_event(MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE, nx, ny)
     nx = round(xd * 65535 / x_max)
     ny = round(yd * 65535 / y_max)
-    win32api.mouse_event(win32con.MOUSEEVENTF_MOVE | win32con.MOUSEEVENTF_ABSOLUTE, nx, ny)
+    win32api_mouse_event(MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE, nx, ny)
     if unique_element is None:
         return None
     unique_element_old = unique_element
@@ -225,23 +235,23 @@ def click(element_path, duration=0.5, mode=MoveMode.linear, button='left'):
     else:
         unique_element = None
     if button == 'left' or button == 'double_left' or button == 'triple_left':
-        win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0)
+        win32api_mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0)
         time.sleep(.01)
-        win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0)
+        win32api_mouse_event(MOUSEEVENTF_LEFTUP, 0, 0)
         time.sleep(.1)
     if button == 'double_left' or button == 'triple_left':
-        win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0)
+        win32api_mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0)
         time.sleep(.01)
-        win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0)
+        win32api_mouse_event(MOUSEEVENTF_LEFTUP, 0, 0)
         time.sleep(.1)
     if button == 'triple_left':
-        win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0)
+        win32api_mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0)
         time.sleep(.01)
-        win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0)
+        win32api_mouse_event(MOUSEEVENTF_LEFTUP, 0, 0)
     if button == 'right':
-        win32api.mouse_event(win32con.MOUSEEVENTF_RIGHTDOWN, 0, 0)
+        win32api_mouse_event(MOUSEEVENTF_RIGHTDOWN, 0, 0)
         time.sleep(.01)
-        win32api.mouse_event(win32con.MOUSEEVENTF_RIGHTUP, 0, 0)
+        win32api_mouse_event(MOUSEEVENTF_RIGHTUP, 0, 0)
         time.sleep(.01)
     return unique_element
 
@@ -264,9 +274,9 @@ def triple_left_click(element_path, duration=0.5, mode=MoveMode.linear):
 
 def drag_and_drop(element_path1, element_path2, duration=0.5, mode=MoveMode.linear):
     unique_element = move(element_path1, duration=duration, mode=mode)
-    win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0)
+    win32api_mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0)
     move(element_path2, duration=duration, mode=mode)
-    win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0)
+    win32api_mouse_event(MOUSEEVENTF_LEFTUP, 0, 0)
     return unique_element
 
 
@@ -302,7 +312,7 @@ Window = Region
 
 
 def mouse_wheel(steps):
-    win32api.mouse_event(win32con.MOUSEEVENTF_WHEEL, 0, 0, win32con.WHEEL_DELTA * steps, 0)
+    win32api_mouse_event(MOUSEEVENTF_WHEEL, 0, 0, WHEEL_DELTA * steps, 0)
 
 
 def send_keys(
