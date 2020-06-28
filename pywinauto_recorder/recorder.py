@@ -22,7 +22,6 @@ SendKeysEvent = namedtuple('SendKeysEvent', ['line'])
 MouseWheelEvent = namedtuple('MouseWheelEvent', ['delta'])
 DragAndDropEvent = namedtuple('DragAndDropEvent', ['path', 'dx1', 'dy1', 'path2', 'dx2', 'dy2'])
 ClickEvent = namedtuple('ClickEvent', ['button', 'click_count', 'path', 'dx', 'dy', 'time'])
-CommonPathEvent = namedtuple('CommonPathEvent', ['path'])
 FindEvent = namedtuple('FindEvent', ['path', 'dx', 'dy', 'time'])
 MenuEvent = namedtuple('MenuEvent', ['path', 'menu_path', 'menu_type'])
 
@@ -40,8 +39,6 @@ def write_in_file(events):
     record_file_name = './recorded ' + time.asctime() + '.py'
     record_file_name = record_file_name.replace(':', '_')
     print('Recording in file: ' + record_file_name)
-    #record_file = open(record_file_name, "w")
-    #record_file.write("# coding: utf-8\n\n")
     script = "# encoding: {}\n\n".format(sys.getdefaultencoding())
     script += u"import os, sys\n"
     script += u"script_dir = os.path.dirname(__file__)\n"
@@ -49,60 +46,67 @@ def write_in_file(events):
     script += "from pywinauto_recorder.player import *\n\n"
     common_path = ''
     common_window = ''
+    common_region = ''
     i = 0
     while i < len(events):
         e_i = events[i]
-        if type(e_i) is SendKeysEvent:
-            if common_path:
-                script += '\t\t'
-            script += 'send_keys(' + e_i.line + ')\n'
-        elif type(e_i) is MouseWheelEvent:
-            if common_path:
-                script += "\t\t"
-            script += 'mouse_wheel(' + str(e_i.delta) + ')\n'
-        elif type(e_i) is CommonPathEvent:
+        if type(e_i) in [DragAndDropEvent, ClickEvent, FindEvent, MenuEvent]:
             if e_i.path != common_path:
-                entry_list = get_entry_list(e_i.path)
-                e_i_window = entry_list[0]
-                if e_i_window != common_window:
-                    script += '\nwith Window(u"' + escape_special_char(e_i_window) + '"):\n'
-                    common_window = e_i_window
-                rel_path = path_separator.join(entry_list[1:])
-                if rel_path:
-                    script += '\twith Region(u"' + escape_special_char(rel_path) + '"):\n'
+                new_common_path = find_new_common_path_in_next_user_events(events, i)
+                if new_common_path != common_path:
+                    common_path = new_common_path
+                    entry_list = get_entry_list(common_path)
+                    e_i_window = entry_list[0]
+                    if e_i_window != common_window:
+                        common_window = e_i_window
+                        script += '\nwith Window(u"' + escape_special_char(common_window) + '"):\n'
+                    e_i_region = path_separator.join(entry_list[1:])
+                    if e_i_region != common_region and e_i_region:
+                        common_region = e_i_region
+                        script += '\twith Region(u"' + escape_special_char(common_region) + '"):\n'
+                    else:
+                        common_region = ''
+        if type(e_i) in [SendKeysEvent, MouseWheelEvent, DragAndDropEvent, ClickEvent, FindEvent, MenuEvent]:
+            if common_window:
+                script += '\t'
+                if common_region:
+                    script += '\t'
+            if type(e_i) is SendKeysEvent:
+                script += 'send_keys(' + e_i.line + ')\n'
+            elif type(e_i) is MouseWheelEvent:
+                script += 'mouse_wheel(' + str(e_i.delta) + ')\n'
+            elif type(e_i) is DragAndDropEvent:
+                p1, p2 = e_i.path, e_i.path2
+                dx1, dy1 = "{:.2f}".format(round(e_i.dx1 * 100, 2)), "{:.2f}".format(round(e_i.dy1 * 100, 2))
+                dx2, dy2 = "{:.2f}".format(round(e_i.dx2 * 100, 2)), "{:.2f}".format(round(e_i.dy2 * 100, 2))
+                if common_path:
+                    p1 = get_relative_path(common_path, p1)
+                    p2 = get_relative_path(common_path, p2)
+                script += 'drag_and_drop(u"' + escape_special_char(p1) + '%(' + dx1 + ',' + dy1 + ')", '
+                script += + escape_special_char(p2) + '%(' + dx2 + ',' + dy2 + ')")\n'
+            elif type(e_i) is ClickEvent:
+                p = e_i.path
+                dx, dy = "{:.2f}".format(round(e_i.dx * 100, 2)), "{:.2f}".format(round(e_i.dy * 100, 2))
+                if common_path:
+                    p = get_relative_path(common_path, p)
+                str_c = ['', '', 'double_', 'triple_']
+                script += str_c[e_i.click_count] + e_i.button + '_click(u"' + escape_special_char(p)
+                if dx != 0 and dy != 0:
+                    script += '%(' + dx + ',' + dy + ')'
+                script += '")\n'
+            elif type(e_i) is FindEvent:
+                p = e_i.path
+                dx, dy = "{:.2f}".format(round(e_i.dx * 100, 2)), "{:.2f}".format(round(e_i.dy * 100, 2))
+                script += 'wrapper = find(u"' + escape_special_char(p) + '%(' + dx + ',' + dy + ')")\n'
+            elif type(e_i) is MenuEvent:
+                p, m_p = e_i.path, e_i.menu_path
+                if common_path:
+                    p = get_relative_path(common_path, p)
+                script += 'menu_click(u"' + escape_special_char(p) + '", r"' + escape_special_char(m_p) + '"'
+                if e_i.menu_type == 'NPP':
+                    script += ', menu_type="NPP")\n'
                 else:
-                    script += '\twith Region():\n'
-                common_path = e_i.path
-        elif type(e_i) is DragAndDropEvent:
-            p1, p2 = e_i.path, e_i.path2
-            dx1, dy1 = "{:.2f}".format(round(e_i.dx1 * 100, 2)), "{:.2f}".format(round(e_i.dy1 * 100, 2))
-            dx2, dy2 = "{:.2f}".format(round(e_i.dx2 * 100, 2)), "{:.2f}".format(round(e_i.dy2 * 100, 2))
-            if common_path:
-                p1 = get_relative_path(common_path, p1)
-                p2 = get_relative_path(common_path, p2)
-            script += '\t\tdrag_and_drop(u"' + escape_special_char(p1) + '%(' + dx1 + ',' + dy1 + ')", '
-            script +=  + escape_special_char(p2) + '%(' + dx2 + ',' + dy2 + ')")\n'
-        elif type(e_i) is ClickEvent:
-            p = e_i.path
-            dx, dy = "{:.2f}".format(round(e_i.dx * 100, 2)), "{:.2f}".format(round(e_i.dy * 100, 2))
-            if common_path:
-                p = get_relative_path(common_path, p)
-            str_c = ['', '\t\t', '\t\tdouble_', '\t\ttriple_']
-            script += str_c[e_i.click_count] + e_i.button + '_click(u"' + escape_special_char(p) + \
-                '%(' + dx + ',' + dy + ')")\n'
-        elif type(e_i) is FindEvent:
-            p = e_i.path
-            dx, dy = "{:.2f}".format(round(e_i.dx * 100, 2)), "{:.2f}".format(round(e_i.dy * 100, 2))
-            script += '\t\twrapper = find(u"' + escape_special_char(p) + '%(' + dx + ',' + dy + ')")\n'
-        elif type(e_i) is MenuEvent:
-            p, m_p = e_i.path, e_i.menu_path
-            if common_path:
-                p = get_relative_path(common_path, p)
-            script += '\t\tmenu_click(u"' + escape_special_char(p) + '", r"' + escape_special_char(m_p) + '"'
-            if e_i.menu_type == 'NPP':
-                script += ', menu_type="NPP")\n'
-            else:
-                script += ')\n'
+                    script += ')\n'
         i = i + 1
     with codecs.open(record_file_name, "w", encoding=sys.getdefaultencoding()) as f:
         f.write(script)
@@ -162,11 +166,6 @@ def process_events(events):
         if type(events[i]) is mouse.ButtonEvent and events[i].event_type == 'up':
             i = process_drag_and_drop_or_click_events(events, i)
         i = i - 1
-    common_path = None
-    while i < len(events):
-        if type(events[i]) in [DragAndDropEvent, ClickEvent]:
-            common_path = process_common_path_events(events, i, common_path)
-        i = i + 1
     i = len(events) - 1
     while i >= 0:
         if type(events[i]) is ClickEvent:
@@ -296,11 +295,12 @@ def get_relative_path(common_path, path):
 
 def find_common_path(current_path, next_path):
     current_entry_list = get_entry_list(current_path)
-    _, _, y_x, _ = get_entry(current_entry_list[-1])
-    if (y_x is not None) and not is_int(y_x[0]):
-        current_entry_list = get_entry_list(y_x[0])[:-1]
-    else:
-        current_entry_list = current_entry_list[:-1]
+    if len(current_entry_list) > 1:
+        _, _, y_x, _ = get_entry(current_entry_list[-1])
+        if (y_x is not None) and not is_int(y_x[0]):
+            current_entry_list = get_entry_list(y_x[0])[:-1]
+        else:
+            current_entry_list = current_entry_list[:-1]
 
     next_entry_list = get_entry_list(next_path)
     next_entry_list = next_entry_list[:-1]
@@ -315,13 +315,13 @@ def find_common_path(current_path, next_path):
     return common_path
 
 
-def process_common_path_events(events, i, common_path):
+def find_new_common_path_in_next_user_events(events, i):
     path_i = events[i].path
     i0 = i + 1
     new_common_path = ''
     while i0 < len(events):
         e = events[i0]
-        if type(e) in [DragAndDropEvent, ClickEvent]:
+        if type(e) in [DragAndDropEvent, ClickEvent, FindEvent, MenuEvent]:
             new_common_path = find_common_path(path_i, e.path)
             break
         elif type(e) in [ElementEvent, mouse.MoveEvent]:
@@ -330,10 +330,7 @@ def process_common_path_events(events, i, common_path):
             break
     if new_common_path == '':
         new_common_path = find_common_path(path_i, path_i)
-    if new_common_path != common_path:
-        events.insert(i, CommonPathEvent(path=new_common_path))
-        return new_common_path
-    return common_path
+    return new_common_path
 
 
 def process_menu_select_events(events, i):
@@ -347,15 +344,15 @@ def process_menu_select_events(events, i):
             entry_list = get_entry_list(events[i0].path)
             str_name, str_type, _, _ = get_entry(entry_list[-1])
             if str_type == 'MenuItem':
-                str_name, str_type, _, _ = get_entry(entry_list[0])
-                if str_name == 'Context' and str_type == 'Menu':
+                str_name_root, str_type_root, _, _ = get_entry(entry_list[0])
+                if str_name_root == 'Context' and str_type_root == 'Menu':
                     break
                 menu_path.append(str_name)
                 str_name, str_type, _, _ = get_entry(entry_list[-2])
                 if str_type == 'MenuBar':
                     if str_name:
                         menu_type = 'NPP'
-                    menu_path.append(str_name)
+                    # menu_path.append(str_name)
                     menu_bar_path = path_separator.join(entry_list[0:-2])
                     menu_path = path_separator.join(reversed(menu_path))
                     break
@@ -861,6 +858,7 @@ class Recorder(Thread):
                 clean_events(events)
             self.started_recording_with_keyboard = False
             process_events(events)
+            clean_events(events)
             return write_in_file(events)
         self.main_overlay.clear_all()
         overlay_add_pause_icon(self.main_overlay, 10, 10)
