@@ -22,6 +22,13 @@ import time
 from enum import Enum
 
 
+# TODO special_char_array in core for recorder.py and player.py (check when too call escape & unescape)
+def unescape_special_char(string):
+    for r in (("\\\\", "\\"), ("\\t", "\t"), ("\\n", "\n"), ("\\r", "\r"), ("\\v", "\v"), ("\\f", "\f"), ('\\"', '"')):
+    #for r in (("\\", "\\\\"), ("\t", "\\t"), ("\n", "\\n"), ("\r", "\\r"), ("\v", "\\v"), ("\f", "\\f"), ('"', '\\"')):
+        string = string.replace(*r)
+    return string
+
 class MoveMode(Enum):
     linear = 0
     y_first = 1
@@ -304,7 +311,7 @@ def menu_click(element_path, menu_path, duration=0.5, mode=MoveMode.linear, menu
             w = left_click(
                 element_path +
                 menu_entry_list[i - 2] + type_separator + 'Menu' + path_separator +
-                entry + type_separator + 'MenuItem', duration=duration, mode=mode)
+                unescape_special_char(entry) + type_separator + 'MenuItem', duration=duration, mode=mode)
     return w
 
 
