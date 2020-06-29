@@ -23,12 +23,14 @@ setup(
         'Environment :: Win32 (MS Windows)',
         'Intended Audience :: End Users/Desktop',
         'Intended Audience :: Developers',
-        'Intended Audience :: System Administrators',
         'License :: OSI Approved :: MIT License',
         'Operating System :: Microsoft :: Windows',
+        'Programming Language :: Python',
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3.8',
-        'Topic :: Software Development :: User Interfaces',
+        'Topic :: Software Development :: Libraries :: Python Modules',
         'Topic :: Software Development :: Testing',
+        'Topic :: Software Development :: User Interfaces',
+        'Topic :: Software Development :: Quality Assurance',
     ]
 )
