@@ -30,6 +30,13 @@ MenuEvent = namedtuple('MenuEvent', ['path', 'menu_path', 'menu_type'])
 # sys.setdefaultencoding('utf-8')
 
 def escape_special_char(string):
+    """
+        Is called on all paths to remove all special characters but it's not good.
+        Should be moved in core
+        Should be called only in get_wrapper_path and unescape_special_char in get_entry
+        and in script += 'menu_click... in menu_click as it's already done
+        should replace -> by _>
+    """
     for r in (("\\", "\\\\"), ("\t", "\\t"), ("\n", "\\n"), ("\r", "\\r"), ("\v", "\\v"), ("\f", "\\f"), ('"', '\\"')):
         string = string.replace(*r)
     return string
