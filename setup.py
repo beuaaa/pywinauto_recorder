@@ -1,13 +1,11 @@
 from setuptools import setup
 
-import pywinauto_recorder
-
 with open("README.rst", "r") as fh:
     long_description = fh.read()
 
 setup(
     name='pywinauto_recorder',
-    version=pywinauto_recorder.__version__,
+    version='0.1.9',
     packages=['pywinauto_recorder'],
     url='https://github.com/beuaaa/pywinauto_recorder',
     license='MIT',
@@ -16,7 +14,7 @@ setup(
     description='Records/Replays GUI actions',
     long_description=long_description,
     long_description_content_type="text/x-rst",
-    install_requires=['pywinauto', 'keyboard', 'mouse', 'overlay_arrows_and_more', 'enum34', 'pywin32', 'pyperclip', 'setuptools'],
+    install_requires=['pywinauto', 'keyboard', 'mouse', 'overlay_arrows_and_more', 'enum34', 'pyperclip'],
     classifiers=[
         'Development Status :: 5 - Production/Stable',
         'Environment :: Console',
