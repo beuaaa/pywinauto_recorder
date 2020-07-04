@@ -1,6 +1,6 @@
 enum34~=1.1.6
 pywinauto~=0.6.8
-pywin32~=223
+overlay_arrows_and_more
 keyboard~=0.13.2
 mouse~=0.7.1
 pyperclip~=1.7.0
