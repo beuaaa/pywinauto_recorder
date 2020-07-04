@@ -1,11 +1,40 @@
 from setuptools import setup
 
+import os.path
+import sys
+import codecs
+
+
+def read(rel_path):
+    here = os.path.abspath(os.path.dirname(__file__))
+    with codecs.open(os.path.join(here, rel_path), 'r') as fp:
+        return fp.read()
+
+
+def get_version(rel_path):
+    for line in read(rel_path).splitlines():
+        if line.startswith('__version__'):
+            separator = '"' if '"' in line else "'"
+            return line.split(separator)[1]
+    else:
+        raise RuntimeError("Unable to find version string.")
+
+
+# We need the path to setup.py to be able to run the setup from a different folder
+def setup_path(path=""):
+    """ Get the path to the setup file. """
+    setup_path = os.path.abspath(os.path.split(__file__)[0])
+    return os.path.join(setup_path, path)
+
+
+sys.path.append(setup_path())   # add it to the system path
+
 with open("README.rst", "r") as fh:
     long_description = fh.read()
 
 setup(
     name='pywinauto_recorder',
-    version='0.1.9',
+    version=get_version("pywinauto_recorder/__init__.py"),
     packages=['pywinauto_recorder'],
     url='https://github.com/beuaaa/pywinauto_recorder',
     license='MIT',
