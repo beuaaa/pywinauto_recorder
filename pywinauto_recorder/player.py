@@ -9,15 +9,8 @@ from win32api import GetSystemMetrics as win32api_GetSystemMetrics
 from win32api import mouse_event as win32api_mouse_event
 from win32gui import LoadCursor as win32gui_LoadCursor
 from win32gui import GetCursorInfo as win32gui_GetCursorInfo
-from win32con import IDC_WAIT
-from win32con import MOUSEEVENTF_MOVE
-from win32con import MOUSEEVENTF_ABSOLUTE
-from win32con import MOUSEEVENTF_LEFTDOWN
-from win32con import MOUSEEVENTF_LEFTUP
-from win32con import MOUSEEVENTF_RIGHTDOWN
-from win32con import MOUSEEVENTF_RIGHTUP
-from win32con import MOUSEEVENTF_WHEEL
-from win32con import WHEEL_DELTA
+from win32con import IDC_WAIT, MOUSEEVENTF_MOVE, MOUSEEVENTF_ABSOLUTE, MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP, \
+                        MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP, MOUSEEVENTF_WHEEL, WHEEL_DELTA
 import time
 from enum import Enum
 
@@ -28,6 +21,7 @@ def unescape_special_char(string):
     #for r in (("\\", "\\\\"), ("\t", "\\t"), ("\n", "\\n"), ("\r", "\\r"), ("\v", "\\v"), ("\f", "\\f"), ('"', '\\"')):
         string = string.replace(*r)
     return string
+
 
 class MoveMode(Enum):
     linear = 0
