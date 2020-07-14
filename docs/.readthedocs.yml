@@ -5,7 +5,7 @@
 # Required
 version: 2
 
-requirements_file: null
+requirements_file: requirements.txt
 
 python:
   version: 3.7
