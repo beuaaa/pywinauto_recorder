@@ -26,6 +26,13 @@ Usage
             :target: https://www.youtube.com/watch?v=-7W-rOvUjdE&list=PLV9GWm_Y6wCAW5aaDGSNJwwenmRk6dI-u
             :width: 1207 px
             :align: center
+
+.. raw:: html
+
+    <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; height: auto;">
+        <iframe src="//www.youtube.com/-7W-rOvUjdE" frameborder="0" allowfullscreen style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></iframe>
+    </div>
+
 Icons
 -----
 Two transparent icons are displayed at the top left of the screen:
