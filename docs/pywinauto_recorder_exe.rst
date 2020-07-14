@@ -22,11 +22,6 @@ Usage
 - The generated Python script is saved in the "Record files" folder and copied in the clipboard.
 - To replay a Python script, you can drag and drop it to "pywinauto_recorder.exe_"
 
-.. image:: https://raw.githubusercontent.com/beuaaa/pywinauto_recorder/master/Images/Tutorial1.png?sanitize=true
-            :target: https://www.youtube.com/watch?v=-7W-rOvUjdE&list=PLV9GWm_Y6wCAW5aaDGSNJwwenmRk6dI-u
-            :width: 1207 px
-            :align: center
-
 .. raw:: html
 
     <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; height: auto;">
