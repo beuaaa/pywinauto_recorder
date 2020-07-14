@@ -562,23 +562,9 @@ def overlay_add_progress_icon(main_overlay, i, x, y):
             color=(0, 255, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(0, 200, 0))
 
 
-def overlay_add_search_mode_icon(main_overlay, x, y):
+def overlay_add_search_mode_icon(main_overlay, hicon, x, y):
     main_overlay.add(
-        geometry=oaam.Shape.rectangle, x=x, y=y, width=40, height=40,
-        color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 255, 254))
-    main_overlay.add(
-        geometry=oaam.Shape.triangle,
-        xyrgb_array=((x + 1, y + 1, 255, 255, 254), (x + 1, y + 40, 128, 128, 128), (x + 39, y + 40, 255, 255, 254)),
-        thickness=0)
-    main_overlay.add(
-        geometry=oaam.Shape.rectangle, x=x + 5, y=y + 5, width=30, height=30,
-        color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(0, 255, 0))
-    main_overlay.add(
-        geometry=oaam.Shape.rectangle, x=x + 10, y=y + 5 + 1 * 8, width=15, height=6,
-        color=(0, 255, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 0, 0))
-    main_overlay.add(
-        geometry=oaam.Shape.rectangle, x=x + 10, y=y + 5 + 2 * 8, width=15, height=6,
-        color=(0, 255, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 0, 0))
+        geometry=oaam.Shape.image, hicon=hicon, x=x, y=y)
 
 
 class Recorder(Thread):
@@ -594,6 +580,8 @@ class Recorder(Thread):
         self.mouse_x_inside = 99
         self.mouse_y_inside = 99
         self.hicon = None
+        self.hicon_light_on = None
+        self.hicon_light_off = None
         self.started_recording_with_keyboard = False
         self.start()
 
@@ -764,6 +752,8 @@ class Recorder(Thread):
             os.system(dir_path + r"\pywinauto_recorder.exe --no_splash_screen")
             sys.exit(1)
         self.hicon = oaam.load_png(dir_path + r'\copy_clipboard.png', 64, 64)
+        self.hicon_light_on = oaam.load_png(dir_path + r'\light_on.png', 40, 40)
+        self.hicon_light_off = oaam.load_png(dir_path + r'\light_off.png', 40, 40)
         unique_candidate = None
         elements = []
         i = 0
@@ -831,7 +821,7 @@ class Recorder(Thread):
                     while self.mode == 'Stop':
                         time.sleep(1.0)
                 overlay_add_progress_icon(self.main_overlay, i, 60, 10)
-                overlay_add_search_mode_icon(self.main_overlay, 110, 10)
+                overlay_add_search_mode_icon(self.main_overlay, self.hicon_light_on, 110, 10)
                 i = i + 1
                 self.main_overlay.refresh()
                 time.sleep(0.005)  # main_overlay.clear_all() doit attendre la fin de main_overlay.refresh()
