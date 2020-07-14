@@ -5,10 +5,12 @@
 # Required
 version: 2
 
+requirements_file: null
+
 python:
   version: 3.7
 
-# Build documentation in the source/ directory with Sphinx
+# Build documentation in the current directory with Sphinx
 sphinx:
   configuration: conf.py
 
