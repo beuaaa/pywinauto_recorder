@@ -104,6 +104,8 @@ def write_in_file(events):
             elif type(e_i) is FindEvent:
                 p = e_i.path
                 dx, dy = "{:.2f}".format(round(e_i.dx * 100, 2)), "{:.2f}".format(round(e_i.dy * 100, 2))
+                if common_path:
+                    p = get_relative_path(common_path, p)
                 script += 'wrapper = find(u"' + escape_special_char(p) + '%(' + dx + ',' + dy + ')")\n'
             elif type(e_i) is MenuEvent:
                 p, m_p = e_i.path, e_i.menu_path
@@ -288,12 +290,15 @@ def process_drag_and_drop_or_click_events(events, i):
 def get_relative_path(common_path, path):
     if not path:
         return ''
+    # TODO: check if common_path is the beginning of path
     path = path[len(common_path) + len(path_separator):]
     entry_list = get_entry_list(path)
     str_name, str_type, y_x, dx_dy = get_entry(entry_list[-1])
     if (y_x is not None) and not is_int(y_x[0]):
         y_x[0] = y_x[0][len(common_path) + 2:]
         path = path_separator.join(entry_list[:-1]) + path_separator + str_name
+        if path == path_separator:
+            path = ''
         path = path + type_separator + str_type + "#[" + y_x[0] + "," + str(y_x[1]) + "]"
         if dx_dy is not None:
             path = path + "%(" + str(dx_dy[0]) + "," + str(dx_dy[1]) + ")"
@@ -725,13 +730,13 @@ class Recorder(Thread):
                 str_dx, str_dy = "{:.2f}".format(round(dx * 100, 2)), "{:.2f}".format(round(dy * 100, 2))
                 self.main_overlay.add(
                     geometry=oaam.Shape.image, hicon=self.hicon, x=x, y=l_e_e.rectangle.top - 70)
-                l_e_e_path = escape_special_char(l_e_e.path)
-                i = l_e_e_path.find(path_separator)
-                window_title = l_e_e_path[0:i]
-                element_path = l_e_e_path[i+len(path_separator):]
+                i = l_e_e.path.find(path_separator)
+                window_title = l_e_e.path[0:i]
+                #element_path = l_e_e.path[i+len(path_separator):]
+                p = get_relative_path(window_title, l_e_e.path)
                 pyperclip.copy(
-                    'with Window(u"' + window_title + '"):\n' +
-                    '\twrapper = find(u"' + element_path + '%(' + str_dx + ',' + str_dy + ')")\n')
+                    'with Window(u"' + escape_special_char(window_title) + '"):\n' +
+                    '\twrapper = find(u"' + escape_special_char(p) + '%(' + str_dx + ',' + str_dy + ')")\n')
                 if self.event_list:
                     self.event_list.append(FindEvent(path=l_e_e.path, dx=dx, dy=dy, time=time.time()))
         elif self.mode == 'Record':
