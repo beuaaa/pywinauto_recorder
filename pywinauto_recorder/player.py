@@ -89,7 +89,7 @@ class Region(object):
         Region.common_path = path_separator.join(self.list_path)
 
 
-def find(element_path=None, timeout=60*5):
+def find(element_path=None, timeout=60*0.5):
     if not Region.click_desktop:
         Region.click_desktop = pywinauto.Desktop(backend='uia', allow_magic_lookup=False)
     if Region.common_path:
@@ -107,8 +107,12 @@ def find(element_path=None, timeout=60*5):
     while (time.time() - t0) < timeout:
         while unique_element is None and not elements:
             try:
+                if Region.current:
+                    regex_title = Region.current.regex_title
+                else:
+                    regex_title = False
                 unique_element, elements = find_element(
-                    Region.click_desktop, entry_list, window_candidates=[], regex_title=Region.current.regex_title)
+                    Region.click_desktop, entry_list, window_candidates=[], regex_title=regex_title)
                 if unique_element is None and not elements:
                     time.sleep(2.0)
             except Exception:
@@ -287,8 +291,12 @@ def menu_click(element_path, menu_path, duration=0.5, mode=MoveMode.linear, menu
         menu_entry_list = [''] + menu_entry_list
     else:
         menu_entry_list = ['Application'] + menu_entry_list
+    if element_path:
+        element_path2 = element_path + path_separator
+    else:
+        element_path2 = ''
     left_click(
-        element_path +
+        element_path2 +
         menu_entry_list[0] + type_separator + 'MenuBar' + path_separator +
         menu_entry_list[1] + type_separator + 'MenuItem', duration=duration, mode=mode)
     w = None
