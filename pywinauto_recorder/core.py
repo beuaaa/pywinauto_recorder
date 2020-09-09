@@ -106,16 +106,16 @@ def same_entry_list(element, entry_list, regex_title=False):
         top_level_parent = element.top_level_parent()
         current_element = element
         while i >= 0:
-            # current_element_text = current_element.window_text()
-            current_element_text = current_element.element_info.name
+            # current_element_name = current_element.window_text()
+            current_element_name = current_element.element_info.name
             current_element_type = current_element.element_info.control_type
-            entry_text, entry_type, _, _ = get_entry(entry_list[i])
+            entry_name, entry_type, _, _ = get_entry(entry_list[i])
             if i == 0 and current_element == top_level_parent:
                 if regex_title:
-                    return re.match(entry_list[0], entry_text) and (current_element_type == entry_type or entry_type is None)
+                    return re.match(entry_list[0], entry_name) and (current_element_type == entry_type or not entry_type)
                 else:
-                    return current_element_text == entry_text and (current_element_type == entry_type or entry_type is None)
-            elif current_element_text == entry_text and (current_element_type == entry_type or entry_type is None):
+                    return current_element_name == entry_name and (current_element_type == entry_type or not entry_type)
+            elif current_element_name == entry_name and (current_element_type == entry_type or not entry_type):
                 i -= 1
                 current_element = current_element.parent()
             else:
