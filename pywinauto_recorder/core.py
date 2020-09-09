@@ -27,9 +27,11 @@ def get_wrapper_path(wrapper):
         path = ''
         wrapper_top_level_parent = wrapper.top_level_parent()
         while wrapper != wrapper_top_level_parent:
-            path = path_separator + wrapper.window_text() + type_separator + wrapper.element_info.control_type + path
+            # path = path_separator + wrapper.window_text() + type_separator + wrapper.element_info.control_type + path
+            path = path_separator + wrapper.element_info.name + type_separator + wrapper.element_info.control_type + path
             wrapper = wrapper.parent()
-        return wrapper.window_text() + type_separator + wrapper.element_info.control_type + path
+        # return wrapper.window_text() + type_separator + wrapper.element_info.control_type + path
+        return wrapper.element_info.name + type_separator + wrapper.element_info.control_type + path
     except Exception as e:
         traceback.print_exc()
         print(e.message)
@@ -53,7 +55,7 @@ def get_entry_list(path):
 def get_entry(entry):
     i = entry.find(type_separator)
     if i == -1:
-        return '', None, None, None
+        return entry, None, None, None
     while i < len(entry) and entry[i] == type_separator[0]:
         i = i + 1
     i = i - len(type_separator)
@@ -104,15 +106,16 @@ def same_entry_list(element, entry_list, regex_title=False):
         top_level_parent = element.top_level_parent()
         current_element = element
         while i >= 0:
-            current_element_text = current_element.window_text()
+            # current_element_text = current_element.window_text()
+            current_element_text = current_element.element_info.name
             current_element_type = current_element.element_info.control_type
             entry_text, entry_type, _, _ = get_entry(entry_list[i])
             if i == 0 and current_element == top_level_parent:
                 if regex_title:
-                    return re.match(entry_list[0], entry_text) and current_element_type == entry_type
+                    return re.match(entry_list[0], entry_text) and (current_element_type == entry_type or entry_type is None)
                 else:
-                    return current_element_text == entry_text and current_element_type == entry_type
-            elif current_element_text == entry_text and current_element_type == entry_type:
+                    return current_element_text == entry_text and (current_element_type == entry_type or entry_type is None)
+            elif current_element_text == entry_text and (current_element_type == entry_type or entry_type is None):
                 i -= 1
                 current_element = current_element.parent()
             else:
