@@ -52,9 +52,14 @@ def display_splash_screen():
 
 	splash_background.refresh()
 
-	overlay_add_pywinauto_recorder_icon(splash_background, screen_width / 3 + screen_width / 6 - 100, screen_height /4 + 30)
-
-	for n in range(10):
+	py_rec_icon_rect = (screen_width / 3 + screen_width / 6 - 100, screen_height /4 + 30, 200, 100)
+	overlay_add_pywinauto_recorder_icon(splash_background, py_rec_icon_rect[0], py_rec_icon_rect[1])
+	from pywinauto_recorder.player import move as mouse_move
+	mouse_move((py_rec_icon_rect[0]+py_rec_icon_rect[2]/2, py_rec_icon_rect[1]+py_rec_icon_rect[3]/2))
+	mouse_cursor_on_py_rec_icon = True
+	n = 0
+	while mouse_cursor_on_py_rec_icon:
+	#for n in range(10):
 		splash_foreground.clear_all()
 		i = 0
 		while i < nb_band:
@@ -83,6 +88,13 @@ def display_splash_screen():
 			splash_foreground, screen_width / 3 + screen_width / 18, int(screen_height / 4 + line_height * 17.3))
 		splash_foreground.refresh()
 		time.sleep(0.4)
+		x, y = win32api.GetCursorPos()
+		mouse_cursor_on_py_rec_icon = False
+		if py_rec_icon_rect[0]< x < py_rec_icon_rect[0]+py_rec_icon_rect[2]:
+			if py_rec_icon_rect[1] < y < py_rec_icon_rect[1] + py_rec_icon_rect[3]:
+				mouse_cursor_on_py_rec_icon = True
+		n = n + 1
+
 	splash_foreground.clear_all()
 	splash_foreground.refresh()
 	splash_background.clear_all()

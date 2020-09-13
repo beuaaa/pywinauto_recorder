@@ -576,6 +576,7 @@ class Recorder(Thread):
     def __init__(self):
         Thread.__init__(self)
         self.main_overlay = oaam.Overlay(transparency=0.5)
+        self.info_overlay = oaam.Overlay(transparency=0.0)
         self.desktop = pywinauto.Desktop(backend='uia', allow_magic_lookup=False)
         self.daemon = True
         self.event_list = []
@@ -769,10 +770,44 @@ class Recorder(Thread):
         while self.mode != "Quit":
             try:
                 self.main_overlay.clear_all()
+                self.info_overlay.clear_all()
                 x, y = win32api.GetCursorPos()
                 wrapper = self.desktop.from_point(x, y)
                 if wrapper is None:
                     continue
+                r = wrapper.rectangle()
+                self.main_overlay.add(
+                    geometry=oaam.Shape.rectangle, x=x, y=r.top+r.height()+20, width=300, height=25,
+                    thickness=1, color=(0, 0, 0), brush=oaam.Brush.solid, brush_color=(254, 25, 255))
+                self.info_overlay.add(
+                    x=x+5, y=r.top+r.height()+21, width=300,
+                    height=25,
+                    text="Name: " + wrapper.element_info.name,
+                    font_size=16, text_color=(0, 0, 0), color=(254, 255, 255),
+                    geometry=oaam.Shape.rectangle, thickness=0
+                )
+                self.main_overlay.add(
+                    geometry=oaam.Shape.rectangle, x=x, y=r.top + r.height() + 20+24*(2-1), width=300, height=25,
+                    thickness=1, color=(0, 0, 0), brush=oaam.Brush.solid, brush_color=(254, 25, 255))
+                self.info_overlay.add(
+                    x=x+5, y=r.top+r.height()+24*2, width=300,
+                    height=25,
+                    text="Type:" + wrapper.element_info.control_type,
+                    font_size=16, text_color=(0, 0, 0), color=(254, 255, 255),
+                    geometry=oaam.Shape.rectangle, thickness=0
+                )
+                has_value = getattr(wrapper, "get_value", None)
+                if callable(has_value):
+                    self.main_overlay.add(
+                        geometry=oaam.Shape.rectangle, x=x, y=r.top + r.height() + 20+24*(3-1), width=300, height=25,
+                        thickness=1, color=(0, 0, 0), brush=oaam.Brush.solid, brush_color=(254, 25, 255))
+                    self.info_overlay.add(
+                        x=x+5, y=r.top+r.height()+24*3, width=300,
+                        height=25,
+                        text="Value: " + wrapper.get_value(),
+                        font_size=16, text_color=(0, 0, 0), color=(254, 255, 255),
+                        geometry=oaam.Shape.rectangle, thickness=0
+                    )
                 wrapper_path = get_wrapper_path(wrapper)
                 if not wrapper_path:
                     continue
@@ -829,6 +864,7 @@ class Recorder(Thread):
                 overlay_add_search_mode_icon(self.main_overlay, self.hicon_light_on, 110, 10)
                 i = i + 1
                 self.main_overlay.refresh()
+                self.info_overlay.refresh()
                 time.sleep(0.005)  # main_overlay.clear_all() doit attendre la fin de main_overlay.refresh()
             except Exception as e:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
