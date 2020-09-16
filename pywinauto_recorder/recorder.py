@@ -787,10 +787,10 @@ class Recorder(Thread):
                     geometry=oaam.Shape.rectangle, thickness=0
                 )
                 self.main_overlay.add(
-                    geometry=oaam.Shape.rectangle, x=x, y=r.top + r.height() + 20+24*(2-1), width=300, height=25,
+                    geometry=oaam.Shape.rectangle, x=x, y=r.top + r.height() + 20+25*(2-1), width=300, height=25,
                     thickness=1, color=(0, 0, 0), brush=oaam.Brush.solid, brush_color=(254, 25, 255))
                 self.info_overlay.add(
-                    x=x+5, y=r.top+r.height()+24*2, width=300,
+                    x=x+5, y=r.top+r.height()+21+25*(2-1), width=300,
                     height=25,
                     text="Type:" + wrapper.element_info.control_type,
                     font_size=16, text_color=(0, 0, 0), color=(254, 255, 255),
@@ -799,10 +799,10 @@ class Recorder(Thread):
                 has_value = getattr(wrapper, "get_value", None)
                 if callable(has_value):
                     self.main_overlay.add(
-                        geometry=oaam.Shape.rectangle, x=x, y=r.top + r.height() + 20+24*(3-1), width=300, height=25,
+                        geometry=oaam.Shape.rectangle, x=x, y=r.top + r.height() + 20+25*(3-1), width=300, height=25,
                         thickness=1, color=(0, 0, 0), brush=oaam.Brush.solid, brush_color=(254, 25, 255))
                     self.info_overlay.add(
-                        x=x+5, y=r.top+r.height()+24*3, width=300,
+                        x=x+5, y=r.top+r.height()+21+25*(3-1), width=300,
                         height=25,
                         text="Value: " + wrapper.get_value(),
                         font_size=16, text_color=(0, 0, 0), color=(254, 255, 255),
