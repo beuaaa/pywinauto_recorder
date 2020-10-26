@@ -90,7 +90,7 @@ def write_in_file(events):
                     p1 = get_relative_path(common_path, p1)
                     p2 = get_relative_path(common_path, p2)
                 script += 'drag_and_drop(u"' + escape_special_char(p1) + '%(' + dx1 + ',' + dy1 + ')", '
-                script += + escape_special_char(p2) + '%(' + dx2 + ',' + dy2 + ')")\n'
+                script += 'u"' + escape_special_char(p2) + '%(' + dx2 + ',' + dy2 + ')")\n'
             elif type(e_i) is ClickEvent:
                 p = e_i.path
                 dx, dy = "{:.2f}".format(round(e_i.dx * 100, 2)), "{:.2f}".format(round(e_i.dy * 100, 2))
