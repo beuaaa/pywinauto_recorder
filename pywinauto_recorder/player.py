@@ -10,7 +10,7 @@ from win32api import mouse_event as win32api_mouse_event
 from win32gui import LoadCursor as win32gui_LoadCursor
 from win32gui import GetCursorInfo as win32gui_GetCursorInfo
 from win32con import IDC_WAIT, MOUSEEVENTF_MOVE, MOUSEEVENTF_ABSOLUTE, MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP, \
-                        MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP, MOUSEEVENTF_WHEEL, WHEEL_DELTA
+    MOUSEEVENTF_MIDDLEDOWN, MOUSEEVENTF_MIDDLEUP, MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP, MOUSEEVENTF_WHEEL, WHEEL_DELTA
 import time
 from enum import Enum
 
@@ -190,6 +190,11 @@ def move(element_path, duration=0.5, mode=MoveMode.linear):
                 dx, dy = 0, 0
             xd, yd = w_r.mid_point()
             xd, yd = xd + round(dx/100.0*(w_r.width()-1), 0), round(yd + dy/100.0*(w_r.height()-1), 0)
+    elif issubclass(type(element_path), pywinauto.base_wrapper.BaseWrapper):
+        unique_element = element_path
+        element_path2 = get_wrapper_path(unique_element)
+        w_r = unique_element.rectangle()
+        xd, yd = w_r.mid_point()
     else:
         (xd, yd) = element_path
         unique_element = None
@@ -282,6 +287,22 @@ def drag_and_drop(element_path1, element_path2, duration=0.5, mode=MoveMode.line
     win32api_mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0)
     move(element_path2, duration=duration, mode=mode)
     win32api_mouse_event(MOUSEEVENTF_LEFTUP, 0, 0)
+    return unique_element
+
+
+def middle_drag_and_drop(element_path1, element_path2, duration=0.5, mode=MoveMode.linear):
+    unique_element = move(element_path1, duration=duration, mode=mode)
+    win32api_mouse_event(MOUSEEVENTF_MIDDLEDOWN, 0, 0)
+    move(element_path2, duration=duration, mode=mode)
+    win32api_mouse_event(MOUSEEVENTF_MIDDLEUP, 0, 0)
+    return unique_element
+
+
+def right_drag_and_drop(element_path1, element_path2, duration=0.5, mode=MoveMode.linear):
+    unique_element = move(element_path1, duration=duration, mode=mode)
+    win32api_mouse_event(MOUSEEVENTF_RIGHTDOWN, 0, 0)
+    move(element_path2, duration=duration, mode=mode)
+    win32api_mouse_event(MOUSEEVENTF_RIGHTUP, 0, 0)
     return unique_element
 
 
