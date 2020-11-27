@@ -28,6 +28,11 @@ Usage
         <iframe src="https://www.youtube.com/embed/-7W-rOvUjdE" frameborder="0" allowfullscreen style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></iframe>
     </div>
 
+.. warning::  Pywinauto_recorder_exe does not work on all PCs. Help me to find a solution by filling this form_.
+
+.. _form: https://docs.google.com/forms/d/e/1FAIpQLSdvxXJCYfoFUaTVHCDzGxkMbc_8qq68pTb_7hPbaPUDyYlOeQ/viewform
+
+
 Icons
 -----
 Two transparent icons are displayed at the top left of the screen:
