@@ -1,5 +1,5 @@
 REM COMPILE EXE
-C:\Users\d_pra\AppData\Local\Programs\Python\Python38\python.exe -m nuitka --standalone --mingw64 --windows-dependency-tool=peffile ..\pywinauto_recorder.py --show-progress --show-scons
+C:\Users\oktalse\AppData\Local\Programs\Python\Python38\python.exe -m nuitka --standalone --mingw64 --windows-dependency-tool=peffile ..\pywinauto_recorder.py --show-progress --show-scons
 
 REM CLEAN pywinauto_recorder.dist
 cd pywinauto_recorder.dist
@@ -69,9 +69,9 @@ del /Q _lzma.pyd
 del /Q _overlapped.pyd
 del /Q _queue.pyd
 
-REM Add pywinauto_recorder\copy_clipboard.png in pywinauto_recorder.dist
+REM Add pywinauto_recorder\*.png in pywinauto_recorder.dist
 MKDIR  pywinauto_recorder
-xcopy /y ..\..\pywinauto_recorder\copy_clipboard.png .\pywinauto_recorder
+xcopy /y ..\..\pywinauto_recorder\*.png .\pywinauto_recorder
 
 cd ..
 

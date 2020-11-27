@@ -743,6 +743,51 @@ class Recorder(Thread):
         elif self.mode == 'Record':
             self.event_list.append(e)
 
+    def __display_info_tip(self, x, y, wrapper):
+        r = wrapper.rectangle()
+        if x - r.width() > 300:
+            info_left = x - r.width() - 300
+        else:
+            info_left = x
+        if y - r.height() > 100:
+            info_top = r.top - r.height() - 20
+            info_dir = -1
+        else:
+            info_top = r.top + r.height() + 20
+            info_dir = 1
+        self.main_overlay.add(
+            geometry=oaam.Shape.rectangle, x=info_left, y=info_top, width=300, height=25,
+            thickness=1, color=(0, 0, 0), brush=oaam.Brush.solid, brush_color=(254, 222, 255))
+        self.info_overlay.add(
+            x=info_left + 5, y=info_top + info_dir, width=300,
+            height=25,
+            text="Name: " + wrapper.element_info.name,
+            font_size=16, text_color=(0, 0, 0), color=(254, 255, 255),
+            geometry=oaam.Shape.rectangle, thickness=0
+        )
+        self.main_overlay.add(
+            geometry=oaam.Shape.rectangle, x=info_left, y=info_top + info_dir * 25 * (2 - 1), width=300, height=25,
+            thickness=1, color=(0, 0, 0), brush=oaam.Brush.solid, brush_color=(254, 25, 255))
+        self.info_overlay.add(
+            x=info_left + 5, y=info_top + info_dir * 25 * (2 - 1), width=300,
+            height=25,
+            text="Type:" + wrapper.element_info.control_type,
+            font_size=16, text_color=(0, 0, 0), color=(254, 255, 255),
+            geometry=oaam.Shape.rectangle, thickness=0
+        )
+        has_value = getattr(wrapper, "get_value", None)
+        if callable(has_value):
+            self.main_overlay.add(
+                geometry=oaam.Shape.rectangle, x=info_left, y=info_top + info_dir * 25 * (3 - 1), width=300, height=25,
+                thickness=1, color=(0, 0, 0), brush=oaam.Brush.solid, brush_color=(254, 25, 255))
+            self.info_overlay.add(
+                x=info_left + 5, y=info_top + info_dir * 25 * (3 - 1), width=300,
+                height=25,
+                text="Value: " + wrapper.get_value(),
+                font_size=16, text_color=(0, 0, 0), color=(254, 255, 255),
+                geometry=oaam.Shape.rectangle, thickness=0
+            )
+
     def run(self):
         dir_path = os.path.dirname(os.path.realpath(__file__))
         print(dir_path)
@@ -775,39 +820,7 @@ class Recorder(Thread):
                 wrapper = self.desktop.from_point(x, y)
                 if wrapper is None:
                     continue
-                r = wrapper.rectangle()
-                self.main_overlay.add(
-                    geometry=oaam.Shape.rectangle, x=x, y=r.top+r.height()+20, width=300, height=25,
-                    thickness=1, color=(0, 0, 0), brush=oaam.Brush.solid, brush_color=(254, 25, 255))
-                self.info_overlay.add(
-                    x=x+5, y=r.top+r.height()+21, width=300,
-                    height=25,
-                    text="Name: " + wrapper.element_info.name,
-                    font_size=16, text_color=(0, 0, 0), color=(254, 255, 255),
-                    geometry=oaam.Shape.rectangle, thickness=0
-                )
-                self.main_overlay.add(
-                    geometry=oaam.Shape.rectangle, x=x, y=r.top + r.height() + 20+25*(2-1), width=300, height=25,
-                    thickness=1, color=(0, 0, 0), brush=oaam.Brush.solid, brush_color=(254, 25, 255))
-                self.info_overlay.add(
-                    x=x+5, y=r.top+r.height()+21+25*(2-1), width=300,
-                    height=25,
-                    text="Type:" + wrapper.element_info.control_type,
-                    font_size=16, text_color=(0, 0, 0), color=(254, 255, 255),
-                    geometry=oaam.Shape.rectangle, thickness=0
-                )
-                has_value = getattr(wrapper, "get_value", None)
-                if callable(has_value):
-                    self.main_overlay.add(
-                        geometry=oaam.Shape.rectangle, x=x, y=r.top + r.height() + 20+25*(3-1), width=300, height=25,
-                        thickness=1, color=(0, 0, 0), brush=oaam.Brush.solid, brush_color=(254, 25, 255))
-                    self.info_overlay.add(
-                        x=x+5, y=r.top+r.height()+21+25*(3-1), width=300,
-                        height=25,
-                        text="Value: " + wrapper.get_value(),
-                        font_size=16, text_color=(0, 0, 0), color=(254, 255, 255),
-                        geometry=oaam.Shape.rectangle, thickness=0
-                    )
+                self.__display_info_tip(x, y, wrapper)
                 wrapper_path = get_wrapper_path(wrapper)
                 if not wrapper_path:
                     continue

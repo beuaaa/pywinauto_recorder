@@ -89,7 +89,7 @@ class Region(object):
         Region.common_path = path_separator.join(self.list_path)
 
 
-def find(element_path=None, timeout=60*0.5):
+def find(element_path=None, timeout=60*9.5):
     if not Region.click_desktop:
         Region.click_desktop = pywinauto.Desktop(backend='uia', allow_magic_lookup=False)
     if Region.common_path:
@@ -356,6 +356,8 @@ def send_keys(
     """
     Parse the keys and type them
     """
+    for r in (("(", "{(}"),  (")", "{)}"), ('+', '{+}')):
+        str_keys = str_keys.replace(*r)
     pywinauto.keyboard.send_keys(
         str_keys,
         pause=pause,
