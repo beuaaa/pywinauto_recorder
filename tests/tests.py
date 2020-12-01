@@ -184,10 +184,22 @@ class TestNotepad(unittest.TestCase):
 			left_click("||TitleBar->Close||Button")
 
 
+def wait_recorder_ready(recorder):
+	import win32api
+	x, y = win32api.GetCursorPos()
+	while l_e_e := recorder.get_last_element_event():
+		if l_e_e.rectangle.top < y < l_e_e.rectangle.bottom:
+			if l_e_e.rectangle.left < x < l_e_e.rectangle.right:
+				if l_e_e.strategy == Strategy.unique_path:
+					break
+		time.sleep(0.1)
+
 @unittest.skipUnless(platform.system() == 'Windows' and platform.release() == '10', "requires Windows 10")
 class TestCalculator(unittest.TestCase):
 
 	def test_clicks(self):
+		startTime = time.time()
+
 		recorder = Recorder()
 		recorder.start_recording()
 
@@ -196,39 +208,39 @@ class TestCalculator(unittest.TestCase):
 
 		with Region("Calculator||Window->Calculator||Window->||Group->Number pad||Group"):
 			move("One||Button", duration=0)
-			time.sleep(1.5)
+			wait_recorder_ready(recorder)
 			left_click("One||Button")
 			move("Two||Button", duration=0)
-			time.sleep(1.5)
+			wait_recorder_ready(recorder)
 			double_left_click("Two||Button")
 			move("Three||Button", duration=0)
-			time.sleep(1.5)
+			wait_recorder_ready(recorder)
 			triple_left_click("Three||Button")
 			move("Four||Button", duration=0)
-			time.sleep(1.5)
+			wait_recorder_ready(recorder)
 			triple_left_click("Four||Button")
 			left_click("Four||Button")
 			move("Five||Button", duration=0)
-			time.sleep(1.5)
+			wait_recorder_ready(recorder)
 			triple_left_click("Five||Button")
 			double_left_click("Five||Button")
 			move("Six||Button", duration=0)
-			time.sleep(1.5)
+			wait_recorder_ready(recorder)
 			triple_left_click("Six||Button")
 			triple_left_click("Six||Button")
 			move("Three||Button", duration=0)
-			time.sleep(1.5)
+			wait_recorder_ready(recorder)
 			triple_left_click("Three||Button")
 			move("Two||Button", duration=0)
-			time.sleep(1.5)
+			wait_recorder_ready(recorder)
 			double_left_click("Two||Button")
 			move("One||Button", duration=0)
-			time.sleep(1.5)
+			wait_recorder_ready(recorder)
 			left_click("One||Button")
 
 		with Region("Calculator||Window->Calculator||Window"):
-			move("Close Calculator||Button")
-			time.sleep(1.5)
+			move("Close Calculator||Button", duration=0)
+			wait_recorder_ready(recorder)
 			left_click("Close Calculator||Button")
 
 		record_file_name = recorder.stop_recording()
@@ -239,24 +251,27 @@ class TestCalculator(unittest.TestCase):
 			while line:
 				line = f.readline()
 				if "One" in line:
-					self.assertTrue(line.find("left_click") != -1)
+					assert line.find("left_click") != -1
 				elif "Two" in line:
-					self.assertTrue(line.find("double_left_click") != -1)
+					assert line.find("double_left_click") != -1
 				elif "Three" in line:
-					self.assertTrue(line.find("triple_left_click") != -1)
+					assert line.find("triple_left_click") != -1
 				elif "Four" in line:
-					self.assertTrue(line.find("left_click") != -1)
+					assert line.find("left_click") != -1
 					line = f.readline()
-					self.assertTrue(line.find("triple_left_click") != -1)
+					assert line.find("triple_left_click") != -1
 				elif "Five" in line:
-					self.assertTrue(line.find("double_left_click") != -1)
+					assert line.find("double_left_click") != -1
 					line = f.readline()
-					self.assertTrue(line.find("triple_left_click") != -1)
+					assert line.find("triple_left_click") != -1
 				elif "Six" in line:
-					self.assertTrue(line.find("triple_left_click") != -1)
+					assert line.find("triple_left_click") != -1
 					line = f.readline()
-					self.assertTrue(line.find("triple_left_click") != -1)
+					assert line.find("triple_left_click") != -1
 		os.remove(record_file_name)
+
+		duration = time.time() - startTime
+		assert duration < 13, "The duration of this test is " + str(duration) +" s. It must be lower than 13 s"
 
 
 if __name__ == '__main__':

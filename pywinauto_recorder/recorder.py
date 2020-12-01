@@ -921,5 +921,8 @@ class Recorder(Thread):
         self.mode = 'Stop'
         return None
 
+    def get_last_element_event(self):
+        return self.last_element_event
+
     def quit(self):
         print("Quit")
