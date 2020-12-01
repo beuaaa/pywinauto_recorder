@@ -27,10 +27,8 @@ def get_wrapper_path(wrapper):
         path = ''
         wrapper_top_level_parent = wrapper.top_level_parent()
         while wrapper != wrapper_top_level_parent:
-            # path = path_separator + wrapper.window_text() + type_separator + wrapper.element_info.control_type + path
             path = path_separator + wrapper.element_info.name + type_separator + wrapper.element_info.control_type + path
             wrapper = wrapper.parent()
-        # return wrapper.window_text() + type_separator + wrapper.element_info.control_type + path
         return wrapper.element_info.name + type_separator + wrapper.element_info.control_type + path
     except Exception as e:
         traceback.print_exc()
@@ -193,7 +191,7 @@ def find_element(desktop, entry_list, window_candidates=[], visible_only=True, e
     candidates = []
     for window in window_candidates:
         title, control_type, _, _ = get_entry(entry_list[-1])
-        descendants = window.descendants(title=title, control_type=control_type)
+        descendants = window.descendants(title=title, control_type=control_type) # , depth=max(1, len(entry_list)-2)
         for descendant in descendants:
             if same_entry_list(descendant, entry_list, regex_title=regex_title):
                 candidates.append(descendant)

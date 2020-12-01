@@ -789,8 +789,12 @@ class Recorder(Thread):
             )
 
     def run(self):
+        import comtypes.client
+        print("COMPTYPES GEN FOLDER:", comtypes.client._code_cache._find_gen_dir())
+
         dir_path = os.path.dirname(os.path.realpath(__file__))
-        print(dir_path)
+        print("PYWINAUTO RECORDER FOLDER:", dir_path)
+
         keyboard.hook(self.__key_on)
         mouse.hook(self.__mouse_on)
         keyboard.start_recording()
