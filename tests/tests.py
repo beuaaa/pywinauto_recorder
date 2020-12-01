@@ -65,6 +65,7 @@ class TestEntryMethods(unittest.TestCase):
 		self.assertEqual(entry_list[2], 'Property||Group')
 		self.assertEqual(entry_list[3], 'Label:||Text#[Name||Window->||Pane->Property||Group->Label:||Text,0]%(0,0)')
 
+
 	def test_get_entry_elements(self):
 		entry_list = [
 			'Name:||Type#[0,0]%(2,-24)', '||Type#[0,0]%(2,-24)', 'Name:||#[0,0]%(2,-24)',
@@ -191,43 +192,43 @@ class TestCalculator(unittest.TestCase):
 		recorder.start_recording()
 
 		time.sleep(0.5)
-		send_keys("{LWIN}Calculator{ENTER}")
+		send_keys("{LWIN}Calculator{ENTER}", pause=0.2)
 
 		with Region("Calculator||Window->Calculator||Window->||Group->Number pad||Group"):
 			move("One||Button", duration=0)
-			time.sleep(1.0)
+			time.sleep(1.5)
 			left_click("One||Button")
 			move("Two||Button", duration=0)
-			time.sleep(1.0)
+			time.sleep(1.5)
 			double_left_click("Two||Button")
 			move("Three||Button", duration=0)
-			time.sleep(1.0)
+			time.sleep(1.5)
 			triple_left_click("Three||Button")
 			move("Four||Button", duration=0)
-			time.sleep(1.0)
+			time.sleep(1.5)
 			triple_left_click("Four||Button")
 			left_click("Four||Button")
 			move("Five||Button", duration=0)
-			time.sleep(1.0)
+			time.sleep(1.5)
 			triple_left_click("Five||Button")
 			double_left_click("Five||Button")
 			move("Six||Button", duration=0)
-			time.sleep(1.0)
+			time.sleep(1.5)
 			triple_left_click("Six||Button")
 			triple_left_click("Six||Button")
 			move("Three||Button", duration=0)
-			time.sleep(1.0)
+			time.sleep(1.5)
 			triple_left_click("Three||Button")
 			move("Two||Button", duration=0)
-			time.sleep(1.0)
+			time.sleep(1.5)
 			double_left_click("Two||Button")
 			move("One||Button", duration=0)
-			time.sleep(1.0)
+			time.sleep(1.5)
 			left_click("One||Button")
 
 		with Region("Calculator||Window->Calculator||Window"):
 			move("Close Calculator||Button")
-			time.sleep(1.0)
+			time.sleep(1.5)
 			left_click("Close Calculator||Button")
 
 		record_file_name = recorder.stop_recording()
