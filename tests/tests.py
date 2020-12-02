@@ -19,7 +19,6 @@ class TestMouseMethods(unittest.TestCase):
 		self.app.start("mspaint.exe")
 		dlg_spec = self.app.window()
 		dlg_spec.move_window(x=0, y=0, width=1030, height=930, repaint=True)
-		self.recorder = Recorder()
 
 	def tearDown(self):
 		time.sleep(0.5)
@@ -35,7 +34,8 @@ class TestMouseMethods(unittest.TestCase):
 				send_keys("1000""{ENTER}")
 			wrapper = find("||Pane->Using Brush tool on Canvas||Pane")
 
-		self.recorder.start_recording()
+		recorder = Recorder()
+		recorder.start_recording()
 		time.sleep(2.0)
 		for i in range(9):
 			win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0)
@@ -58,8 +58,8 @@ class TestMouseMethods(unittest.TestCase):
 			assert y0 == y
 			win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0)
 			time.sleep(0.5)		# This pause is mandatory for the recorder
-		recorded_file = self.recorder.stop_recording()
-		self.recorder.quit()
+		recorded_file = recorder.stop_recording()
+		recorder.quit()
 
 		# Now the lines are overed in white using the previously recorded drag and drops
 		with Window("Untitled - Paint||Window"):
