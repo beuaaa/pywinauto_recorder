@@ -581,6 +581,7 @@ class Recorder(Thread):
         self.daemon = True
         self.event_list = []
         self.mode = 'Pause'
+        self.smart_mode = False
         self.last_element_event = None
         self.distance_inside = 0.0
         self.mouse_x_inside = 99
@@ -714,6 +715,11 @@ class Recorder(Thread):
                 self.main_overlay.refresh()
                 self.mode = 'Pause'
         elif (
+                (e.name == 's') and (e.event_type == 'up')
+                and keyboard.key_to_scan_codes("alt")[0] in keyboard._pressed_events
+                and keyboard.key_to_scan_codes("ctrl")[0] in keyboard._pressed_events):
+            self.smart_mode = not self.smart_mode
+        elif (
                 (e.name == 'q') and (e.event_type == 'up')
                 and keyboard.key_to_scan_codes("alt")[0] in keyboard._pressed_events
                 and keyboard.key_to_scan_codes("ctrl")[0] in keyboard._pressed_events):
@@ -831,6 +837,8 @@ class Recorder(Thread):
                 if wrapper_path == previous_wrapper_path:
                     if (unique_wrapper_path is None) or (strategies[i_strategy] == Strategy.array_2D):
                         i_strategy = i_strategy + 1
+                        if (not self.smart_mode) and (strategies[i_strategy] == Strategy.array_1D):
+                            i_strategy = 1
                         if i_strategy >= len(strategies):
                             i_strategy = len(strategies) - 1
                 else:
@@ -878,7 +886,10 @@ class Recorder(Thread):
                     while self.mode == 'Stop':
                         time.sleep(1.0)
                 overlay_add_progress_icon(self.main_overlay, i, 60, 10)
-                overlay_add_search_mode_icon(self.main_overlay, self.hicon_light_on, 110, 10)
+                if self.smart_mode:
+                    overlay_add_search_mode_icon(self.main_overlay, self.hicon_light_on, 110, 10)
+                else:
+                    overlay_add_search_mode_icon(self.main_overlay, self.hicon_light_off, 110, 10)
                 i = i + 1
                 self.main_overlay.refresh()
                 self.info_overlay.refresh()

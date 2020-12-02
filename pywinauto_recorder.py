@@ -28,22 +28,27 @@ def overlay_add_pywinauto_recorder_icon(overlay, x, y):
 
 
 def display_splash_screen():
+	dir_path = os.path.dirname(os.path.realpath(__file__))
+	hicon_light_on = oaam.load_png(dir_path + r'\pywinauto_recorder\light_on.png', 41, 41)
+	hicon_light_off = oaam.load_png(dir_path + r'\pywinauto_recorder\light_off.png', 41, 41)
+
 	splash_foreground = oaam.Overlay(transparency=0.0)
 	time.sleep(0.2)
 	splash_background = oaam.Overlay(transparency=0.1)
 	screen_width = GetSystemMetrics(0)
 	screen_height = GetSystemMetrics(1)
-	nb_band = 20
+	nb_band = 22
 	line_height = (screen_height / 2) / nb_band
 	text_lines = [''] * nb_band
 	text_lines[6] = 'Pywinauto recorder ' + __version__
 	text_lines[7] = 'by David Pratmarty'
 	text_lines[9] = 'CTRL+ALT+R : Pause / Record / Stop'
 	text_lines[11] = 'Search algorithm speed'
-	text_lines[13] = 'CTRL+SHIFT+F : Copy element path in clipboard'
-	text_lines[15] = 'CTRL+ALT+Q : Quit'
-	text_lines[17] = 'Drag and drop a recorded file on '
-	text_lines[18] = 'pywinauto_recorder.exe to replay it'
+	text_lines[13] = 'CTRL+SHIFT+S : Smart mode On / Off'
+	text_lines[15] = 'CTRL+SHIFT+F : Copy element path in clipboard'
+	text_lines[17] = 'CTRL+ALT+Q : Quit'
+	text_lines[18] = 'Drag and drop a recorded file on '
+	text_lines[19] = 'pywinauto_recorder.exe to replay it'
 
 	splash_background.clear_all()
 	x, y, w, h = screen_width / 3, screen_height / 4, screen_width / 3, line_height * nb_band
@@ -63,7 +68,6 @@ def display_splash_screen():
 	mouse_cursor_on_py_rec_icon = True
 	n = 0
 	while mouse_cursor_on_py_rec_icon:
-	#for n in range(10):
 		splash_foreground.clear_all()
 		i = 0
 		while i < nb_band:
@@ -77,19 +81,25 @@ def display_splash_screen():
 				geometry=oaam.Shape.rectangle, thickness=0
 			)
 			i = i + 1
-		if n % 3 == 0:
+		if n % 6 in [0, 1]:
 			overlay_add_record_icon(
 				splash_foreground, screen_width / 3 + screen_width / 18, screen_height / 4 + line_height * 8.6)
-		if n % 3 == 1:
+		if n % 6 in [2, 3]:
 			overlay_add_pause_icon(
 				splash_foreground, screen_width / 3 + screen_width / 18, screen_height / 4 + line_height * 8.6)
-		if n % 3 == 2:
+		if n % 6 in [4, 5]:
 			overlay_add_stop_icon(
 				splash_foreground, screen_width / 3 + screen_width / 18, screen_height / 4 + line_height * 8.6)
 		overlay_add_progress_icon(
-			splash_foreground, n % 5, screen_width / 3 + screen_width / 18, screen_height / 4 + line_height * 10.8)
+			splash_foreground, n % 5, screen_width / 3 + screen_width / 18, screen_height / 4 + line_height * 10.6)
 		overlay_add_play_icon(
 			splash_foreground, screen_width / 3 + screen_width / 18, int(screen_height / 4 + line_height * 17.3))
+		if n % 4 == 0 or n % 4 == 1:
+			overlay_add_search_mode_icon(splash_foreground, hicon_light_off, 1+int(screen_width / 3 + screen_width / 18),
+										 int(screen_height / 4 + line_height * 12.6))
+		else:
+			overlay_add_search_mode_icon(splash_foreground, hicon_light_on, 1+int(screen_width / 3 + screen_width / 18),
+										 int(screen_height / 4 + line_height * 12.6))
 		splash_foreground.refresh()
 		time.sleep(0.4)
 		x, y = win32api.GetCursorPos()

@@ -7,6 +7,8 @@ from pywinauto_recorder.player import *
 from pywinauto_recorder.recorder import Recorder
 import pyperclip
 import random
+import win32api
+import win32con
 
 
 class TestMouseMethods(unittest.TestCase):
@@ -15,48 +17,68 @@ class TestMouseMethods(unittest.TestCase):
 		"""Set some data and ensure the application is in the state we want"""
 		self.app = pywinauto.Application()
 		self.app.start("mspaint.exe")
+		dlg_spec = self.app.window()
+		dlg_spec.move_window(x=0, y=0, width=1030, height=930, repaint=True)
 		self.recorder = Recorder()
-		self.recorder.start_recording()
 
 	def tearDown(self):
-		self.recorder.stop_recording()
 		time.sleep(0.5)
 		self.app.kill()
 
-	@unittest.skip("This test is broken")
 	def test_mouse_move(self):
-		with Window(u"Sans titre - Paint||Window"):
-			wrapper = find(u"||Pane->||Pane")
-		wrapper.draw_outline()
+		""" Tests the precision of the relative coordinates in an element"""
+		with Window("Untitled - Paint||Window"):
+			left_click("UIRibbonDockTop||Pane->Ribbon||Pane->Ribbon||Pane->||Pane->Ribbon||Pane->Lower Ribbon||Pane->||Custom->Home||Custom->Image||ToolBar->Resize||Button")
+			with Region("Resize and Skew||Window"):
+				left_click("Pixels||RadioButton")
+				double_left_click("Resize Horizontal||Edit")
+				send_keys("1000""{ENTER}")
+			wrapper = find("||Pane->Using Brush tool on Canvas||Pane")
 
-		time.sleep(0.5)
-		for i in range(20):
-			x0 = random.randint(wrapper.rectangle().left, wrapper.rectangle().right)
-			y0 = random.randint(wrapper.rectangle().top, wrapper.rectangle().bottom)
+		self.recorder.start_recording()
+		time.sleep(2.0)
+		for i in range(9):
+			win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0)
+			x0 = random.randint(wrapper.rectangle().left+9, wrapper.rectangle().right-9)
+			y0 = random.randint(wrapper.rectangle().top+9, wrapper.rectangle().bottom-9)
 			move((x0, y0))
 			x, y = win32api.GetCursorPos()
-			print("0 " + str(x) + " " + str(y))
-
-			self.assertEqual(x0, x)
-			self.assertEqual(y0, y)
+			assert x0 == x
+			assert y0 == y
 
 			send_keys("{VK_CONTROL down}""{VK_SHIFT down}""f""{VK_SHIFT up}""{VK_CONTROL up}", vk_packet=False)
 			time.sleep(0.5)
 			code = pyperclip.paste()
 			words = code.split("%(")
 			words = words[1].split(')"')
-			with Window(u"Sans titre - Paint||Window"):
-				move(u"||Pane->||Pane%(" + words[0] + ")", duration=0)
+			with Window(u"Untitled - Paint||Window"):
+				move(u"||Pane->Using Brush tool on Canvas||Pane%(" + words[0] + ")", duration=0)
 			x, y = win32api.GetCursorPos()
-			print("1 " + str(x) + " " + str(y))
+			assert x0 == x
+			assert y0 == y
+			win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0)
+			time.sleep(0.5)		# This pause is mandatory for the recorder
+		recorded_file = self.recorder.stop_recording()
+		self.recorder.quit()
 
-			self.assertEqual(x0, x)
-			self.assertEqual(y0, y)
+		# Now the lines are overed in white using the previously recorded drag and drops
+		with Window("Untitled - Paint||Window"):
+			with Region("UIRibbonDockTop||Pane->Ribbon||Pane->Ribbon||Pane->||Pane->Ribbon||Pane"):
+				left_click("Lower Ribbon||Pane->||Custom->Home||Custom->Colors||ToolBar->||Group%(-45,0)")
+		data = ""
+		with open(recorded_file) as fp:
+			for line in fp:
+				if not ("send_keys" in line) or not ("wrapper" in line):
+					data = data + line
+		compiled_code = compile(data, '<string>', 'exec')
+		eval(compiled_code)
+		os.remove(recorded_file)
 
 
 class TestEntryMethods(unittest.TestCase):
 
 	def test_get_entry_list(self):
+		""" Tests get_entry_list(element_path) """
 		element_path = "D:\\Name||Window->||Pane->Property||Group->"
 		element_path = element_path + "Label:||Text#[Name||Window->||Pane->Property||Group->Label:||Text,0]%(0,0)"
 		entry_list = get_entry_list(element_path)
@@ -65,8 +87,8 @@ class TestEntryMethods(unittest.TestCase):
 		self.assertEqual(entry_list[2], 'Property||Group')
 		self.assertEqual(entry_list[3], 'Label:||Text#[Name||Window->||Pane->Property||Group->Label:||Text,0]%(0,0)')
 
-
 	def test_get_entry_elements(self):
+		""" Tests get_entry(entry) """
 		entry_list = [
 			'Name:||Type#[0,0]%(2,-24)', '||Type#[0,0]%(2,-24)', 'Name:||#[0,0]%(2,-24)',
 			'Name:||Type#[0,0]', '||Type#[0,0]', 'Name:||#[0,0]',
@@ -107,6 +129,7 @@ class TestEntryMethods(unittest.TestCase):
 				self.assertEqual(y_x, None)
 
 	def test_same_entry_list(self):
+		""" Tests same_entry_list(wrapper, entry_list) """
 		time.sleep(0.5)
 		send_keys("{LWIN}")
 		element_path = 'Taskbar||Pane->Start||Button%(0,0)'
@@ -132,6 +155,7 @@ class TestEntryMethods(unittest.TestCase):
 class TestNotepad(unittest.TestCase):
 
 	def test_send_keys(self):
+		""" Tests send keys """
 		time.sleep(0.5)
 		send_keys("{LWIN}Notepad{ENTER}")
 
@@ -147,6 +171,7 @@ class TestNotepad(unittest.TestCase):
 		self.assertEqual(result, 'This is a test.\r\n')
 
 	def test_drag_and_drop(self):
+		""" Tests drag and drop """
 		time.sleep(0.5)
 		send_keys("{LWIN}Notepad{ENTER}")
 
@@ -165,6 +190,7 @@ class TestNotepad(unittest.TestCase):
 			left_click("||TitleBar->Close||Button")
 
 	def test_wheel(self):
+		""" Tests mouse wheel """
 		time.sleep(0.5)
 		send_keys("{LWIN}Notepad{ENTER}")
 
@@ -184,21 +210,24 @@ class TestNotepad(unittest.TestCase):
 			left_click("||TitleBar->Close||Button")
 
 
-def wait_recorder_ready(recorder):
-	import win32api
-	x, y = win32api.GetCursorPos()
+def wait_recorder_ready(recorder, path_end, sleep=0.4):
+	time.sleep(sleep)
 	while l_e_e := recorder.get_last_element_event():
+		x, y = win32api.GetCursorPos()
 		if l_e_e.rectangle.top < y < l_e_e.rectangle.bottom:
 			if l_e_e.rectangle.left < x < l_e_e.rectangle.right:
 				if l_e_e.strategy == Strategy.unique_path:
-					break
+					if path_end in l_e_e.path:
+						break
 		time.sleep(0.1)
+
 
 @unittest.skipUnless(platform.system() == 'Windows' and platform.release() == '10', "requires Windows 10")
 class TestCalculator(unittest.TestCase):
 
 	def test_clicks(self):
-		startTime = time.time()
+		""" Tests the ability to record all clicks """
+		start_time = time.time()
 
 		recorder = Recorder()
 		recorder.start_recording()
@@ -207,71 +236,78 @@ class TestCalculator(unittest.TestCase):
 		send_keys("{LWIN}Calculator{ENTER}", pause=0.2)
 
 		with Region("Calculator||Window->Calculator||Window->||Group->Number pad||Group"):
+			move("Zero||Button", duration=0)
 			move("One||Button", duration=0)
-			wait_recorder_ready(recorder)
+			wait_recorder_ready(recorder, "One||Button")
 			left_click("One||Button")
 			move("Two||Button", duration=0)
-			wait_recorder_ready(recorder)
+			wait_recorder_ready(recorder, "Two||Button")
 			double_left_click("Two||Button")
 			move("Three||Button", duration=0)
-			wait_recorder_ready(recorder)
+			wait_recorder_ready(recorder, "Three||Button")
 			triple_left_click("Three||Button")
 			move("Four||Button", duration=0)
-			wait_recorder_ready(recorder)
+			wait_recorder_ready(recorder, "Four||Button")
 			triple_left_click("Four||Button")
 			left_click("Four||Button")
 			move("Five||Button", duration=0)
-			wait_recorder_ready(recorder)
+			wait_recorder_ready(recorder, "Five||Button")
 			triple_left_click("Five||Button")
 			double_left_click("Five||Button")
 			move("Six||Button", duration=0)
-			wait_recorder_ready(recorder)
+			wait_recorder_ready(recorder, "Six||Button")
 			triple_left_click("Six||Button")
 			triple_left_click("Six||Button")
-			move("Three||Button", duration=0)
-			wait_recorder_ready(recorder)
-			triple_left_click("Three||Button")
-			move("Two||Button", duration=0)
-			wait_recorder_ready(recorder)
-			double_left_click("Two||Button")
-			move("One||Button", duration=0)
-			wait_recorder_ready(recorder)
-			left_click("One||Button")
 
 		with Region("Calculator||Window->Calculator||Window"):
 			move("Close Calculator||Button", duration=0)
-			wait_recorder_ready(recorder)
+			wait_recorder_ready(recorder, "Close Calculator||Button")
 			left_click("Close Calculator||Button")
 
 		record_file_name = recorder.stop_recording()
 		recorder.quit()
 
+		str2num = {"Zero": 0, "One": 1, "Two": 2, "Three": 3, "Four": 4, "Five": 5, "Six": 6}
+		click_count = [0, 0, 0, 0, 0, 0, 0]
 		with open(record_file_name, 'r') as f:
 			line = f.readline()
 			while line:
 				line = f.readline()
-				if "One" in line:
-					assert line.find("left_click") != -1
-				elif "Two" in line:
-					assert line.find("double_left_click") != -1
-				elif "Three" in line:
-					assert line.find("triple_left_click") != -1
-				elif "Four" in line:
-					assert line.find("left_click") != -1
-					line = f.readline()
-					assert line.find("triple_left_click") != -1
-				elif "Five" in line:
-					assert line.find("double_left_click") != -1
-					line = f.readline()
-					assert line.find("triple_left_click") != -1
-				elif "Six" in line:
-					assert line.find("triple_left_click") != -1
-					line = f.readline()
-					assert line.find("triple_left_click") != -1
+				for str_number, i_number in str2num.items():
+					if str_number in line:
+						if "triple_left_click" in line:
+							click_count[i_number] += 3
+						elif "double_left_click" in line:
+							click_count[i_number] += 2
+						elif "left_click" in line:
+							click_count[i_number] += 1
+		for i_number in str2num.values():
+			assert click_count[i_number] == i_number
 		os.remove(record_file_name)
 
+		duration = time.time() - start_time
+		assert duration < 11, "The duration of this test is " + str(duration) + " s. It must be lower than 11 s"
+
+	def test_recorder_performance(self):
+		""" Tests the performance of the recorder to find a unique path """
+		recorder = Recorder()
+		os.system('calc.exe')
+		str_num = ["Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"]
+		with Region("Calculator||Window->Calculator||Window->||Group->Number pad||Group"):
+			move("Zero||Button", duration=0)
+		startTime = time.time()
+		with Region("Calculator||Window->Calculator||Window->||Group->Number pad||Group"):
+			for i in range(9):
+				for num in str_num:
+					move(num+"||Button", duration=0)
+					wait_recorder_ready(recorder, num+"||Button", sleep=0)
 		duration = time.time() - startTime
-		assert duration < 13, "The duration of this test is " + str(duration) +" s. It must be lower than 13 s"
+		with Region("Calculator||Window->Calculator||Window"):
+			move("Close Calculator||Button", duration=0)
+			wait_recorder_ready(recorder, "Close Calculator||Button")
+			left_click("Close Calculator||Button")
+		recorder.quit()
+		assert duration < 37, "The duration of the loop is " + str(duration) + " s. It must be lower than 37 s"
 
 
 if __name__ == '__main__':

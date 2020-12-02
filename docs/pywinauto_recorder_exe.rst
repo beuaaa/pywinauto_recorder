@@ -50,4 +50,4 @@ The main of "Pywinauto recorder" is an infinite loop where at each iteration it:
 
 If the path of the element under the mouse cursor is not ambiguous, the region of the element is colored green. Otherwise two strategies are used to try to disambiguate the path in the following order:
  (1) All elements having the same path are ordered in a 2D array. The path of the element region under the mouse cursor is disambiguated by adding a row index and a column index so that it is colored orange. The other element regions are colored red
- (2) An element whose path is unambiguous is searched on the same line on the left, if found its region is colored blue and the element under the mouse cursor is colored orange.
+ (2) When Smart mode is enabled, an element whose path is unambiguous is searched on the same line on the left, if found its region is colored blue and the element under the mouse cursor is colored orange.
