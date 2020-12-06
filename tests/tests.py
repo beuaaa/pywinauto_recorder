@@ -9,9 +9,9 @@ import pyperclip
 import random
 import win32api
 import win32con
+import pytest
 
-def test_regex():
-	print("OK")
+
 
 class TestMouseMethods(unittest.TestCase):
 
@@ -25,7 +25,8 @@ class TestMouseMethods(unittest.TestCase):
 	def tearDown(self):
 		time.sleep(0.5)
 		self.app.kill()
-
+	
+	@pytest.mark.beuaaa_test
 	def test_mouse_move(self):
 		""" Tests the precision of the relative coordinates in an element"""
 		with Window("Untitled - Paint||Window"):
@@ -43,7 +44,7 @@ class TestMouseMethods(unittest.TestCase):
 			win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0)
 			x0 = random.randint(wrapper.rectangle().left+9, wrapper.rectangle().right-9)
 			y0 = random.randint(wrapper.rectangle().top+9, wrapper.rectangle().bottom-9)
-			move((x0, y0))
+			move((x0, y0), duration=0.1)
 			x, y = win32api.GetCursorPos()
 			assert x0 == x
 			assert y0 == y
@@ -62,6 +63,7 @@ class TestMouseMethods(unittest.TestCase):
 			time.sleep(0.5)		# This pause is mandatory for the recorder
 		recorded_file = recorder.stop_recording()
 		recorder.quit()
+		time.sleep(5.5)
 
 		# Now the lines are overed in white using the previously recorded drag and drops
 		with Window("Untitled - Paint||Window"):
@@ -271,14 +273,24 @@ def test_dictionary():
 	with Window(shortcut("Calculator")):
 		results = find().children(control_type='Text')
 		for result in results:
-			if 'Display is' in result.texts()[0]:
-				display = result.texts()[0]
+			if 'Display is' in result.window_text():
+				display = result.window_text()
 	assert display == 'Display is 3', display + '. The expected result is 3.'
 	
 	with Region("Calculator||Window->Calculator||Window"):
 		left_click("Close Calculator||Button")
 
 
+def test_asterisk():
+	os.system('calc.exe')
+	time.sleep(1)
+	with Window("Calculator||Window"):
+		left_click("*->One||Button")
+		left_click("*->Plus||Button")
+		left_click("*->Two||Button")
+		left_click("*->Equals||Button")
+		left_click("*->Close Calculator||Button")
+		
 @unittest.skipUnless(platform.system() == 'Windows' and platform.release() == '10', "requires Windows 10")
 class TestCalculator(unittest.TestCase):
 
@@ -322,6 +334,7 @@ class TestCalculator(unittest.TestCase):
 			left_click("Close Calculator||Button")
 
 		record_file_name = recorder.stop_recording()
+		time.sleep(0.5)
 		recorder.quit()
 
 		str2num = {"Zero": 0, "One": 1, "Two": 2, "Three": 3, "Four": 4, "Five": 5, "Six": 6}
@@ -344,7 +357,8 @@ class TestCalculator(unittest.TestCase):
 
 		duration = time.time() - start_time
 		assert duration < 11, "The duration of this test is " + str(duration) + " s. It must be lower than 11 s"
-
+	
+	@pytest.mark.beuaaa_test
 	def test_recorder_performance(self):
 		""" Tests the performance of the recorder to find a unique path """
 		recorder = Recorder()
