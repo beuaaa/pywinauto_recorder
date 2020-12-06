@@ -50,6 +50,7 @@ def get_entry_list(path):
     return start_entry.split(path_separator) + [last_entry]
 
 
+# TODO windowName||windowType->*->*||*->name||*->*||type
 def get_entry(entry):
     i = entry.find(type_separator)
     if i == -1:
@@ -97,7 +98,7 @@ def get_entry(entry):
         dx_dy = None
     return str_name, str_type, y_x, dx_dy
 
-
+# TODO windowName||windowType->*->*||*->name||*->*||type
 def same_entry_list(element, entry_list, regex_title=False):
     try:
         i = len(entry_list) - 1
@@ -191,6 +192,7 @@ def find_element(desktop, entry_list, window_candidates=[], visible_only=True, e
     candidates = []
     for window in window_candidates:
         title, control_type, _, _ = get_entry(entry_list[-1])
+        # TODO windowName||windowType->*->*||*->name||*->*||type
         descendants = window.descendants(title=title, control_type=control_type) # , depth=max(1, len(entry_list)-2)
         for descendant in descendants:
             if same_entry_list(descendant, entry_list, regex_title=regex_title):
