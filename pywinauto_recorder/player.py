@@ -14,7 +14,6 @@ from win32con import IDC_WAIT, MOUSEEVENTF_MOVE, MOUSEEVENTF_ABSOLUTE, MOUSEEVEN
 import time
 from enum import Enum
 
-
 # TODO special_char_array in core for recorder.py and player.py (check when too call escape & unescape)
 def unescape_special_char(string):
     for r in (("\\\\", "\\"), ("\\t", "\t"), ("\\n", "\n"), ("\\r", "\r"), ("\\v", "\v"), ("\\f", "\f"), ('\\"', '"')):
@@ -29,10 +28,25 @@ class MoveMode(Enum):
     x_first = 2
 
 
+_dictionary = {}
 unique_element_old = None
 element_path_old = ''
 w_rOLD = None
 
+def load_dictionary(filename):
+    
+    with open(filename) as fp:
+        for line in fp:
+            words = line.split("\t")
+            i = 0
+            while words[i] == '':
+                i += 1
+            variable = words[-1].translate(str.maketrans('', '', '\n\t\r'))
+            value = words[i]
+            _dictionary[variable] = value
+
+def shortcut(variable):
+    return _dictionary[variable]
 
 def wait_is_ready_try1(wrapper, timeout=120):
     """
@@ -346,13 +360,13 @@ def mouse_wheel(steps):
 
 
 def send_keys(
-        str_keys,
-        pause=0.1,
-        with_spaces=True,
-        with_tabs=True,
-        with_newlines=True,
-        turn_off_numlock=True,
-        vk_packet=True):
+    str_keys,
+    pause=0.1,
+    with_spaces=True,
+    with_tabs=True,
+    with_newlines=True,
+    turn_off_numlock=True,
+    vk_packet=True):
     """
     Parse the keys and type them
     """

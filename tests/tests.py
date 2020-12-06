@@ -10,6 +10,8 @@ import random
 import win32api
 import win32con
 
+def test_regex():
+	print("OK")
 
 class TestMouseMethods(unittest.TestCase):
 
@@ -82,11 +84,19 @@ class TestEntryMethods(unittest.TestCase):
 		element_path = "D:\\Name||Window->||Pane->Property||Group->"
 		element_path = element_path + "Label:||Text#[Name||Window->||Pane->Property||Group->Label:||Text,0]%(0,0)"
 		entry_list = get_entry_list(element_path)
-		self.assertEqual(entry_list[0], 'D:\\Name||Window')
-		self.assertEqual(entry_list[1], '||Pane')
-		self.assertEqual(entry_list[2], 'Property||Group')
-		self.assertEqual(entry_list[3], 'Label:||Text#[Name||Window->||Pane->Property||Group->Label:||Text,0]%(0,0)')
-
+		assert entry_list[0] == 'D:\\Name||Window'
+		assert entry_list[1] == '||Pane'
+		assert entry_list[2] == 'Property||Group'
+		assert entry_list[3] == 'Label:||Text#[Name||Window->||Pane->Property||Group->Label:||Text,0]%(0,0)'
+		
+	def test_get_entry_list_with_asterisk(self):
+		""" Tests get_entry_list(element_path) element_path has some asterisks"""
+		element_path = "Name||Window->*->*||Group->Property||*%(0,0)"
+		entry_list2 = get_entry_list(element_path)
+		assert entry_list2[1] == '*'
+		assert entry_list2[2] == '*||Group'
+		assert entry_list2[3] == 'Property||*%(0,0)'
+		
 	def test_get_entry_elements(self):
 		""" Tests get_entry(entry) """
 		entry_list = [
@@ -95,7 +105,7 @@ class TestEntryMethods(unittest.TestCase):
 			'Name:||Type', '||Type', 'Name:||',
 			'Name||Type', '||Type', 'Name||',
 			'Name||Type#[y_name:||y_type,0]', '||Type#[y_name:||y_type,0]', 'Name||#[y_name:||y_type,0]',
-			'Name||Type#[y_name||y_type,0]', '||Type#[y_name||y_type,0]', 'Name||#[y_name||y_type,0]'
+			'Name||Type#[y_name||y_type,0]', '||Type#[y_name||y_type,0]', 'Name||#[y_name||y_type,0]',
 		]
 
 		for i, entry in enumerate(entry_list):
@@ -127,6 +137,28 @@ class TestEntryMethods(unittest.TestCase):
 				self.assertEqual(y_x, ['y_name:||y_type', 0])
 			else:
 				self.assertEqual(y_x, None)
+		
+	def test_get_entry_elements_with_asterisk(self):
+		""" Tests get_entry(entry) entry has some asterisks"""
+		entry_list = ['*', '*||*', '*||Type', 'Name||*%(2, -24)', '*#[y_name||y_type,0]']
+		for i, entry in enumerate(entry_list):
+			str_name, str_type, y_x, dx_dy = get_entry(entry)
+			if i in [18, 19, 20, 22]:
+				assert str_name == '*'
+			if i == 21:
+				assert str_name == 'Name'
+			if i in [18, 19, 21, 22]:
+				assert str_type == '*'
+			if i == 20:
+				assert str_type == 'Type'
+			if i in [18, 19, 20, 21]:
+				assert y_x is None
+			if i == 22:
+				assert y_x == ['y_name||y_type', 0]
+			if i in [18, 19, 20, 22]:
+				assert dx_dy is None
+			if i == 21:
+				assert dx_dy == (2, -24)
 
 	def test_same_entry_list(self):
 		""" Tests same_entry_list(wrapper, entry_list) """
@@ -220,6 +252,31 @@ def wait_recorder_ready(recorder, path_end, sleep=0.4):
 					if path_end in l_e_e.path:
 						break
 		time.sleep(0.1)
+
+
+def test_dictionary():
+	load_dictionary("Calculator.dic")
+	os.system('calc.exe')
+	time.sleep(1)
+	with Window(shortcut("Calculator")):
+		with Region(shortcut("Number pad")):
+			left_click(shortcut("One"))
+		with Region(shortcut("Standard operators")):
+			left_click(shortcut("Plus"))
+		with Region(shortcut("Number pad")):
+			left_click(shortcut("Two"))
+		with Region(shortcut("Standard operators")):
+			left_click(shortcut("Equals"))
+	display = None
+	with Window(shortcut("Calculator")):
+		results = find().children(control_type='Text')
+		for result in results:
+			if 'Display is' in result.texts()[0]:
+				display = result.texts()[0]
+	assert display == 'Display is 3', display + '. The expected result is 3.'
+	
+	with Region("Calculator||Window->Calculator||Window"):
+		left_click("Close Calculator||Button")
 
 
 @unittest.skipUnless(platform.system() == 'Windows' and platform.release() == '10', "requires Windows 10")
