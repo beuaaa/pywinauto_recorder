@@ -937,4 +937,6 @@ class Recorder(Thread):
 
     def quit(self):
         self.mode = 'Quit'
+        self.main_overlay.clear_all()
+        self.main_overlay.refresh()
         print("Quit")

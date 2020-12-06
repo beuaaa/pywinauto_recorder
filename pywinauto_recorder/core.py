@@ -50,7 +50,7 @@ def get_entry_list(path):
     return start_entry.split(path_separator) + [last_entry]
 
 
-# TODO windowName||windowType->*->*||*->name||*->*||type
+
 def get_entry(entry):
     i = entry.find(type_separator)
     if i == -1:
@@ -98,6 +98,7 @@ def get_entry(entry):
         dx_dy = None
     return str_name, str_type, y_x, dx_dy
 
+
 # TODO windowName||windowType->*->*||*->name||*->*||type
 def same_entry_list(element, entry_list, regex_title=False):
     try:
@@ -105,7 +106,9 @@ def same_entry_list(element, entry_list, regex_title=False):
         top_level_parent = element.top_level_parent()
         current_element = element
         while i >= 0:
-            # current_element_name = current_element.window_text()
+            if entry_list[i] == '*':    # TODO: make possible to use more than one asterisk
+                current_element = top_level_parent
+                i = 0
             current_element_name = current_element.element_info.name
             current_element_type = current_element.element_info.control_type
             entry_name, entry_type, _, _ = get_entry(entry_list[i])
@@ -183,7 +186,7 @@ def find_element(desktop, entry_list, window_candidates=[], visible_only=True, e
                     desktop, entry_list, window_candidates=[], visible_only=True,
                     enabled_only=False, active_only=False, regex_title=regex_title)
             else:
-                print ("Warning: No window '" + title + "' with control type '" + control_type + "' found! ")
+                print("Warning: No window '" + title + "' with control type '" + control_type + "' found! ")
                 return None, []
 
     if len(entry_list) == 1 and len(window_candidates) == 1:
