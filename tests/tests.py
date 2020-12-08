@@ -93,11 +93,11 @@ class TestEntryMethods(unittest.TestCase):
 		
 	def test_get_entry_list_with_asterisk(self):
 		""" Tests get_entry_list(element_path) element_path has some asterisks"""
-		element_path = "Name||Window->*->*||Group->Property||*%(0,0)"
+		element_path = "Name||Window->*->||Group->Property||%(0,0)"
 		entry_list2 = get_entry_list(element_path)
 		assert entry_list2[1] == '*'
-		assert entry_list2[2] == '*||Group'
-		assert entry_list2[3] == 'Property||*%(0,0)'
+		assert entry_list2[2] == '||Group'
+		assert entry_list2[3] == 'Property||%(0,0)'
 		
 	def test_get_entry_elements(self):
 		""" Tests get_entry(entry) """
@@ -126,7 +126,7 @@ class TestEntryMethods(unittest.TestCase):
 					self.assertEqual(str_name, 'Name:')
 				else:
 					self.assertEqual(str_name, 'Name')
-				self.assertEqual(str_type, None)
+				self.assertEqual(None, str_type)
 			if i < 3:
 				self.assertEqual(dx_dy, (2, -24))
 			else:
@@ -139,28 +139,6 @@ class TestEntryMethods(unittest.TestCase):
 				self.assertEqual(y_x, ['y_name:||y_type', 0])
 			else:
 				self.assertEqual(y_x, None)
-		
-	def test_get_entry_elements_with_asterisk(self):
-		""" Tests get_entry(entry) entry has some asterisks"""
-		entry_list = ['*', '*||*', '*||Type', 'Name||*%(2, -24)', '*#[y_name||y_type,0]']
-		for i, entry in enumerate(entry_list):
-			str_name, str_type, y_x, dx_dy = get_entry(entry)
-			if i in [18, 19, 20, 22]:
-				assert str_name == '*'
-			if i == 21:
-				assert str_name == 'Name'
-			if i in [18, 19, 21, 22]:
-				assert str_type == '*'
-			if i == 20:
-				assert str_type == 'Type'
-			if i in [18, 19, 20, 21]:
-				assert y_x is None
-			if i == 22:
-				assert y_x == ['y_name||y_type', 0]
-			if i in [18, 19, 20, 22]:
-				assert dx_dy is None
-			if i == 21:
-				assert dx_dy == (2, -24)
 
 	def test_same_entry_list(self):
 		""" Tests same_entry_list(wrapper, entry_list) """
