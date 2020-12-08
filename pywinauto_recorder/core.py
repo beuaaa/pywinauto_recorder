@@ -99,14 +99,14 @@ def get_entry(entry):
     return str_name, str_type, y_x, dx_dy
 
 
-# TODO windowName||windowType->*->*||*->name||*->*||type
+# TODO windowName||windowType->*->||->name||->||type
 def same_entry_list(element, entry_list, regex_title=False):
     try:
         i = len(entry_list) - 1
         top_level_parent = element.top_level_parent()
         current_element = element
         while i >= 0:
-            if entry_list[i] == '*':    # TODO: make possible to use more than one asterisk
+            if entry_list[i] == '*':    # TODO: make possible to use more than one asterisk in second position
                 current_element = top_level_parent
                 i = 0
             current_element_name = current_element.element_info.name
@@ -114,10 +114,13 @@ def same_entry_list(element, entry_list, regex_title=False):
             entry_name, entry_type, _, _ = get_entry(entry_list[i])
             if i == 0 and current_element == top_level_parent:
                 if regex_title:
-                    return re.match(entry_list[0], entry_name) and (current_element_type == entry_type or not entry_type)
+                    return (re.match(entry_list[0], entry_name) or not entry_name)\
+                           and (current_element_type == entry_type or not entry_type)
                 else:
-                    return current_element_name == entry_name and (current_element_type == entry_type or not entry_type)
-            elif current_element_name == entry_name and (current_element_type == entry_type or not entry_type):
+                    return (current_element_name == entry_name or not entry_name)\
+                            and (current_element_type == entry_type or not entry_type)
+            elif (current_element_name == entry_name or not entry_name)\
+                    and (current_element_type == entry_type or not entry_type):
                 i -= 1
                 current_element = current_element.parent()
             else:
@@ -195,7 +198,6 @@ def find_element(desktop, entry_list, window_candidates=[], visible_only=True, e
     candidates = []
     for window in window_candidates:
         title, control_type, _, _ = get_entry(entry_list[-1])
-        # TODO windowName||windowType->*->*||*->name||*->*||type
         descendants = window.descendants(title=title, control_type=control_type) # , depth=max(1, len(entry_list)-2)
         for descendant in descendants:
             if same_entry_list(descendant, entry_list, regex_title=regex_title):

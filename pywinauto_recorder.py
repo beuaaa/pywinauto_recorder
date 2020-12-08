@@ -37,7 +37,7 @@ def display_splash_screen():
 	splash_background = oaam.Overlay(transparency=0.1)
 	screen_width = GetSystemMetrics(0)
 	screen_height = GetSystemMetrics(1)
-	nb_band = 22
+	nb_band = 24
 	line_height = (screen_height / 2) / nb_band
 	text_lines = [''] * nb_band
 	text_lines[6] = 'Pywinauto recorder ' + __version__
@@ -49,9 +49,13 @@ def display_splash_screen():
 	text_lines[17] = 'CTRL+ALT+Q : Quit'
 	text_lines[18] = 'Drag and drop a recorded file on '
 	text_lines[19] = 'pywinauto_recorder.exe to replay it'
-
+	
 	splash_background.clear_all()
 	x, y, w, h = screen_width / 3, screen_height / 4, screen_width / 3, line_height * nb_band
+	splash_left = x
+	splash_right = x + w
+	splash_top = y
+	splash_bottom = y + h
 	splash_background.add(
 		geometry=oaam.Shape.triangle, thickness=0,
 		xyrgb_array=((x, y, 200, 0, 0), (x+w, y, 0, 128, 0), (x+w, y+h, 0, 0, 155)))
@@ -60,14 +64,20 @@ def display_splash_screen():
 		xyrgb_array=((x + w, y + h, 0, 0, 155), (x, y + h, 22, 128, 66), (x, y, 200, 0, 0)))
 
 	splash_background.refresh()
+	
+	mouse_was_splash_screen = False
+	x, y = win32api.GetCursorPos()
+	if (splash_left < x < splash_right) and (splash_top < y < splash_bottom):
+		mouse_was_splash_screen = True
+		message_to_continue = 'To continue: move the mouse cursor out of this splash screen'
+	else:
+		message_to_continue = 'To continue: move the mouse cursor over this splash screen'
 
 	py_rec_icon_rect = (screen_width / 3 + screen_width / 6 - 100, screen_height /4 + 30, 200, 100)
 	overlay_add_pywinauto_recorder_icon(splash_background, py_rec_icon_rect[0], py_rec_icon_rect[1])
-	from pywinauto_recorder.player import move as mouse_move
-	mouse_move((py_rec_icon_rect[0]+py_rec_icon_rect[2]/2, py_rec_icon_rect[1]+py_rec_icon_rect[3]/2))
-	mouse_cursor_on_py_rec_icon = True
+	continue_after_splash_screen = True
 	n = 0
-	while mouse_cursor_on_py_rec_icon:
+	while continue_after_splash_screen:
 		splash_foreground.clear_all()
 		i = 0
 		while i < nb_band:
@@ -102,11 +112,18 @@ def display_splash_screen():
 										 int(screen_height / 4 + line_height * 12.6))
 		splash_foreground.refresh()
 		time.sleep(0.4)
+		if n % 2 == 0:
+			text_lines[22] = message_to_continue
+		else:
+			text_lines[22] = ''
+		continue_after_splash_screen = False
 		x, y = win32api.GetCursorPos()
-		mouse_cursor_on_py_rec_icon = False
-		if py_rec_icon_rect[0]< x < py_rec_icon_rect[0]+py_rec_icon_rect[2]:
-			if py_rec_icon_rect[1] < y < py_rec_icon_rect[1] + py_rec_icon_rect[3]:
-				mouse_cursor_on_py_rec_icon = True
+		if (splash_left < x < splash_right) and  (splash_top < y < splash_bottom):
+			if mouse_was_splash_screen:
+				continue_after_splash_screen = True
+		else:
+			if not mouse_was_splash_screen:
+				continue_after_splash_screen = True
 		n = n + 1
 
 	splash_foreground.clear_all()
