@@ -103,7 +103,7 @@ class Region(object):
         Region.common_path = path_separator.join(self.list_path)
 
 
-def find(element_path=None, timeout=60*9.5):
+def find(element_path=None, timeout=120):
     if not Region.click_desktop:
         Region.click_desktop = pywinauto.Desktop(backend='uia', allow_magic_lookup=False)
     if Region.common_path:
@@ -161,7 +161,7 @@ def find(element_path=None, timeout=60*9.5):
     return unique_element
 
 
-def move(element_path, duration=0.5, mode=MoveMode.linear):
+def move(element_path, duration=0.5, mode=MoveMode.linear, timeout=120):
     global unique_element_old
     global element_path_old
     global w_rOLD
@@ -177,7 +177,7 @@ def move(element_path, duration=0.5, mode=MoveMode.linear):
             w_r = w_rOLD
             unique_element = unique_element_old
         else:
-            unique_element = find(element_path)
+            unique_element = find(element_path, timeout=timeout)
             w_r = unique_element.rectangle()
         control_type = None
         for entry in entry_list:
@@ -252,10 +252,10 @@ def move(element_path, duration=0.5, mode=MoveMode.linear):
     return unique_element
 
 
-def click(element_path, duration=0.5, mode=MoveMode.linear, button='left'):
-    unique_element = move(element_path, duration=duration, mode=mode)
+def click(element_path, duration=0.5, mode=MoveMode.linear, button='left', timeout=120):
+    unique_element = move(element_path, duration=duration, mode=mode, timeout=timeout)
     if isinstance(element_path, string_types):
-        wait_is_ready_try1(unique_element, timeout=60*5)
+        wait_is_ready_try1(unique_element, timeout=timeout)
     else:
         unique_element = None
     if button == 'left' or button == 'double_left' or button == 'triple_left':
@@ -280,40 +280,40 @@ def click(element_path, duration=0.5, mode=MoveMode.linear, button='left'):
     return unique_element
 
 
-def left_click(element_path, duration=0.5, mode=MoveMode.linear):
-    return click(element_path, duration=duration, mode=mode, button='left')
+def left_click(element_path, duration=0.5, mode=MoveMode.linear, timeout=120):
+    return click(element_path, duration=duration, mode=mode, button='left', timeout=timeout)
 
 
-def right_click(element_path, duration=0.5, mode=MoveMode.linear):
-    return click(element_path, duration=duration, mode=mode, button='right')
+def right_click(element_path, duration=0.5, mode=MoveMode.linear, timeout=120):
+    return click(element_path, duration=duration, mode=mode, button='right', timeout=timeout)
 
 
-def double_left_click(element_path, duration=0.5, mode=MoveMode.linear):
-    return click(element_path, duration=duration, mode=mode, button='double_left')
+def double_left_click(element_path, duration=0.5, mode=MoveMode.linear, timeout=120):
+    return click(element_path, duration=duration, mode=mode, button='double_left', timeout=timeout)
 
 
-def triple_left_click(element_path, duration=0.5, mode=MoveMode.linear):
-    return click(element_path, duration=duration, mode=mode, button='triple_left')
+def triple_left_click(element_path, duration=0.5, mode=MoveMode.linear, timeout=120):
+    return click(element_path, duration=duration, mode=mode, button='triple_left', timeout=timeout)
 
 
-def drag_and_drop(element_path1, element_path2, duration=0.5, mode=MoveMode.linear):
-    unique_element = move(element_path1, duration=duration, mode=mode)
+def drag_and_drop(element_path1, element_path2, duration=0.5, mode=MoveMode.linear, timeout=120):
+    unique_element = move(element_path1, duration=duration, mode=mode, timeout=timeout)
     win32api_mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0)
     move(element_path2, duration=duration, mode=mode)
     win32api_mouse_event(MOUSEEVENTF_LEFTUP, 0, 0)
     return unique_element
 
 
-def middle_drag_and_drop(element_path1, element_path2, duration=0.5, mode=MoveMode.linear):
-    unique_element = move(element_path1, duration=duration, mode=mode)
+def middle_drag_and_drop(element_path1, element_path2, duration=0.5, mode=MoveMode.linear, timeout=120):
+    unique_element = move(element_path1, duration=duration, mode=mode, timeout=timeout)
     win32api_mouse_event(MOUSEEVENTF_MIDDLEDOWN, 0, 0)
     move(element_path2, duration=duration, mode=mode)
     win32api_mouse_event(MOUSEEVENTF_MIDDLEUP, 0, 0)
     return unique_element
 
 
-def right_drag_and_drop(element_path1, element_path2, duration=0.5, mode=MoveMode.linear):
-    unique_element = move(element_path1, duration=duration, mode=mode)
+def right_drag_and_drop(element_path1, element_path2, duration=0.5, mode=MoveMode.linear, timeout=120):
+    unique_element = move(element_path1, duration=duration, mode=mode, timeout=timeout)
     win32api_mouse_event(MOUSEEVENTF_RIGHTDOWN, 0, 0)
     move(element_path2, duration=duration, mode=mode)
     win32api_mouse_event(MOUSEEVENTF_RIGHTUP, 0, 0)
@@ -381,3 +381,14 @@ def send_keys(
         turn_off_numlock=turn_off_numlock,
         vk_packet=vk_packet
     )
+
+
+def set_combobox(element_path, text, duration=0.5, mode=MoveMode.linear, timeout=120):
+    left_click(element_path, duration=duration, mode=mode, timeout=timeout)
+    time.sleep(0.9)
+    send_keys(text + "{ENTER}")
+    
+    
+def set_text(element_path, text, duration=0.5, mode=MoveMode.linear, timeout=120):
+    triple_left_click(element_path, duration=duration, mode=mode, timeout=timeout)
+    send_keys(text + "{ENTER}")
