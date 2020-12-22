@@ -71,7 +71,7 @@ def wait_is_ready_try1(wrapper, timeout=120):
             time.sleep(0.1)
             pass
         if (time.time() - t0) > timeout:
-            raise Exception("Time out! ", wrapper)
+            raise TimeoutError("Time out! ", wrapper)
 
 
 class Region(object):
@@ -132,7 +132,7 @@ def find(element_path=None, timeout=120):
             except Exception:
                 pass
             if (time.time() - t0) > timeout:
-                raise Exception("Time out! ", element_path2)
+                raise TimeoutError("Time out! ", element_path2)
 
         _, _, y_x, _ = get_entry(entry_list[-1])
         if y_x is not None:
@@ -389,6 +389,14 @@ def set_combobox(element_path, text, duration=0.5, mode=MoveMode.linear, timeout
     send_keys(text + "{ENTER}")
     
     
-def set_text(element_path, text, duration=0.5, mode=MoveMode.linear, timeout=120):
+def set_text(element_path, text, duration=0.5, mode=MoveMode.linear, timeout=120, pause=0.1):
     triple_left_click(element_path, duration=duration, mode=mode, timeout=timeout)
-    send_keys(text + "{ENTER}")
+    send_keys(text + "{ENTER}", pause=pause)
+    
+    
+def exists(element_path, timeout=120):
+    try:
+        wrapper = find(element_path, timeout=timeout)
+        return wrapper
+    except TimeoutError as e:
+        return None
