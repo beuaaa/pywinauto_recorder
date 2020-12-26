@@ -355,8 +355,16 @@ def menu_click(element_path, menu_path, duration=0.5, mode=MoveMode.linear, menu
 Window = Region
 
 
-def mouse_wheel(steps):
-    win32api_mouse_event(MOUSEEVENTF_WHEEL, 0, 0, WHEEL_DELTA * steps, 0)
+def mouse_wheel(steps, pause=0):
+    if pause == 0:
+        win32api_mouse_event(MOUSEEVENTF_WHEEL, 0, 0, WHEEL_DELTA * steps, 0)
+    else:
+        for i in range(abs(steps)):
+            if steps > 0:
+                win32api_mouse_event(MOUSEEVENTF_WHEEL, 0, 0, WHEEL_DELTA, 0)
+            else:
+                win32api_mouse_event(MOUSEEVENTF_WHEEL, 0, 0, -WHEEL_DELTA, 0)
+            time.sleep(pause)
 
 
 def send_keys(

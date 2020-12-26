@@ -38,7 +38,7 @@ def display_splash_screen():
 	screen_width = GetSystemMetrics(0)
 	screen_height = GetSystemMetrics(1)
 	nb_band = 24
-	line_height = (screen_height / 2) / nb_band
+	line_height = 22.5
 	text_lines = [''] * nb_band
 	text_lines[6] = 'Pywinauto recorder ' + __version__
 	text_lines[7] = 'by David Pratmarty'
@@ -47,11 +47,14 @@ def display_splash_screen():
 	text_lines[13] = 'CTRL+SHIFT+S : Smart mode On / Off'
 	text_lines[15] = 'CTRL+SHIFT+F : Copy element path in clipboard'
 	text_lines[17] = 'CTRL+ALT+Q : Quit'
-	text_lines[18] = 'Drag and drop a recorded file on '
-	text_lines[19] = 'pywinauto_recorder.exe to replay it'
+	text_lines[19] = 'Drag and drop a recorded file on '
+	text_lines[20] = 'pywinauto_recorder.exe to replay it'
 	
 	splash_background.clear_all()
-	x, y, w, h = screen_width / 3, screen_height / 4, screen_width / 3, line_height * nb_band
+	w, h = 640, 540
+	x, y = screen_width/2 - w/2, screen_height/2 - h/2
+	splash_width = w
+	splash_height = h
 	splash_left = x
 	splash_right = x + w
 	splash_top = y
@@ -73,7 +76,7 @@ def display_splash_screen():
 	else:
 		message_to_continue = 'To continue: move the mouse cursor over this splash screen'
 
-	py_rec_icon_rect = (screen_width / 3 + screen_width / 6 - 100, screen_height /4 + 30, 200, 100)
+	py_rec_icon_rect = (splash_left + splash_width/2 - 200/2, splash_top + 30, 200, 100)
 	overlay_add_pywinauto_recorder_icon(splash_background, py_rec_icon_rect[0], py_rec_icon_rect[1])
 	continue_after_splash_screen = True
 	n = 0
@@ -86,30 +89,30 @@ def display_splash_screen():
 			else:
 				font_size = 20
 			splash_foreground.add(
-				x=screen_width / 3, y=screen_height / 4 + i * line_height, width=screen_width / 3, height=line_height,
+				x=splash_left, y=splash_top + i * line_height, width=splash_width, height=line_height,
 				text=text_lines[i], font_size=font_size, text_color=(254, 255, 255), color=(255, 255, 255),
 				geometry=oaam.Shape.rectangle, thickness=0
 			)
 			i = i + 1
 		if n % 6 in [0, 1]:
 			overlay_add_record_icon(
-				splash_foreground, screen_width / 3 + screen_width / 18, screen_height / 4 + line_height * 8.6)
+				splash_foreground, splash_left + 99, splash_top + line_height * 8.6)
 		if n % 6 in [2, 3]:
 			overlay_add_pause_icon(
-				splash_foreground, screen_width / 3 + screen_width / 18, screen_height / 4 + line_height * 8.6)
+				splash_foreground, splash_left + 99, splash_top + line_height * 8.6)
 		if n % 6 in [4, 5]:
 			overlay_add_stop_icon(
-				splash_foreground, screen_width / 3 + screen_width / 18, screen_height / 4 + line_height * 8.6)
+				splash_foreground, splash_left + 99, splash_top + line_height * 8.6)
 		overlay_add_progress_icon(
-			splash_foreground, n % 5, screen_width / 3 + screen_width / 18, screen_height / 4 + line_height * 10.6)
+			splash_foreground, n % 5, splash_left + 99, splash_top + line_height * 10.6)
 		overlay_add_play_icon(
-			splash_foreground, screen_width / 3 + screen_width / 18, int(screen_height / 4 + line_height * 17.3))
+			splash_foreground, splash_left + 99, int(splash_top + line_height * 19.1))
 		if n % 4 == 0 or n % 4 == 1:
-			overlay_add_search_mode_icon(splash_foreground, hicon_light_off, 1+int(screen_width / 3 + screen_width / 18),
-										 int(screen_height / 4 + line_height * 12.6))
+			overlay_add_search_mode_icon(splash_foreground, hicon_light_off, int(splash_left + 99),
+										 int(splash_top + line_height * 12.6))
 		else:
-			overlay_add_search_mode_icon(splash_foreground, hicon_light_on, 1+int(screen_width / 3 + screen_width / 18),
-										 int(screen_height / 4 + line_height * 12.6))
+			overlay_add_search_mode_icon(splash_foreground, hicon_light_on, int(splash_left + 99),
+										 int(splash_top + line_height * 12.6))
 		splash_foreground.refresh()
 		time.sleep(0.4)
 		if n % 2 == 0:
@@ -118,7 +121,7 @@ def display_splash_screen():
 			text_lines[22] = ''
 		continue_after_splash_screen = False
 		x, y = win32api.GetCursorPos()
-		if (splash_left < x < splash_right) and  (splash_top < y < splash_bottom):
+		if (splash_left < x < splash_right) and (splash_top < y < splash_bottom):
 			if mouse_was_splash_screen:
 				continue_after_splash_screen = True
 		else:
