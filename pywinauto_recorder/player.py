@@ -22,6 +22,10 @@ def unescape_special_char(string):
     return string
 
 
+class PlayerSettings:
+    mouse_move_duration = 0.5
+
+
 class MoveMode(Enum):
     linear = 0
     y_first = 1
@@ -32,6 +36,7 @@ _dictionary = {}
 unique_element_old = None
 element_path_old = ''
 w_rOLD = None
+
 
 def load_dictionary(filename):
     
@@ -45,8 +50,10 @@ def load_dictionary(filename):
             value = words[i]
             _dictionary[variable] = value
 
+
 def shortcut(variable):
     return _dictionary[variable]
+
 
 def wait_is_ready_try1(wrapper, timeout=120):
     """
@@ -71,7 +78,8 @@ def wait_is_ready_try1(wrapper, timeout=120):
             time.sleep(0.1)
             pass
         if (time.time() - t0) > timeout:
-            raise TimeoutError("Time out! ", wrapper)
+            msg = "Element " + get_wrapper_path(wrapper) + "  was not found after " + str(timeout) + " s of searching."
+            raise TimeoutError("Time out! ", msg)
 
 
 class Region(object):
@@ -132,7 +140,8 @@ def find(element_path=None, timeout=120):
             except Exception:
                 pass
             if (time.time() - t0) > timeout:
-                raise TimeoutError("Time out! ", element_path2)
+                msg = "Element " + element_path2 + "  was not found after " + str(timeout) + " s of searching."
+                raise TimeoutError("Time out! ", msg)
 
         _, _, y_x, _ = get_entry(entry_list[-1])
         if y_x is not None:
@@ -280,23 +289,33 @@ def click(element_path, duration=0.5, mode=MoveMode.linear, button='left', timeo
     return unique_element
 
 
-def left_click(element_path, duration=0.5, mode=MoveMode.linear, timeout=120):
+def left_click(element_path, duration=None, mode=MoveMode.linear, timeout=120):
+    if not duration:
+        duration = PlayerSettings.mouse_move_duration
     return click(element_path, duration=duration, mode=mode, button='left', timeout=timeout)
 
 
-def right_click(element_path, duration=0.5, mode=MoveMode.linear, timeout=120):
+def right_click(element_path, duration=None, mode=MoveMode.linear, timeout=120):
+    if not duration:
+        duration = PlayerSettings.mouse_move_duration
     return click(element_path, duration=duration, mode=mode, button='right', timeout=timeout)
 
 
-def double_left_click(element_path, duration=0.5, mode=MoveMode.linear, timeout=120):
+def double_left_click(element_path, duration=None, mode=MoveMode.linear, timeout=120):
+    if not duration:
+        duration = PlayerSettings.mouse_move_duration
     return click(element_path, duration=duration, mode=mode, button='double_left', timeout=timeout)
 
 
-def triple_left_click(element_path, duration=0.5, mode=MoveMode.linear, timeout=120):
+def triple_left_click(element_path, duration=None, mode=MoveMode.linear, timeout=120):
+    if not duration:
+        duration = PlayerSettings.mouse_move_duration
     return click(element_path, duration=duration, mode=mode, button='triple_left', timeout=timeout)
 
 
-def drag_and_drop(element_path1, element_path2, duration=0.5, mode=MoveMode.linear, timeout=120):
+def drag_and_drop(element_path1, element_path2, duration=None, mode=MoveMode.linear, timeout=120):
+    if not duration:
+        duration = PlayerSettings.mouse_move_duration
     unique_element = move(element_path1, duration=duration, mode=mode, timeout=timeout)
     win32api_mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0)
     move(element_path2, duration=duration, mode=mode)
@@ -304,7 +323,9 @@ def drag_and_drop(element_path1, element_path2, duration=0.5, mode=MoveMode.line
     return unique_element
 
 
-def middle_drag_and_drop(element_path1, element_path2, duration=0.5, mode=MoveMode.linear, timeout=120):
+def middle_drag_and_drop(element_path1, element_path2, duration=None, mode=MoveMode.linear, timeout=120):
+    if not duration:
+        duration = PlayerSettings.mouse_move_duration
     unique_element = move(element_path1, duration=duration, mode=mode, timeout=timeout)
     win32api_mouse_event(MOUSEEVENTF_MIDDLEDOWN, 0, 0)
     move(element_path2, duration=duration, mode=mode)
@@ -312,7 +333,9 @@ def middle_drag_and_drop(element_path1, element_path2, duration=0.5, mode=MoveMo
     return unique_element
 
 
-def right_drag_and_drop(element_path1, element_path2, duration=0.5, mode=MoveMode.linear, timeout=120):
+def right_drag_and_drop(element_path1, element_path2, duration=None, mode=MoveMode.linear, timeout=120):
+    if not duration:
+        duration = PlayerSettings.mouse_move_duration
     unique_element = move(element_path1, duration=duration, mode=mode, timeout=timeout)
     win32api_mouse_event(MOUSEEVENTF_RIGHTDOWN, 0, 0)
     move(element_path2, duration=duration, mode=mode)
@@ -320,7 +343,9 @@ def right_drag_and_drop(element_path1, element_path2, duration=0.5, mode=MoveMod
     return unique_element
 
 
-def menu_click(element_path, menu_path, duration=0.5, mode=MoveMode.linear, menu_type='QT'):
+def menu_click(element_path, menu_path, duration=None, mode=MoveMode.linear, menu_type='QT'):
+    if not duration:
+        duration = PlayerSettings.mouse_move_duration
     menu_entry_list = menu_path.split(path_separator)
     if menu_type == 'QT':
         menu_entry_list = [''] + menu_entry_list
@@ -378,7 +403,7 @@ def send_keys(
     """
     Parse the keys and type them
     """
-    for r in (("(", "{(}"),  (")", "{)}"), ('+', '{+}')):
+    for r in (('(', '{(}'),  (')', '{)}'), ('+', '{+}')):
         str_keys = str_keys.replace(*r)
     pywinauto.keyboard.send_keys(
         str_keys,
@@ -391,13 +416,17 @@ def send_keys(
     )
 
 
-def set_combobox(element_path, text, duration=0.5, mode=MoveMode.linear, timeout=120):
+def set_combobox(element_path, text, duration=None, mode=MoveMode.linear, timeout=120):
+    if not duration:
+        duration = PlayerSettings.mouse_move_duration
     left_click(element_path, duration=duration, mode=mode, timeout=timeout)
     time.sleep(0.9)
     send_keys(text + "{ENTER}")
     
     
-def set_text(element_path, text, duration=0.5, mode=MoveMode.linear, timeout=120, pause=0.1):
+def set_text(element_path, text, duration=None, mode=MoveMode.linear, timeout=120, pause=0.1):
+    if not duration:
+        duration = PlayerSettings.mouse_move_duration
     triple_left_click(element_path, duration=duration, mode=mode, timeout=timeout)
     send_keys(text + "{ENTER}", pause=pause)
     
