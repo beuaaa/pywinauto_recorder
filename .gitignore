@@ -133,4 +133,8 @@ dmypy.json
 /pywinauto_recorder/pywinauto_recorder.dist/
 /pywinauto_recorder/pywinauto_recorder.build/
 /pywinauto_recorder/pywinauto_recorder.optim/
-/pywinauto_recorder/Speech_cache/
+Speech_cache/
+allure_result/
+sonarlint/
+recorded *
+
