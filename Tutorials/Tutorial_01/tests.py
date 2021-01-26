@@ -5,11 +5,7 @@ import shutil
 from dp_toolbox import *
 from pywinauto_recorder.player import *
 
-def test_chrome():
-	chrome_dir = r'"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"'
-	chrome = pywinauto.Application(backend='uia')
-	chrome.start(chrome_dir + ' --force-renderer-accessibility --start-maximized --guest ')
-	
+
 # send_keys("{VK_CONTROL down}""{VK_MENU down}""q""{VK_MENU up}""{VK_CONTROL up}")  # works
 # send_keys("{VK_MENU down}""{VK_CONTROL down}""q""{VK_CONTROL up}""{VK_MENU up}") # does not work
 
