@@ -261,9 +261,9 @@ def move(element_path, duration=0.5, mode=MoveMode.linear, timeout=120):
     return unique_element
 
 
-def click(element_path, duration=0.5, mode=MoveMode.linear, button='left', timeout=120):
+def click(element_path, duration=0.5, mode=MoveMode.linear, button='left', timeout=120, wait_ready=True):
     unique_element = move(element_path, duration=duration, mode=mode, timeout=timeout)
-    if isinstance(element_path, string_types):
+    if wait_ready and isinstance(element_path, string_types):
         wait_is_ready_try1(unique_element, timeout=timeout)
     else:
         unique_element = None
@@ -289,28 +289,28 @@ def click(element_path, duration=0.5, mode=MoveMode.linear, button='left', timeo
     return unique_element
 
 
-def left_click(element_path, duration=None, mode=MoveMode.linear, timeout=120):
+def left_click(element_path, duration=None, mode=MoveMode.linear, timeout=120, wait_ready=True):
     if not duration:
         duration = PlayerSettings.mouse_move_duration
-    return click(element_path, duration=duration, mode=mode, button='left', timeout=timeout)
+    return click(element_path, duration=duration, mode=mode, button='left', timeout=timeout, wait_ready=wait_ready)
 
 
-def right_click(element_path, duration=None, mode=MoveMode.linear, timeout=120):
+def right_click(element_path, duration=None, mode=MoveMode.linear, timeout=120, wait_ready=True):
     if not duration:
         duration = PlayerSettings.mouse_move_duration
-    return click(element_path, duration=duration, mode=mode, button='right', timeout=timeout)
+    return click(element_path, duration=duration, mode=mode, button='right', timeout=timeout, wait_ready=wait_ready)
 
 
-def double_left_click(element_path, duration=None, mode=MoveMode.linear, timeout=120):
+def double_left_click(element_path, duration=None, mode=MoveMode.linear, timeout=120, wait_ready=True):
     if not duration:
         duration = PlayerSettings.mouse_move_duration
-    return click(element_path, duration=duration, mode=mode, button='double_left', timeout=timeout)
+    return click(element_path, duration=duration, mode=mode, button='double_left', timeout=timeout, wait_ready=wait_ready)
 
 
-def triple_left_click(element_path, duration=None, mode=MoveMode.linear, timeout=120):
+def triple_left_click(element_path, duration=None, mode=MoveMode.linear, timeout=120, wait_ready=True):
     if not duration:
         duration = PlayerSettings.mouse_move_duration
-    return click(element_path, duration=duration, mode=mode, button='triple_left', timeout=timeout)
+    return click(element_path, duration=duration, mode=mode, button='triple_left', timeout=timeout, wait_ready=wait_ready)
 
 
 def drag_and_drop(element_path1, element_path2, duration=None, mode=MoveMode.linear, timeout=120):
@@ -422,18 +422,37 @@ def set_combobox(element_path, text, duration=None, mode=MoveMode.linear, timeou
     left_click(element_path, duration=duration, mode=mode, timeout=timeout)
     time.sleep(0.9)
     send_keys(text + "{ENTER}")
-    
-    
+
+
 def set_text(element_path, text, duration=None, mode=MoveMode.linear, timeout=120, pause=0.1):
     if not duration:
         duration = PlayerSettings.mouse_move_duration
-    triple_left_click(element_path, duration=duration, mode=mode, timeout=timeout)
+    double_left_click(element_path, duration=duration, mode=mode, timeout=timeout)
+    send_keys("{VK_CONTROL down}a{VK_CONTROL up}", pause=0)
+    time.sleep(0.1)
     send_keys(text + "{ENTER}", pause=pause)
-    
-    
+
+
 def exists(element_path, timeout=120):
     try:
         wrapper = find(element_path, timeout=timeout)
         return wrapper
     except TimeoutError as e:
         return None
+
+
+def select_file(element_path, full_path):
+    import pyperclip
+    import pathlib
+    p = pathlib.Path(full_path)
+    folder = p.parent
+    filename = p.name
+    with Region(element_path, regex_title=True):
+        left_click(find().descendants(title="All locations", control_type="SplitButton")[0])
+        send_keys("{VK_CONTROL down}""c""{VK_CONTROL up}")
+        if pathlib.Path(pyperclip.paste()) != folder:
+            send_keys(str(folder))
+        send_keys("{ENTER}")
+        double_left_click(u"File name:||ComboBox->File name:||Edit")
+        send_keys(filename + "{ENTER}")
+
