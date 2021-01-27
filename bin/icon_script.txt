@@ -1,8 +1,0 @@
- //This script updates 2 bitmaps and an
-  //icon in MyProg.exe ...	
-  [FILENAMES]
-  Exe=    pywinauto_recorder_original.exe
-  SaveAs= pywinauto_recorder.exe	
-  [COMMANDS]
-  -addoverwrite IconPyRec.ico,ICONGROUP,101,0
-  -addoverwrite VersionInfo1.res,VERSIONINFO,1,0

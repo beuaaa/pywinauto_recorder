@@ -1,6 +1,0 @@
-;!@Install@!UTF-8!
-GUIMode="2"
-ExecuteFile="/Record_files/pywinauto_recorder.dist/pywinauto_recorder.exe"
-InstallPath="%%S/Record_files"
-Directory ="%%S"
-;!@InstallEnd@!
