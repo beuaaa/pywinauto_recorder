@@ -9,8 +9,20 @@ import pyperclip
 import random
 import win32api
 import win32con
-import pytest
+from PIL import Image
 
+
+def percentage_white_pixels(recorded_image):
+	img = Image.open(recorded_image)
+	count = 0
+	for y in range(img.height):
+		for x in range(img.width):
+			pixel = img.getpixel((x, y))
+			if pixel == (255, 255, 255):
+				count += 1
+	p_white_pixels = 100 * count / (img.height * img.width)
+	print(count, "/", img.height * img.width, " pixels are white: ", p_white_pixels, "%")
+	return p_white_pixels
 
 
 class TestMouseMethods(unittest.TestCase):
@@ -25,18 +37,18 @@ class TestMouseMethods(unittest.TestCase):
 	def tearDown(self):
 		time.sleep(0.5)
 		self.app.kill()
-	
-	@pytest.mark.beuaaa_test
+
 	def test_mouse_move(self):
 		""" Tests the precision of the relative coordinates in an element"""
 		with Window("Untitled - Paint||Window"):
-			left_click("UIRibbonDockTop||Pane->Ribbon||Pane->Ribbon||Pane->||Pane->Ribbon||Pane->Lower Ribbon||Pane->||Custom->Home||Custom->Image||ToolBar->Resize||Button")
+			left_click("*->||Custom->Home||Custom->Tools||ToolBar->Pencil||Button")
+			left_click("*->||Custom->Home||Custom->Image||ToolBar->Resize||Button")
 			with Region("Resize and Skew||Window"):
 				left_click("Pixels||RadioButton")
 				double_left_click("Resize Horizontal||Edit")
 				send_keys("1000""{ENTER}")
-			wrapper = find("||Pane->Using Brush tool on Canvas||Pane")
-
+			wrapper = find("||Pane->Using Pencil tool on Canvas||Pane")
+			
 		recorder = Recorder()
 		recorder.start_recording()
 		time.sleep(2.0)
@@ -55,7 +67,7 @@ class TestMouseMethods(unittest.TestCase):
 			words = code.split("%(")
 			words = words[1].split(')"')
 			with Window(u"Untitled - Paint||Window"):
-				move(u"||Pane->Using Brush tool on Canvas||Pane%(" + words[0] + ")", duration=0)
+				move(u"||Pane->Using Pencil tool on Canvas||Pane%(" + words[0] + ")", duration=0)
 			x, y = win32api.GetCursorPos()
 			assert x0 == x
 			assert y0 == y
@@ -63,7 +75,13 @@ class TestMouseMethods(unittest.TestCase):
 			time.sleep(0.5)		# This pause is mandatory for the recorder
 		recorded_file = recorder.stop_recording()
 		recorder.quit()
-		time.sleep(5.5)
+		#time.sleep(5.5)
+		
+		# The thickness is set to 3px
+		with Window(u"Untitled - Paint||Window"):
+			left_click("UIRibbonDockTop||Pane->Ribbon||Pane->Ribbon||Pane->||Pane->Ribbon||Pane->Lower Ribbon||Pane->||Custom->Home||Custom->||ToolBar->Size||SplitButton")
+			with Region(u"||Pane->Size||Window->Size||List->||Custom->||Group"):
+				left_click(u"3px||ListItem")
 
 		# Now the lines are overed in white using the previously recorded drag and drops
 		with Window("Untitled - Paint||Window"):
@@ -77,6 +95,14 @@ class TestMouseMethods(unittest.TestCase):
 		compiled_code = compile(data, '<string>', 'exec')
 		eval(compiled_code)
 		os.remove(recorded_file)
+		send_keys("{VK_CONTROL down}""s""{VK_CONTROL up}")
+		recorded_image = str(recorded_file).replace('.py', '.png')
+		send_keys(recorded_image, pause=0)
+		send_keys("{ENTER}")
+		time.sleep(2)
+		percentage = percentage_white_pixels(recorded_image)
+		os.remove(recorded_image)
+		assert percentage == 100, "All the pixels should be white"
 
 
 class TestEntryMethods(unittest.TestCase):
@@ -168,8 +194,7 @@ class TestNotepad(unittest.TestCase):
 
 	def test_send_keys(self):
 		""" Tests send keys """
-		time.sleep(0.5)
-		send_keys("{LWIN}Notepad{ENTER}")
+		pywinauto.Application().start('Notepad')
 
 		with Region("Untitled - Notepad||Window"):
 			edit = left_click("Text Editor||Edit%(0,0)")
@@ -184,8 +209,7 @@ class TestNotepad(unittest.TestCase):
 
 	def test_drag_and_drop(self):
 		""" Tests drag and drop """
-		time.sleep(0.5)
-		send_keys("{LWIN}Notepad{ENTER}")
+		pywinauto.Application().start('Notepad')
 
 		with Window("Untitled - Notepad||Window"):
 			menu_click("", "Format->Font...", menu_type='NPP')
@@ -203,8 +227,7 @@ class TestNotepad(unittest.TestCase):
 
 	def test_wheel(self):
 		""" Tests mouse wheel """
-		time.sleep(0.5)
-		send_keys("{LWIN}Notepad{ENTER}")
+		pywinauto.Application().start('Notepad')
 
 		with Window("Untitled - Notepad||Window"):
 			menu_click("", "Format->Font...", menu_type='NPP')
@@ -268,7 +291,8 @@ def test_asterisk():
 		left_click("*->Two||Button")
 		left_click("*->Equals||Button")
 		left_click("*->Close Calculator||Button")
-		
+
+
 @unittest.skipUnless(platform.system() == 'Windows' and platform.release() == '10', "requires Windows 10")
 class TestCalculator(unittest.TestCase):
 
@@ -335,8 +359,7 @@ class TestCalculator(unittest.TestCase):
 
 		duration = time.time() - start_time
 		assert duration < 11, "The duration of this test is " + str(duration) + " s. It must be lower than 11 s"
-	
-	@pytest.mark.beuaaa_test
+
 	def test_recorder_performance(self):
 		""" Tests the performance of the recorder to find a unique path """
 		recorder = Recorder()
