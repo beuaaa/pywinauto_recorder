@@ -43,9 +43,11 @@ def escape_special_char(string):
 
 
 def write_in_file(events):
-    record_file_name = './recorded ' + time.asctime() + '.py'
-    record_file_name = record_file_name.replace(':', '_')
-    print('Recording in file: ' + record_file_name)
+    from pathlib import Path
+    home_dir = Path.home() / Path('Pywinauto recorder')
+    home_dir.mkdir(parents=True, exist_ok=True)
+    record_file_name = home_dir / Path('recorded ' + time.asctime().replace(':', '_') + '.py')
+    print('Recording in file: ' + str(record_file_name.absolute()))
     script = "# encoding: {}\n\n".format(sys.getdefaultencoding())
     script += u"import os, sys\n"
     script += u"script_dir = os.path.dirname(__file__)\n"
@@ -796,7 +798,7 @@ class Recorder(Thread):
 
     def run(self):
         import comtypes.client
-        print("COMPTYPES GEN FOLDER:", comtypes.client._code_cache._find_gen_dir())
+        print("COMPTYPES CACHE FOLDER:", comtypes.client._code_cache._find_gen_dir())
 
         dir_path = os.path.dirname(os.path.realpath(__file__))
         print("PYWINAUTO RECORDER FOLDER:", dir_path)
