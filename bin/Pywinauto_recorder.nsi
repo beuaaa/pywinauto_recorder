@@ -5,7 +5,7 @@
 !define ZIP2EXE_COMPRESSOR_LZMA
 !define ZIP2EXE_INSTALLDIR "C:\Program Files\Pywinauto recorder"
 !define ZIP2EXE_NAME "Pywinauto recorder"
-!define ZIP2EXE_OUTFILE "Pywinauto recorder installer.exe"
+!define ZIP2EXE_OUTFILE "Pywinauto_recorder_installer.exe"
 
 !include "${NSISDIR}\Contrib\zip2exe\Base.nsh"
 !include "${NSISDIR}\Contrib\zip2exe\Modern.nsh"
