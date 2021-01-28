@@ -577,7 +577,10 @@ def overlay_add_search_mode_icon(main_overlay, hicon, x, y):
 class Recorder(Thread):
     def __init__(self):
         Thread.__init__(self)
-        self.main_overlay = oaam.Overlay(transparency=0.5)
+        from win32api import GetSystemMetrics
+        self.screen_width = GetSystemMetrics(0)
+        self.screen_height = GetSystemMetrics(1)
+        self.main_overlay = oaam.Overlay(transparency=0.3)
         self.info_overlay = oaam.Overlay(transparency=0.0)
         self.desktop = pywinauto.Desktop(backend='uia', allow_magic_lookup=False)
         self.daemon = True
@@ -753,31 +756,26 @@ class Recorder(Thread):
 
     def __display_info_tip(self, x, y, wrapper):
         r = wrapper.rectangle()
-        if x - r.width() > 300:
-            info_left = x - r.width() - 300
-        else:
-            info_left = x
-        if y - r.height() > 100:
-            info_top = r.top - r.height() - 20
-            info_dir = -1
-        else:
-            info_top = r.top + r.height() + 20
-            info_dir = 1
+        tooltip_width = 500
+        tooltip_height = 75
+        dx, dy = (x - r.left) / r.width(),  (y - r.top) / r.height()
+        info_left = dx * (self.screen_width-tooltip_width)
+        info_top = dy * (self.screen_height-tooltip_height)
         self.main_overlay.add(
-            geometry=oaam.Shape.rectangle, x=info_left, y=info_top, width=300, height=25,
+            geometry=oaam.Shape.rectangle, x=info_left, y=info_top, width=tooltip_width, height=25,
             thickness=1, color=(0, 0, 0), brush=oaam.Brush.solid, brush_color=(254, 222, 255))
         self.info_overlay.add(
-            x=info_left + 5, y=info_top + info_dir, width=300,
+            x=info_left + 5, y=info_top + 1, width=tooltip_width,
             height=25,
             text="Name: " + wrapper.element_info.name,
             font_size=16, text_color=(0, 0, 0), color=(254, 255, 255),
             geometry=oaam.Shape.rectangle, thickness=0
         )
         self.main_overlay.add(
-            geometry=oaam.Shape.rectangle, x=info_left, y=info_top + info_dir * 25 * (2 - 1), width=300, height=25,
+            geometry=oaam.Shape.rectangle, x=info_left, y=info_top + 25 * (2 - 1), width=tooltip_width, height=25,
             thickness=1, color=(0, 0, 0), brush=oaam.Brush.solid, brush_color=(254, 25, 255))
         self.info_overlay.add(
-            x=info_left + 5, y=info_top + info_dir * 25 * (2 - 1), width=300,
+            x=info_left + 5, y=info_top + 25 * (2 - 1), width=tooltip_width,
             height=25,
             text="Type:" + wrapper.element_info.control_type,
             font_size=16, text_color=(0, 0, 0), color=(254, 255, 255),
@@ -786,10 +784,10 @@ class Recorder(Thread):
         has_value = getattr(wrapper, "get_value", None)
         if callable(has_value):
             self.main_overlay.add(
-                geometry=oaam.Shape.rectangle, x=info_left, y=info_top + info_dir * 25 * (3 - 1), width=300, height=25,
+                geometry=oaam.Shape.rectangle, x=info_left, y=info_top + 25 * (3 - 1), width=tooltip_width, height=25,
                 thickness=1, color=(0, 0, 0), brush=oaam.Brush.solid, brush_color=(254, 25, 255))
             self.info_overlay.add(
-                x=info_left + 5, y=info_top + info_dir * 25 * (3 - 1), width=300,
+                x=info_left + 5, y=info_top + 25 * (3 - 1), width=tooltip_width,
                 height=25,
                 text="Value: " + wrapper.get_value(),
                 font_size=16, text_color=(0, 0, 0), color=(254, 255, 255),
@@ -832,7 +830,6 @@ class Recorder(Thread):
                 wrapper = self.desktop.from_point(x, y)
                 if wrapper is None:
                     continue
-                self.__display_info_tip(x, y, wrapper)
                 wrapper_path = get_wrapper_path(wrapper)
                 if not wrapper_path:
                     continue
@@ -893,6 +890,8 @@ class Recorder(Thread):
                 else:
                     overlay_add_search_mode_icon(self.main_overlay, self.hicon_light_off, 110, 10)
                 i = i + 1
+
+                self.__display_info_tip(x, y, wrapper)
                 self.main_overlay.refresh()
                 self.info_overlay.refresh()
                 time.sleep(0.005)  # main_overlay.clear_all() doit attendre la fin de main_overlay.refresh()

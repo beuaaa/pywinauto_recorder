@@ -64,7 +64,7 @@ if __name__ == '__main__':
 			try:
 				wrapper = find()
 				text_wrapper = wrapper.descendants(
-					title=u"” is a standalone application, it’s the compiled version for Windows.",
+					title=u"” is a standalone application, it’s the compiled version for 64-bit Windows.",
 					control_type="Text")
 			except:
 				time.sleep(1)
