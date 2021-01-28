@@ -19,7 +19,7 @@ Usage
 - You can then click or perform another action on the user interface and it will be recorded in the generated Python script.
 - Repeat this process performing a few actions on the user interface and when you're done press CTRL+ALT+r to return to end recording.
 - Eventually, press CTRL+ALT+q to exit the recorder.
-- The generated Python script is saved in the "Record files" folder and copied in the clipboard.
+- The generated Python script is saved in the "Pywinauto recorder" folder in your home folder and copied in the clipboard.
 - To replay a Python script, you can drag and drop it to "pywinauto_recorder.exe_"
 
 .. raw:: html
