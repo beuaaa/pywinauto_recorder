@@ -11,7 +11,7 @@ import win32api
 import win32con
 from PIL import Image
 
-
+	
 def percentage_white_pixels(recorded_image):
 	img = Image.open(recorded_image)
 	count = 0
