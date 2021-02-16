@@ -17,9 +17,9 @@ Usage
 - Press CTRL+ALT+r to switch to "Record" mode.
 - If the element below the mouse cursor can be uniquely identified, it will turn green or orange.
 - You can then click or perform another action on the user interface and it will be recorded in the generated Python script.
-- Repeat this process performing a few actions on the user interface and when you're done press CTRL+ALT+r to return to end recording.
-- Eventually, press CTRL+ALT+q to exit the recorder.
+- Repeat this process performing a few actions on the user interface and when you're done press CTRL+ALT+r to end recording.
 - The generated Python script is saved in the "Pywinauto recorder" folder in your home folder and copied in the clipboard.
+- Press CTRL+ALT+q to exit the recorder.
 - To replay a Python script, you can drag and drop it to "pywinauto_recorder.exe_"
 
 .. raw:: html
