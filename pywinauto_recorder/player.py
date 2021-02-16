@@ -212,7 +212,7 @@ def move(element_path, duration=0.5, mode=MoveMode.linear, timeout=120):
             else:
                 dx, dy = 0, 0
             xd, yd = w_r.mid_point()
-            xd, yd = xd + round(dx/100.0*(w_r.width()-1), 0), round(yd + dy/100.0*(w_r.height()-1), 0)
+            xd, yd = xd + round(dx/100.0*(w_r.width()/2-1), 0), round(yd + dy/100.0*(w_r.height()/2-1), 0)
     elif issubclass(type(element_path), pywinauto.base_wrapper.BaseWrapper):
         unique_element = element_path
         element_path2 = get_wrapper_path(unique_element)
@@ -441,7 +441,7 @@ def exists(element_path, timeout=120):
         return None
 
 
-def select_file(element_path, full_path):
+def select_file(element_path, full_path, force_slow_path_typing=False):
     import pyperclip
     import pathlib
     p = pathlib.Path(full_path)
@@ -449,8 +449,9 @@ def select_file(element_path, full_path):
     filename = p.name
     with Region(element_path, regex_title=True):
         left_click(find().descendants(title="All locations", control_type="SplitButton")[0])
-        send_keys("{VK_CONTROL down}""c""{VK_CONTROL up}")
-        if pathlib.Path(pyperclip.paste()) != folder:
+        if not force_slow_path_typing:
+            send_keys("{VK_CONTROL down}""c""{VK_CONTROL up}")
+        if force_slow_path_typing or pathlib.Path(pyperclip.paste()) != folder:
             send_keys(str(folder))
         send_keys("{ENTER}")
         double_left_click(u"File name:||ComboBox->File name:||Edit")
