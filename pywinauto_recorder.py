@@ -216,7 +216,8 @@ if __name__ == '__main__':
 				recorder.stop_colouring()
 
 		state_display_element_info = False
-		
+		state_smart_mode = False
+		state_menu_select = False
 		
 		def on_clicked_display_element_info(icon, item):
 			global state_display_element_info
@@ -225,11 +226,15 @@ if __name__ == '__main__':
 			else:
 				state_display_element_info = True
 			recorder.set_display_info_tip(state_display_element_info)
+			
+		def on_clicked_smart_mode(icon, item):
+			global state_smart_mode
+			if recorder.is_smart_mode():
+				state_smart_mode = False
+			else:
+				state_smart_mode = True
+			recorder.set_smart_mode(state_smart_mode)
 
-
-		state_menu_select = False
-		
-		
 		def on_clicked(icon, item):
 			global state_menu_select
 			state_menu_select = item.checked
@@ -257,8 +262,7 @@ if __name__ == '__main__':
 				time.sleep(1.0)
 			print("Exit")
 			sys_exit(0)
-		
-		
+
 		SEPARATOR = item('- - - -', None)
 		menu = menu(
 			item(recording_text, on_clicked_recording),
@@ -266,6 +270,7 @@ if __name__ == '__main__':
 			item('Open output folder', on_clicked_open_explorer),
 			item(SEPARATOR, None),
 			item('Display element info', on_clicked_display_element_info, checked=lambda item: state_display_element_info),
+			item('Smart mode', on_clicked_smart_mode, checked=lambda item: state_smart_mode),
 			item('Apply treatments', menu(
 				item('menu_select', on_clicked, checked=lambda item: state_menu_select),
 				item('set_text', on_clicked2, checked=lambda item: state_set_text)
@@ -284,7 +289,7 @@ if __name__ == '__main__':
 		while recorder.is_alive():
 			time.sleep(1.0)
 		print("Exit")
-	
+
 	sys_exit(0)
 	
 	

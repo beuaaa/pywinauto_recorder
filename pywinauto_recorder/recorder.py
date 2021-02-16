@@ -920,6 +920,12 @@ class Recorder(Thread):
 	
 	def set_display_info_tip(self, state):
 		self.display_info_tip = state
+
+	def is_smart_mode(self):
+		return self.smart_mode
+
+	def set_smart_mode(self, state):
+		self.smart_mode = state
 		
 	def get_mode(self):
 		return self.mode
