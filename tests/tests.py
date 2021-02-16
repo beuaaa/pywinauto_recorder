@@ -31,8 +31,6 @@ class TestMouseMethods(unittest.TestCase):
 		"""Set some data and ensure the application is in the state we want"""
 		self.app = pywinauto.Application()
 		self.app.start("mspaint.exe")
-		dlg_spec = self.app.window()
-		dlg_spec.move_window(x=0, y=0, width=1030, height=930, repaint=True)
 
 	def tearDown(self):
 		time.sleep(0.5)
@@ -41,36 +39,33 @@ class TestMouseMethods(unittest.TestCase):
 	def test_mouse_move(self):
 		""" Tests the precision of the relative coordinates in an element"""
 		with Window("Untitled - Paint||Window"):
+			find().set_focus()
 			left_click("*->||Custom->Home||Custom->Tools||ToolBar->Pencil||Button")
-			left_click("*->||Custom->Home||Custom->Image||ToolBar->Resize||Button")
-			with Region("Resize and Skew||Window"):
-				left_click("Pixels||RadioButton")
-				double_left_click("Resize Horizontal||Edit")
-				send_keys("1000""{ENTER}")
-			wrapper = find("||Pane->Using Pencil tool on Canvas||Pane")
-			
+			send_keys("{VK_LWIN down}""{VK_UP}""{VK_LWIN up}")
+			wrapper = move("||Pane->Using Pencil tool on Canvas||Pane")
+		
+		time.sleep(1)
 		recorder = Recorder()
 		recorder.start_recording()
 		time.sleep(2.0)
 		for i in range(9):
 			win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0)
-			x0 = random.randint(wrapper.rectangle().left+9, wrapper.rectangle().right-9)
-			y0 = random.randint(wrapper.rectangle().top+9, wrapper.rectangle().bottom-9)
-			move((x0, y0), duration=0.1)
+			x0 = random.randint(wrapper.rectangle().left+22, wrapper.rectangle().right-22)
+			y0 = random.randint(wrapper.rectangle().top+22, wrapper.rectangle().bottom-22)
+			move((x0, y0), duration=0.05)
 			x, y = win32api.GetCursorPos()
-			assert x0 == x
-			assert y0 == y
-
+			assert (x0, y0) == (x, y)
+			
 			send_keys("{VK_CONTROL down}""{VK_SHIFT down}""f""{VK_SHIFT up}""{VK_CONTROL up}", vk_packet=False)
-			time.sleep(0.5)
+			#time.sleep(0.5)
 			code = pyperclip.paste()
 			words = code.split("%(")
 			words = words[1].split(')"')
 			with Window(u"Untitled - Paint||Window"):
 				move(u"||Pane->Using Pencil tool on Canvas||Pane%(" + words[0] + ")", duration=0)
 			x, y = win32api.GetCursorPos()
-			assert x0 == x
-			assert y0 == y
+			assert (x0, y0) == (x, y)
+			
 			win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0)
 			time.sleep(0.5)		# This pause is mandatory for the recorder
 		recorded_file = recorder.stop_recording()
@@ -86,22 +81,26 @@ class TestMouseMethods(unittest.TestCase):
 		# Now the lines are overed in white using the previously recorded drag and drops
 		with Window("Untitled - Paint||Window"):
 			with Region("UIRibbonDockTop||Pane->Ribbon||Pane->Ribbon||Pane->||Pane->Ribbon||Pane"):
-				left_click("Lower Ribbon||Pane->||Custom->Home||Custom->Colors||ToolBar->||Group%(-45,0)")
+				left_click("Lower Ribbon||Pane->||Custom->Home||Custom->Colors||ToolBar->||Group%(-95,0)")
 		data = ""
 		with open(recorded_file) as fp:
 			for line in fp:
-				if not ("send_keys" in line) or not ("wrapper" in line):
+				if not (("send_keys" in line) or ("wrapper" in line)):
 					data = data + line
+			
+		print(data)
+		with open(recorded_file, "w") as text_file:
+			print(data, file=text_file)
 		compiled_code = compile(data, '<string>', 'exec')
 		eval(compiled_code)
-		os.remove(recorded_file)
+		#os.remove(recorded_file)
 		send_keys("{VK_CONTROL down}""s""{VK_CONTROL up}")
 		recorded_image = str(recorded_file).replace('.py', '.png')
 		send_keys(recorded_image, pause=0)
 		send_keys("{ENTER}")
 		time.sleep(2)
 		percentage = percentage_white_pixels(recorded_image)
-		os.remove(recorded_image)
+		#os.remove(recorded_image)
 		assert percentage == 100, "All the pixels should be white"
 
 
