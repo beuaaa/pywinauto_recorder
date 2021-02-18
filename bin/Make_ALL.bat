@@ -37,6 +37,8 @@ rmdir win32com /s /q
 REM Add pywinauto_recorder\*.png in pywinauto_recorder.dist
 MKDIR  pywinauto_recorder
 xcopy /y ..\..\pywinauto_recorder\*.png .\pywinauto_recorder
+MKDIR  Icons
+xcopy /y ..\..\Icons\*.ico .\Icons
 
 cd ..
 
