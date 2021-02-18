@@ -57,7 +57,7 @@ Section "Desktop Shortcut" SectionX
 			CreateShortCut "$DESKTOP\Pywinauto recorder.lnk" "$INSTDIR\pywinauto_recorder.exe"
 			goto end_create_shortcut_on_desktop
 		CANCEL:
-			Abort
+			goto end_create_shortcut_on_desktops
 	end_create_shortcut_on_desktop:
 SectionEnd 
 
