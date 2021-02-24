@@ -48,7 +48,7 @@ def compute_dx_dy(x, y, rectangle):
 	return (dx, dy)
 
 
-def write_in_file(events, relative_coordinate_mode):
+def write_in_file(events, relative_coordinate_mode=False, menu_click=False):
 	from pathlib import Path
 	home_dir = Path.home() / Path('Pywinauto recorder')
 	home_dir.mkdir(parents=True, exist_ok=True)
@@ -178,7 +178,7 @@ def clean_events(events, remove_first_up=False):
 		i = i - 1
 
 
-def process_events(events):
+def process_events(events, process_menu_click=True):
 	i = 0
 	while i < len(events):
 		if type(events[i]) is keyboard.KeyboardEvent:
@@ -191,11 +191,12 @@ def process_events(events):
 		if type(events[i]) is mouse.ButtonEvent and events[i].event_type == 'up':
 			i = process_drag_and_drop_or_click_events(events, i)
 		i = i - 1
-	i = len(events) - 1
-	while i >= 0:
-		if type(events[i]) is ClickEvent:
-			i = process_menu_select_events(events, i)
-		i = i - 1
+	if process_menu_click:
+		i = len(events) - 1
+		while i >= 0:
+			if type(events[i]) is ClickEvent:
+				i = process_menu_select_events(events, i)
+			i = i - 1
 
 
 def process_keyboard_events(events, i):
@@ -596,6 +597,7 @@ class Recorder(Thread):
 		self.desktop = pywinauto.Desktop(backend='uia', allow_magic_lookup=False)
 		self.daemon = True
 		self.event_list = []
+		self._process_menu_click_mode = True
 		self.relative_coordinate_mode = False
 		self.display_info_tip = False
 		self.x_info_tip = None
@@ -1009,6 +1011,15 @@ class Recorder(Thread):
 		print("Run end")
 
 	# sys.exit(1)
+	
+	@property
+	def process_menu_click_mode(self):
+		return self._process_menu_click_mode
+	
+	@process_menu_click_mode.setter
+	def process_menu_click_mode(self, value):
+		self._process_menu_click_mode = value
+		
 	def is_relative_coordinate_mode(self):
 		return self.relative_coordinate_mode
 	
@@ -1053,9 +1064,9 @@ class Recorder(Thread):
 			else:
 				clean_events(events)
 			self.started_recording_with_keyboard = False
-			process_events(events)
+			process_events(events, process_menu_click=self.process_menu_click_mode)
 			clean_events(events)
-			return write_in_file(events, self.relative_coordinate_mode)
+			return write_in_file(events, relative_coordinate_mode=self.relative_coordinate_mode)
 		self.main_overlay.clear_all()
 		overlay_add_pause_icon(self.main_overlay, 10, 10)
 		self.main_overlay.refresh()
