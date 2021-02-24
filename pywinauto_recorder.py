@@ -416,6 +416,13 @@ if __name__ == '__main__':
 				sysTrayIcon.menu_options[3][1] = icon_light_on
 				recorder.set_smart_mode(True)
 
+		def action_relative_coordinates(sysTrayIcon):
+			if recorder.is_relative_coordinate_mode():
+				sysTrayIcon.menu_options[6][2][0][1] = icon_cross
+				recorder.set_relative_coordinate_mode(False)
+			else:
+				sysTrayIcon.menu_options[6][2][0][1] = icon_check
+				recorder.set_relative_coordinate_mode(True)
 
 		def action_open_explorer(sysTrayIcon):
 			pywinauto_recorder_path = Path.home() / Path("Pywinauto recorder")
@@ -440,7 +447,7 @@ if __name__ == '__main__':
 		                ['- - - - - -', None, hello],
 		                ['Open output folder', icon_folder, action_open_explorer],
 		                ['Process events', icon_settings, [
-			                ['% relative coordinates', icon_check, simon],
+			                ['% relative coordinates', icon_cross, action_relative_coordinates],
 			                ['menu_select', icon_check, simon],
 			                ['set_text', icon_cross, hello],
 			                ['set_combobox', icon_cross, hello], ]],
