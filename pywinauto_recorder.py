@@ -25,13 +25,7 @@ class SysTrayIcon(object):
 	SPECIAL_ACTIONS = [QUIT]
 	FIRST_ID = 1023
 	
-	def __init__(self,
-	             icon,
-	             hover_text,
-	             menu_options,
-	             on_quit=None,
-	             default_menu_index=None,
-	             window_class_name=None, ):
+	def __init__(self, icon, hover_text, menu_options, on_quit=None, default_menu_index=None, window_class_name=None, ):
 		self.menu = None
 		self.icon = icon
 		self.hover_text = hover_text
@@ -50,7 +44,7 @@ class SysTrayIcon(object):
 		message_map = {win32gui.RegisterWindowMessage("TaskbarCreated"): self.restart,
 		               win32con.WM_DESTROY: self.destroy,
 		               win32con.WM_COMMAND: self.command,
-		               win32con.WM_USER + 20: self.notify, }
+		               win32con.WM_USER + 20: self.notify,}
 		# Register the Window class.
 		window_class = win32gui.WNDCLASS()
 		hinst = window_class.hInstance = win32gui.GetModuleHandle(None)
@@ -67,9 +61,8 @@ class SysTrayIcon(object):
 		win32gui.UpdateWindow(self.hwnd)
 		self.notify_id = None
 		self.refresh_icon()
-		
 		win32gui.PumpMessages()
-	
+
 	def _add_ids_to_menu_options(self, menu_options):
 		result = []
 		for menu_option in menu_options:
@@ -103,17 +96,19 @@ class SysTrayIcon(object):
 		self.notify_id = (self.hwnd, 0, win32gui.NIF_ICON | win32gui.NIF_MESSAGE | win32gui.NIF_TIP,
 		                  win32con.WM_USER + 20, hicon, self.hover_text)
 		win32gui.Shell_NotifyIcon(message, self.notify_id)
-	
+
 	def restart(self, hwnd, msg, wparam, lparam):
 		self.refresh_icon()
-	
+
 	def destroy(self, hwnd, msg, wparam, lparam):
+		print("destroy--->")
 		if self.on_quit:
 			self.on_quit(self)
 		nid = (self.hwnd, 0)
 		win32gui.Shell_NotifyIcon(win32gui.NIM_DELETE, nid)
 		win32gui.PostQuitMessage(0)  # Terminate the app.
-	
+		print("<----destroy")
+
 	def notify(self, hwnd, msg, wparam, lparam):
 		if lparam == win32con.WM_LBUTTONDBLCLK:
 			self.execute_menu_option(self.default_menu_index + self.FIRST_ID)
@@ -121,6 +116,7 @@ class SysTrayIcon(object):
 			self.show_menu()
 		elif lparam == win32con.WM_LBUTTONUP:
 			pass
+		
 		return True
 	
 	def show_menu(self):
@@ -131,7 +127,7 @@ class SysTrayIcon(object):
 		win32gui.SetForegroundWindow(self.hwnd)
 		win32gui.TrackPopupMenu(self.menu, win32con.TPM_LEFTALIGN, pos[0], pos[1], 0, self.hwnd, None)
 		win32gui.PostMessage(self.hwnd, win32con.WM_NULL, 0, 0)
-	
+
 	def create_menu(self, menu, menu_options):
 		for option_text, option_icon, option_action, option_id in menu_options[::-1]:
 			if option_icon:
@@ -150,7 +146,7 @@ class SysTrayIcon(object):
 					win32gui.InsertMenu(menu, 0, win32con.MF_SEPARATOR | win32con.MF_BYPOSITION, 0, None)
 				else:
 					win32gui.InsertMenuItem(menu, 0, 1, item)
-	
+
 	def prep_menu_icon(self, icon):
 		# First load the icon.
 		ico_x = win32api.GetSystemMetrics(win32con.SM_CXSMICON)
@@ -171,11 +167,12 @@ class SysTrayIcon(object):
 		return iconBitmap.GetHandle()
 	
 	def command(self, hwnd, msg, wparam, lparam):
+		print("command--->")
 		id = win32gui.LOWORD(wparam)
 		self.execute_menu_option(id)
+		print("<---command")
 
 	def execute_menu_option(self, id):
-		
 		menu_action = self.menu_actions_by_id[id]
 		if menu_action == self.QUIT:
 			win32gui.DestroyWindow(self.hwnd)
@@ -387,6 +384,7 @@ if __name__ == '__main__':
 				recorder.start_recording()
 
 		def action_colour(sysTrayIcon):
+			print("action_colour--->")
 			if recorder.get_mode() == 'Stop':
 				sysTrayIcon.menu_options[1][0] = "Stop colouring"
 				sysTrayIcon.menu_options[1][1] = icon_pywinauto_recorder
@@ -395,6 +393,7 @@ if __name__ == '__main__':
 				sysTrayIcon.menu_options[1][0] = "Start colouring"
 				sysTrayIcon.menu_options[1][1] = icon_stop
 				recorder.stop_colouring()
+			print("<---action_colour")
 
 		def action_display_element_info(sysTrayIcon):
 			if recorder.is_displaying_info_tip():
@@ -423,6 +422,14 @@ if __name__ == '__main__':
 			else:
 				sysTrayIcon.menu_options[6][2][0][1] = icon_check
 				recorder.set_relative_coordinate_mode(True)
+				
+		def action_process_menu_click(sysTrayIcon):
+			if recorder.process_menu_click_mode:
+				sysTrayIcon.menu_options[6][2][1][1] = icon_cross
+				recorder.process_menu_click_mode = False
+			else:
+				sysTrayIcon.menu_options[6][2][1][1] = icon_check
+				recorder.process_menu_click_mode = True
 
 		def action_open_explorer(sysTrayIcon):
 			pywinauto_recorder_path = Path.home() / Path("Pywinauto recorder")
@@ -448,7 +455,7 @@ if __name__ == '__main__':
 		                ['Open output folder', icon_folder, action_open_explorer],
 		                ['Process events', icon_settings, [
 			                ['% relative coordinates', icon_cross, action_relative_coordinates],
-			                ['menu_select', icon_check, simon],
+			                ['menu_click', icon_check, action_process_menu_click],
 			                ['set_text', icon_cross, hello],
 			                ['set_combobox', icon_cross, hello], ]],
 		                ['- - - - - -', None, hello],
@@ -458,17 +465,18 @@ if __name__ == '__main__':
 		                ]
 		
 		def bye(sysTrayIcon):
+			print("bye---->")
 			recorder.quit()
 			while recorder.is_alive():
 				time.sleep(0.5)
 			print("Exit")
-			sys_exit(0)
+			print("<----bye")
 
 		SysTrayIcon(icon_pywinauto_recorder, hover_text, menu_options, on_quit=bye, default_menu_index=1)
 		
 		while recorder.is_alive():
 			time.sleep(0.5)
-		print("Exit")
+		print("Exit2")
 
 	sys_exit(0)
 
