@@ -597,14 +597,14 @@ class Recorder(Thread):
 		self.desktop = pywinauto.Desktop(backend='uia', allow_magic_lookup=False)
 		self.daemon = True
 		self.event_list = []
+		self._mode = 'Pause'
 		self._process_menu_click_mode = True
-		self.relative_coordinate_mode = False
-		self.display_info_tip = False
+		self._smart_mode = False
+		self._relative_coordinate_mode = False
+		self._display_info_tip_mode = False
 		self.x_info_tip = None
 		self.y_info_tip = None
 		self.path_info_tip = None
-		self.mode = 'Pause'
-		self.smart_mode = False
 		self.last_element_event = None
 		self.distance_inside = 0.0
 		self.mouse_x_inside = 99
@@ -993,7 +993,7 @@ class Recorder(Thread):
 				#	overlay_add_search_mode_icon(self.main_overlay, self.hicon_light_off, 110, 10)
 				i = i + 1
 				
-				if self.display_info_tip:
+				if self.display_info_tip_mode:
 					self.__display_info_tip(x, y, wrapper)
 				self.main_overlay.refresh()
 				#self.info_overlay.refresh()
@@ -1010,8 +1010,6 @@ class Recorder(Thread):
 		keyboard.unhook_all()
 		print("Run end")
 
-	# sys.exit(1)
-	
 	@property
 	def process_menu_click_mode(self):
 		return self._process_menu_click_mode
@@ -1019,33 +1017,38 @@ class Recorder(Thread):
 	@process_menu_click_mode.setter
 	def process_menu_click_mode(self, value):
 		self._process_menu_click_mode = value
-		
-	def is_relative_coordinate_mode(self):
-		return self.relative_coordinate_mode
+
+	@property
+	def relative_coordinate_mode(self):
+		return self._relative_coordinate_mode
 	
-	def set_relative_coordinate_mode(self, state):
-		self.relative_coordinate_mode = state
+	@relative_coordinate_mode.setter
+	def relative_coordinate_mode(self, value):
+		self._relative_coordinate_mode = value
 
-	def is_displaying_info_tip(self):
-		return self.display_info_tip
+	@property
+	def display_info_tip_mode(self):
+		return self._display_info_tip_mode
+	
+	@relative_coordinate_mode.setter
+	def display_info_tip_mode(self, value):
+		self._display_info_tip_mode = value
 
-	def set_display_info_tip(self, state):
-		self.display_info_tip = state
+	@property
+	def smart_mode(self):
+		return self._smart_mode
+	
+	@smart_mode.setter
+	def smart_mode(self, value):
+		self._smart_mode = value
 
-	def is_smart_mode(self):
-		return self.smart_mode
-
-	def set_smart_mode(self, state):
-		self.smart_mode = state
-
-	def get_mode(self):
-		return self.mode
-
-	def stop_colouring(self):
-		self.mode = 'Stop'
-
-	def start_colouring(self):
-		self.mode = 'Pause'
+	@property
+	def mode(self):
+		return self._mode
+	
+	@mode.setter
+	def mode(self, value):
+		self._mode = value
 
 	def start_recording(self):
 		x, y = win32api.GetCursorPos()

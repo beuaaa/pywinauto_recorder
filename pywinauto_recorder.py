@@ -384,44 +384,42 @@ if __name__ == '__main__':
 				recorder.start_recording()
 
 		def action_colour(sysTrayIcon):
-			print("action_colour--->")
-			if recorder.get_mode() == 'Stop':
+			if recorder.mode == 'Stop':
 				sysTrayIcon.menu_options[1][0] = "Stop colouring"
 				sysTrayIcon.menu_options[1][1] = icon_pywinauto_recorder
-				recorder.start_colouring()
+				recorder.mode = 'Pause'
 			else:
 				sysTrayIcon.menu_options[1][0] = "Start colouring"
 				sysTrayIcon.menu_options[1][1] = icon_stop
-				recorder.stop_colouring()
-			print("<---action_colour")
+				recorder.mode = 'Stop'
 
 		def action_display_element_info(sysTrayIcon):
-			if recorder.is_displaying_info_tip():
+			if recorder.display_info_tip_mode:
 				sysTrayIcon.menu_options[2][0] = "Start displaying element info"
 				sysTrayIcon.menu_options[2][1] = icon_stop
-				recorder.set_display_info_tip(False)
+				recorder.display_info_tip_mode = False
 			else:
 				sysTrayIcon.menu_options[2][0] = "Stop displaying element info"
 				sysTrayIcon.menu_options[2][1] = icon_search
-				recorder.set_display_info_tip(True)
+				recorder.display_info_tip_mode = True
 				
 		def action_smart_mode(sysTrayIcon):
-			if recorder.is_smart_mode():
+			if recorder.smart_mode:
 				sysTrayIcon.menu_options[3][0] = "Start Smart mode"
 				sysTrayIcon.menu_options[3][1] = icon_stop
-				recorder.set_smart_mode(False)
+				recorder.smart_mode = False
 			else:
 				sysTrayIcon.menu_options[3][0] = "Stop Smart mode"
 				sysTrayIcon.menu_options[3][1] = icon_light_on
-				recorder.set_smart_mode(True)
+				recorder.smart_mode = True
 
 		def action_relative_coordinates(sysTrayIcon):
-			if recorder.is_relative_coordinate_mode():
+			if recorder.relative_coordinate_mode:
 				sysTrayIcon.menu_options[6][2][0][1] = icon_cross
-				recorder.set_relative_coordinate_mode(False)
+				recorder.relative_coordinate_mode = False
 			else:
 				sysTrayIcon.menu_options[6][2][0][1] = icon_check
-				recorder.set_relative_coordinate_mode(True)
+				recorder.relative_coordinate_mode = True
 				
 		def action_process_menu_click(sysTrayIcon):
 			if recorder.process_menu_click_mode:
