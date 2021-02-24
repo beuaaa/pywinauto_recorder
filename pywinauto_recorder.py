@@ -129,6 +129,18 @@ class SysTrayIcon(object):
 		win32gui.PostMessage(self.hwnd, win32con.WM_NULL, 0, 0)
 
 	def create_menu(self, menu, menu_options):
+		if recorder.mode != 'Record':
+			menu_options[0][0] = "Start recording\t\tCTRL+ALT+R"
+			menu_options[0][1] = icon_stop
+		else:
+			menu_options[0][0] = "Stop recording\t\tCTRL+ALT+R"
+			menu_options[0][1] = icon_record
+		if recorder.smart_mode:
+			menu_options[3][0] = "Start Smart mode\t\tCTRL+ALT+S"
+			menu_options[3][1] = icon_stop
+		else:
+			menu_options[3][0] = "Stop Smart mode\t\tCTRL+ALT+S"
+			menu_options[3][1] = icon_light_on
 		for option_text, option_icon, option_action, option_id in menu_options[::-1]:
 			if option_icon:
 				option_icon = self.prep_menu_icon(option_icon)
@@ -222,7 +234,7 @@ def display_splash_screen():
 	text_lines[11] = 'Search algorithm speed'
 	text_lines[13] = 'CTRL+SHIFT+S : Smart mode On / Off'
 	text_lines[15] = 'CTRL+SHIFT+F : Copy element path in clipboard'
-	text_lines[17] = 'CTRL+ALT+Q : Quit'
+	text_lines[17] = 'Click on "Quit" in the tray menu to quit.'
 	text_lines[19] = 'Drag and drop a recorded file on '
 	text_lines[20] = 'pywinauto_recorder.exe to replay it'
 	
@@ -375,12 +387,8 @@ if __name__ == '__main__':
 		
 		def action_record(sysTrayIcon):
 			if recorder.mode == 'Record':
-				sysTrayIcon.menu_options[0][0] = "Start recording"
-				sysTrayIcon.menu_options[0][1] = icon_stop
 				recorder.stop_recording()
 			else:
-				sysTrayIcon.menu_options[0][0] = "Stop recording"
-				sysTrayIcon.menu_options[0][1] = icon_record
 				recorder.start_recording()
 
 		def action_colour(sysTrayIcon):
@@ -405,12 +413,8 @@ if __name__ == '__main__':
 				
 		def action_smart_mode(sysTrayIcon):
 			if recorder.smart_mode:
-				sysTrayIcon.menu_options[3][0] = "Start Smart mode"
-				sysTrayIcon.menu_options[3][1] = icon_stop
 				recorder.smart_mode = False
 			else:
-				sysTrayIcon.menu_options[3][0] = "Stop Smart mode"
-				sysTrayIcon.menu_options[3][1] = icon_light_on
 				recorder.smart_mode = True
 
 		def action_relative_coordinates(sysTrayIcon):
@@ -442,13 +446,11 @@ if __name__ == '__main__':
 		def hello(sysTrayIcon):
 			print("Menu 2")
 
-		def simon(sysTrayIcon):
-			print("Hello Simon.")
 
-		menu_options = [['Start recording', icon_stop, action_record],
+		menu_options = [['Start recording\t\tCTRL+ALT+R', icon_stop, action_record],
 		                ['Stop colouring', icon_pywinauto_recorder, action_colour],
 		                ['Start displaying element info', icon_stop, action_display_element_info],
-		                ['Start Smart mode', icon_stop, action_smart_mode],
+		                ['Start Smart mode\t\tCTRL+ALT+S', icon_stop, action_smart_mode],
 		                ['- - - - - -', None, hello],
 		                ['Open output folder', icon_folder, action_open_explorer],
 		                ['Process events', icon_settings, [

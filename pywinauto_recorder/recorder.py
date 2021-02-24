@@ -740,12 +740,6 @@ class Recorder(Thread):
 				and keyboard.key_to_scan_codes("ctrl")[0] in keyboard._pressed_events):
 			self.smart_mode = not self.smart_mode
 		elif (
-				(e.name == 'q') and (e.event_type == 'up')
-				and keyboard.key_to_scan_codes("alt")[0] in keyboard._pressed_events
-				and keyboard.key_to_scan_codes("ctrl")[0] in keyboard._pressed_events):
-			self.mode = 'Quit'
-			self.quit()
-		elif (
 				(e.name == 'F') and (e.event_type == 'up')
 				and keyboard.key_to_scan_codes("shift")[0] in keyboard._pressed_events
 				and keyboard.key_to_scan_codes("ctrl")[0] in keyboard._pressed_events):
@@ -1030,7 +1024,7 @@ class Recorder(Thread):
 	def display_info_tip_mode(self):
 		return self._display_info_tip_mode
 	
-	@relative_coordinate_mode.setter
+	@display_info_tip_mode.setter
 	def display_info_tip_mode(self, value):
 		self._display_info_tip_mode = value
 
