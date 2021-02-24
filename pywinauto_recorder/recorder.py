@@ -48,7 +48,7 @@ def compute_dx_dy(x, y, rectangle):
 	return (dx, dy)
 
 
-def write_in_file(events):
+def write_in_file(events, relative_coordinate_mode):
 	from pathlib import Path
 	home_dir = Path.home() / Path('Pywinauto recorder')
 	home_dir.mkdir(parents=True, exist_ok=True)
@@ -97,8 +97,13 @@ def write_in_file(events):
 				if common_path:
 					p1 = get_relative_path(common_path, p1)
 					p2 = get_relative_path(common_path, p2)
-				script += 'drag_and_drop(u"' + escape_special_char(p1) + '%(' + dx1 + ',' + dy1 + ')", '
-				script += 'u"' + escape_special_char(p2) + '%(' + dx2 + ',' + dy2 + ')")\n'
+				script += 'drag_and_drop(u"' + escape_special_char(p1)
+				if relative_coordinate_mode and eval(dx1) != 0 and eval(dy1) != 0:
+					script += '%(' + dx1 + ',' + dy1 + ')'
+				script += '", u"' + escape_special_char(p2)
+				if relative_coordinate_mode and eval(dx2) != 0 and eval(dy2) != 0:
+					script += '%(' + dx2 + ',' + dy2 + ')'
+				script += '")\n'
 			elif type(e_i) is ClickEvent:
 				p = e_i.path
 				dx, dy = "{:.2f}".format(round(e_i.dx * 100, 2)), "{:.2f}".format(round(e_i.dy * 100, 2))
@@ -106,7 +111,7 @@ def write_in_file(events):
 					p = get_relative_path(common_path, p)
 				str_c = ['', '', 'double_', 'triple_']
 				script += str_c[e_i.click_count] + e_i.button + '_click(u"' + escape_special_char(p)
-				if eval(dx) != 0 and eval(dy) != 0:
+				if relative_coordinate_mode and eval(dx) != 0 and eval(dy) != 0:
 					script += '%(' + dx + ',' + dy + ')'
 				script += '")\n'
 			elif type(e_i) is FindEvent:
@@ -114,7 +119,10 @@ def write_in_file(events):
 				dx, dy = "{:.2f}".format(round(e_i.dx * 100, 2)), "{:.2f}".format(round(e_i.dy * 100, 2))
 				if common_path:
 					p = get_relative_path(common_path, p)
-				script += 'wrapper = find(u"' + escape_special_char(p) + '%(' + dx + ',' + dy + ')")\n'
+				script += 'wrapper = find(u"' + escape_special_char(p)
+				if relative_coordinate_mode and eval(dx) != 0 and eval(dy) != 0:
+					script += '%(' + dx + ',' + dy + ')'
+				script += '")\n'
 			elif type(e_i) is MenuEvent:
 				p, m_p = e_i.path, e_i.menu_path
 				if common_path:
@@ -302,7 +310,7 @@ def get_relative_path(common_path, path):
 		if path == path_separator:
 			path = ''
 		path = path + type_separator + str_type + "#[" + y_x[0] + "," + str(y_x[1]) + "]"
-		if dx_dy is not None:
+		if dx_dy is not None and dx_dy[0] != 0 and dx_dy[1] != 0:
 			path = path + "%(" + str(dx_dy[0]) + "," + str(dx_dy[1]) + ")"
 	return path
 
@@ -582,12 +590,17 @@ class Recorder(Thread):
 		from win32api import GetSystemMetrics
 		self.screen_width = GetSystemMetrics(0)
 		self.screen_height = GetSystemMetrics(1)
-		self.main_overlay = oaam.Overlay(transparency=0.3)
+		self.main_overlay = oaam.Overlay(transparency=0.4)
 		self.info_overlay = oaam.Overlay(transparency=0.0)
+		self.info_overlay2 = oaam.Overlay(transparency=0.0)
 		self.desktop = pywinauto.Desktop(backend='uia', allow_magic_lookup=False)
 		self.daemon = True
 		self.event_list = []
+		self.relative_coordinate_mode = False
 		self.display_info_tip = False
+		self.x_info_tip = None
+		self.y_info_tip = None
+		self.path_info_tip = None
 		self.mode = 'Pause'
 		self.smart_mode = False
 		self.last_element_event = None
@@ -599,7 +612,7 @@ class Recorder(Thread):
 		self.hicon_light_off = None
 		self.started_recording_with_keyboard = False
 		self.start()
-	
+
 	def __find_unique_element_array_1d(self, wrapper_rectangle, elements):
 		nb_y, nb_x, candidates = get_sorted_region(elements)
 		window_title = get_entry_list((get_wrapper_path(elements[0])))[0]
@@ -627,7 +640,6 @@ class Recorder(Thread):
 							continue
 						if get_entry_list(wrapper_path2)[0] != window_title:
 							continue
-						
 						previous_wrapper_path2 = wrapper_path2
 						
 						entry_list2 = get_entry_list(wrapper_path2)
@@ -650,7 +662,7 @@ class Recorder(Thread):
 					else:
 						return None
 		return None
-	
+
 	def __find_unique_element_array_2d(self, wrapper_rectangle, elements):
 		nb_y, nb_x, candidates = get_sorted_region(elements)
 		unique_array_2d = ''
@@ -670,9 +682,9 @@ class Recorder(Thread):
 					height=r.height(),
 					thickness=1, color=(255, 0, 0), brush=oaam.Brush.solid, brush_color=color)
 		return unique_array_2d
-	
+
 	def __mouse_on(self, mouse_event):
-		if (type(mouse_event) == mouse.MoveEvent):
+		if type(mouse_event) == mouse.MoveEvent:
 			if (10 <= mouse_event.x <= 50) and (10 <= mouse_event.y <= 50):
 				dx = mouse_event.x - self.mouse_x_inside
 				dy = mouse_event.y - self.mouse_y_inside
@@ -701,14 +713,12 @@ class Recorder(Thread):
 						self.mode = 'Pause'
 			else:
 				self.distance_inside = 0
-		
 		if self.mode == 'Record':
 			if (type(mouse_event) == mouse.MoveEvent) and (len(self.event_list) > 0):
 				if type(self.event_list[-1]) == mouse.MoveEvent:
 					self.event_list = self.event_list[:-1]
-			
 			self.event_list.append(mouse_event)
-	
+
 	def __key_on(self, e):
 		if (
 				e.name == 'r' and e.event_type == 'up'
@@ -748,54 +758,138 @@ class Recorder(Thread):
 				window_title = l_e_e.path[0:i]
 				# element_path = l_e_e.path[i+len(path_separator):]
 				p = get_relative_path(window_title, l_e_e.path)
-				pyperclip.copy(
-					'with Window(u"' + escape_special_char(window_title) + '"):\n' +
-					'\twrapper = find(u"' + escape_special_char(p) + '%(' + str_dx + ',' + str_dy + ')")\n')
+				code = 'with Window(u"' + escape_special_char(window_title) + '"):\n'
+				code += '\twrapper = find(u"' + escape_special_char(p)
+				if self.relative_coordinate_mode and eval(str_dx) != 0 and eval(str_dy) != 0:
+					code += '%(' + str_dx + ',' + str_dy + ')'
+				code += '")\n'
+				pyperclip.copy(code)
 				if self.event_list:
 					self.event_list.append(FindEvent(path=l_e_e.path, dx=dx, dy=dy, time=time.time()))
 		elif self.mode == 'Record':
 			self.event_list.append(e)
-	
+
 	def __display_info_tip(self, x, y, wrapper):
-		r = wrapper.rectangle()
+		if (self.x_info_tip == x) and (self.y_info_tip == y):
+			return
+		
 		tooltip_width = 500
-		tooltip_height = 75
+		tooltip_height = 25
+		r = wrapper.rectangle()
+		
+		self.x_info_tip = x
+		self.y_info_tip = y
+		
+		common_path = ""
+		if self.path_info_tip:
+			common_path = find_common_path(get_wrapper_path(wrapper), self.path_info_tip)
+		self.path_info_tip = get_wrapper_path(wrapper)
+		end_path = self.path_info_tip[len(common_path)::]
+		
+		text = ''
+		text_width = 0
+		for c in common_path:
+			if c == '\n':
+				text_width = 0
+				tooltip_height = tooltip_height + 16
+			else:
+				text_width = text_width + 6.8
+			text = text + c
+			if text_width > tooltip_width:
+				text = text + '\n'
+				text_width = 0
+				tooltip_height = tooltip_height + 16
+				
+		tooltip2_height = 25
+		text2 = ''
+		text_width = 0
+		for c in end_path:
+			if c == '\n':
+				text_width = 0
+				tooltip2_height = tooltip2_height + 16
+			else:
+				text_width = text_width + 6.8
+			text2 = text2 + c
+			if text_width > tooltip_width:
+				text2 = text2 + '\n'
+				text_width = 0
+				tooltip2_height = tooltip2_height + 16
 		dx, dy = (x - r.left) / r.width(), (y - r.top) / r.height()
 		info_left = dx * (self.screen_width - tooltip_width)
-		info_top = dy * (self.screen_height - tooltip_height)
-		self.main_overlay.add(
-			geometry=oaam.Shape.rectangle, x=info_left, y=info_top, width=tooltip_width, height=25,
-			thickness=1, color=(0, 0, 0), brush=oaam.Brush.solid, brush_color=(254, 222, 255))
+		info_top = dy * (self.screen_height - (tooltip_height+tooltip2_height))
+		self.info_overlay.clear_all()
+		self.info_overlay2.clear_all()
+		
+		self.info_overlay2.add(
+			geometry=oaam.Shape.rectangle, x=info_left, y=info_top - 2, width=tooltip_width, height=tooltip_height,
+			thickness=1, color=(0, 0, 0), brush=oaam.Brush.solid, brush_color=(222, 254, 255))
 		self.info_overlay.add(
 			x=info_left + 5, y=info_top + 1, width=tooltip_width,
 			height=25,
-			text="Name: " + wrapper.element_info.name,
+			text=text,
+			text_format="win32con.DT_LEFT|win32con.DT_TOP|win32con.DT_WORDBREAK|win32con.DT_NOCLIP|win32con.DT_VCENTER",
 			font_size=16, text_color=(0, 0, 0), color=(254, 255, 255),
 			geometry=oaam.Shape.rectangle, thickness=0
 		)
-		self.main_overlay.add(
-			geometry=oaam.Shape.rectangle, x=info_left, y=info_top + 25 * (2 - 1), width=tooltip_width, height=25,
-			thickness=1, color=(0, 0, 0), brush=oaam.Brush.solid, brush_color=(254, 99, 255))
+		self.info_overlay2.add(
+			geometry=oaam.Shape.rectangle, x=info_left, y=info_top - 2 + tooltip_height, width=tooltip_width, height=tooltip2_height,
+			thickness=1, color=(0, 0, 0), brush=oaam.Brush.solid, brush_color=(180, 254, 255))
 		self.info_overlay.add(
-			x=info_left + 5, y=info_top + 25 * (2 - 1), width=tooltip_width,
+			x=info_left + 5, y=info_top + tooltip_height, width=tooltip_width,
 			height=25,
-			text="Type:" + wrapper.element_info.control_type,
+			text=text2,
+			text_format="win32con.DT_LEFT|win32con.DT_TOP|win32con.DT_WORDBREAK|win32con.DT_NOCLIP|win32con.DT_VCENTER",
 			font_size=16, text_color=(0, 0, 0), color=(254, 255, 255),
 			geometry=oaam.Shape.rectangle, thickness=0
 		)
-		has_value = getattr(wrapper, "get_value", None)
-		if callable(has_value):
-			self.main_overlay.add(
-				geometry=oaam.Shape.rectangle, x=info_left, y=info_top + 25 * (3 - 1), width=tooltip_width, height=25,
-				thickness=1, color=(0, 0, 0), brush=oaam.Brush.solid, brush_color=(254, 2, 255))
+		text = ""
+		try:
+			has_get_value = getattr(wrapper, "get_value", None)
+			if callable(has_get_value):
+				text = "wrapper.get_value(): " + wrapper.get_value()
+		except:
+			has_get_value = False
+			pass
+		if wrapper.legacy_properties()['Value']:
+			if not has_get_value or (has_get_value and wrapper.get_value() != wrapper.legacy_properties()['Value']):
+				if text:
+					text = text + "\n"
+				text = text + " wrapper.legacy_properties()['Value']: " + wrapper.legacy_properties()['Value']
+		_, str_type, _, _ = get_entry(end_path)
+		if str_type in ["RadioButton", "CheckBox"]:
+			if text:
+				text = text + "\n"
+			text = text + " wrapper.legacy_properties()['State']: " + str(wrapper.legacy_properties()['State'])
+		tooltip3_height = 25
+		text3 = ''
+		text_width = 0
+		for c in text:
+			if c == '\n':
+				text_width = 0
+				tooltip3_height = tooltip3_height + 16
+			else:
+				text_width = text_width + 6.8
+			text3 = text3 + c
+			if text_width > tooltip_width:
+				text3 = text3 + '\n'
+				text_width = 0
+				tooltip3_height = tooltip3_height + 16
+		if text3:
+			self.info_overlay2.add(
+				geometry=oaam.Shape.rectangle, x=info_left, y=info_top - 4 + tooltip_height + tooltip2_height, width=tooltip_width,
+				height=tooltip3_height, thickness=1, color=(0, 0, 0), brush=oaam.Brush.solid, brush_color=(2, 254, 255))
 			self.info_overlay.add(
-				x=info_left + 5, y=info_top + 25 * (3 - 1), width=tooltip_width,
-				height=25,
-				text="Value: " + wrapper.get_value(),
+				x=info_left + 5, y=info_top + tooltip_height + tooltip2_height, width=tooltip_width,
+				height=tooltip3_height,
+				text=text3,
+				text_format="win32con.DT_LEFT|win32con.DT_TOP|win32con.DT_WORDBREAK|win32con.DT_NOCLIP|win32con.DT_VCENTER",
 				font_size=16, text_color=(0, 0, 0), color=(254, 255, 255),
 				geometry=oaam.Shape.rectangle, thickness=0
 			)
-	
+		self.info_overlay2.refresh()
+		#time.sleep(0.1)
+		#self.info_overlay.refresh()
+
 	def run(self):
 		import comtypes.client
 		print("COMPTYPES CACHE FOLDER:", comtypes.client._code_cache._find_gen_dir())
@@ -806,8 +900,7 @@ class Recorder(Thread):
 		keyboard.hook(self.__key_on)
 		mouse.hook(self.__mouse_on)
 		keyboard.start_recording()
-		win32api.keybd_event(160, 0, win32con.KEYEVENTF_EXTENDEDKEY |
-		                     win32con.KEYEVENTF_KEYUP, 0)
+		win32api.keybd_event(160, 0, win32con.KEYEVENTF_EXTENDEDKEY | win32con.KEYEVENTF_KEYUP, 0)
 		ev_list = keyboard.stop_recording()
 		if not ev_list and os.path.isfile(dir_path + r"\pywinauto_recorder.exe"):
 			print("Couldn't set keyboard hooks. Trying once again...\n")
@@ -827,7 +920,7 @@ class Recorder(Thread):
 		while self.mode != "Quit":
 			try:
 				self.main_overlay.clear_all()
-				self.info_overlay.clear_all()
+				# self.info_overlay.clear_all()
 				x, y = win32api.GetCursorPos()
 				wrapper = self.desktop.from_point(x, y)
 				if wrapper is None:
@@ -901,6 +994,7 @@ class Recorder(Thread):
 				if self.display_info_tip:
 					self.__display_info_tip(x, y, wrapper)
 				self.main_overlay.refresh()
+				#self.info_overlay.refresh()
 				self.info_overlay.refresh()
 				time.sleep(0.005)  # main_overlay.clear_all() doit attendre la fin de main_overlay.refresh()
 			except Exception as e:
@@ -915,9 +1009,15 @@ class Recorder(Thread):
 		print("Run end")
 
 	# sys.exit(1)
+	def is_relative_coordinate_mode(self):
+		return self.relative_coordinate_mode
+	
+	def set_relative_coordinate_mode(self, state):
+		self.relative_coordinate_mode = state
+
 	def is_displaying_info_tip(self):
 		return self.display_info_tip
-	
+
 	def set_display_info_tip(self, state):
 		self.display_info_tip = state
 
@@ -926,10 +1026,10 @@ class Recorder(Thread):
 
 	def set_smart_mode(self, state):
 		self.smart_mode = state
-		
+
 	def get_mode(self):
 		return self.mode
-	
+
 	def stop_colouring(self):
 		self.mode = 'Stop'
 
@@ -955,16 +1055,16 @@ class Recorder(Thread):
 			self.started_recording_with_keyboard = False
 			process_events(events)
 			clean_events(events)
-			return write_in_file(events)
+			return write_in_file(events, self.relative_coordinate_mode)
 		self.main_overlay.clear_all()
 		overlay_add_pause_icon(self.main_overlay, 10, 10)
 		self.main_overlay.refresh()
 		self.mode = 'Stop'
 		return None
-	
+
 	def get_last_element_event(self):
 		return self.last_element_event
-	
+
 	def quit(self):
 		self.mode = 'Quit'
 		self.main_overlay.clear_all()
