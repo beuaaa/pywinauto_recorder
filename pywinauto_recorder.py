@@ -374,7 +374,7 @@ if __name__ == '__main__':
 		hover_text = "Pywinauto recorder"
 		
 		def action_record(sysTrayIcon):
-			if recorder.get_mode() == 'Record':
+			if recorder.mode == 'Record':
 				sysTrayIcon.menu_options[0][0] = "Start recording"
 				sysTrayIcon.menu_options[0][1] = icon_stop
 				recorder.stop_recording()
