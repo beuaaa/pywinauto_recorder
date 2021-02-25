@@ -18,6 +18,8 @@ import win32con
 import win32gui_struct
 import win32gui
 import win32ui
+import pyperclip
+from pywinauto_recorder.recorder import IconSet
 
 
 class SysTrayIcon(object):
@@ -129,18 +131,39 @@ class SysTrayIcon(object):
 		win32gui.PostMessage(self.hwnd, win32con.WM_NULL, 0, 0)
 
 	def create_menu(self, menu, menu_options):
-		if recorder.mode != 'Record':
-			menu_options[0][0] = "Start recording\t\tCTRL+ALT+R"
-			menu_options[0][1] = icon_stop
-		else:
-			menu_options[0][0] = "Stop recording\t\tCTRL+ALT+R"
-			menu_options[0][1] = icon_record
-		if recorder.smart_mode:
-			menu_options[3][0] = "Start Smart mode\t\tCTRL+ALT+S"
-			menu_options[3][1] = icon_stop
-		else:
-			menu_options[3][0] = "Stop Smart mode\t\tCTRL+ALT+S"
-			menu_options[3][1] = icon_light_on
+		if len(menu_options) > 9:
+			if recorder.mode != "Record":
+				menu_options[0][0] = "Start recording\t\tCTRL+ALT+R"
+				menu_options[0][1] = icon_record
+			else:
+				menu_options[0][0] = "Stop recording\t\tCTRL+ALT+R"
+				menu_options[0][1] = icon_stop
+			if recorder.mode == "Play":
+				menu_options[1][0] = "Wait end of replay" # disabled
+				menu_options[1][1] = icon_stop
+			else:
+				menu_options[1][0] = "Start replaying clipboard"
+				menu_options[1][1] = icon_play
+			if not recorder.mode == "Info":
+				menu_options[2][0] = "Start displaying element information"
+				menu_options[2][1] = icon_search
+			else:
+				menu_options[2][0] = "Stop displaying element information"
+				menu_options[2][1] = icon_stop
+			if not recorder.smart_mode:
+				menu_options[3][0] = "Start Smart mode\t\tCTRL+ALT+S"
+				menu_options[3][1] = icon_light_on
+			else:
+				menu_options[3][0] = "Stop Smart mode\t\tCTRL+ALT+S"
+				menu_options[3][1] = icon_stop
+			if not recorder.relative_coordinate_mode:
+				menu_options[6][2][0][1] = icon_cross
+			else:
+				menu_options[6][2][0][1] = icon_check
+			if not recorder.process_menu_click_mode:
+				menu_options[6][2][1][1] = icon_cross
+			else:
+				menu_options[6][2][1][1] = icon_check
 		for option_text, option_icon, option_action, option_id in menu_options[::-1]:
 			if option_icon:
 				option_icon = self.prep_menu_icon(option_icon)
@@ -216,10 +239,6 @@ def overlay_add_pywinauto_recorder_icon(overlay, x, y):
 
 
 def display_splash_screen():
-	dir_path = os.path.dirname(os.path.realpath(__file__))
-	hicon_light_on = oaam.load_png(dir_path + r'\pywinauto_recorder\light_on.png', 41, 41)
-	hicon_light_off = oaam.load_png(dir_path + r'\pywinauto_recorder\light_off.png', 41, 41)
-	
 	splash_foreground = oaam.Overlay(transparency=0.0)
 	time.sleep(0.2)
 	splash_background = oaam.Overlay(transparency=0.1)
@@ -230,7 +249,7 @@ def display_splash_screen():
 	text_lines = [''] * nb_band
 	text_lines[6] = 'Pywinauto recorder ' + __version__
 	text_lines[7] = 'by David Pratmarty'
-	text_lines[9] = 'CTRL+ALT+R : Pause / Record / Stop'
+	text_lines[9] = 'CTRL+ALT+R : Record / Stop'
 	text_lines[11] = 'Search algorithm speed'
 	text_lines[13] = 'CTRL+SHIFT+S : Smart mode On / Off'
 	text_lines[15] = 'CTRL+SHIFT+F : Copy element path in clipboard'
@@ -263,7 +282,7 @@ def display_splash_screen():
 		message_to_continue = 'To continue: move the mouse cursor out of this splash screen'
 	else:
 		message_to_continue = 'To continue: move the mouse cursor over this splash screen'
-	
+
 	py_rec_icon_rect = (splash_left + splash_width / 2 - 200 / 2, splash_top + 30, 200, 100)
 	overlay_add_pywinauto_recorder_icon(splash_background, py_rec_icon_rect[0], py_rec_icon_rect[1])
 	continue_after_splash_screen = True
@@ -282,25 +301,14 @@ def display_splash_screen():
 				geometry=oaam.Shape.rectangle, thickness=0
 			)
 			i = i + 1
-		if n % 6 in [0, 1]:
-			overlay_add_record_icon(
-				splash_foreground, splash_left + 99, splash_top + line_height * 8.6)
-		if n % 6 in [2, 3]:
-			overlay_add_pause_icon(
-				splash_foreground, splash_left + 99, splash_top + line_height * 8.6)
-		if n % 6 in [4, 5]:
-			overlay_add_stop_icon(
-				splash_foreground, splash_left + 99, splash_top + line_height * 8.6)
-		overlay_add_progress_icon(
-			splash_foreground, n % 5, splash_left + 99, splash_top + line_height * 10.6)
-		overlay_add_play_icon(
-			splash_foreground, splash_left + 99, int(splash_top + line_height * 19.1))
-		if n % 4 == 0 or n % 4 == 1:
-			overlay_add_search_mode_icon(splash_foreground, hicon_light_off, int(splash_left + 99),
-			                             int(splash_top + line_height * 12.6))
+		if n % 6 in [0, 1, 2]:
+			overlay_add_mode_icon(splash_foreground, IconSet.hicon_record, splash_left + 99, splash_top + line_height * 8.6)
 		else:
-			overlay_add_search_mode_icon(splash_foreground, hicon_light_on, int(splash_left + 99),
-			                             int(splash_top + line_height * 12.6))
+			overlay_add_mode_icon(splash_foreground, IconSet.hicon_stop, splash_left + 99, splash_top + line_height * 8.6)
+		overlay_add_progress_icon(splash_foreground, n % 5, splash_left + 99, splash_top + line_height * 10.6)
+		overlay_add_mode_icon(splash_foreground, IconSet.hicon_play, splash_left + 99, int(splash_top + line_height * 19.1))
+		overlay_add_mode_icon(splash_foreground, IconSet.hicon_light_on, int(splash_left + 99), int(splash_top + line_height * 12.6))
+		
 		splash_foreground.refresh()
 		time.sleep(0.4)
 		if n % 2 == 0:
@@ -316,11 +324,39 @@ def display_splash_screen():
 			if not mouse_was_splash_screen:
 				continue_after_splash_screen = True
 		n = n + 1
-	
 	splash_foreground.clear_all()
 	splash_foreground.refresh()
 	splash_background.clear_all()
 	splash_background.refresh()
+
+
+def replay(str_code):
+	if recorder:
+		recorder.mode = "Play"
+	else:
+		main_overlay = oaam.Overlay(transparency=0.5)
+		overlay_add_mode_icon(main_overlay, hicon_play, 10, 10)
+	try:
+		compiled_code = compile(str_code, '<string>', 'exec')
+		exit_code = eval(compiled_code)
+	except Exception as e:
+		windll.user32.ShowWindow(windll.kernel32.GetConsoleWindow(), 3)
+		exc_type, exc_value, exc_traceback = sys.exc_info()
+		output = traceback.format_exception(exc_type, exc_value, exc_traceback)
+		for line in output:
+			if 'SyntaxError' in output[-1]:
+				if not '.py' in line:
+					if 'File "<string>", line ' in line:
+						print(line.split(',')[1])
+					else:
+						print(line)
+			else:
+				print(line)
+	if recorder:
+		recorder.mode = "Stop"
+	else:
+		main_overlay.clear_all()
+		main_overlay.refresh()
 
 
 if __name__ == '__main__':
@@ -332,47 +368,31 @@ if __name__ == '__main__':
 		"--no_splash_screen", help="Does not display the splash screen", action='store_true')
 	args = parser.parse_args()
 	if args.filename:
-		main_overlay = oaam.Overlay(transparency=0.5)
-		from pywinauto_recorder.recorder import overlay_add_play_icon
+		from pywinauto_recorder.recorder import overlay_add_mode_icon
+		from pywinauto_recorder.recorder import overlay_add_progress_icon
 		import traceback
 		import codecs
-		
-		overlay_add_play_icon(main_overlay, 10, 10)
 		if os_path_isfile(args.filename):
 			with codecs.open(args.filename, "r", encoding='utf-8') as python_file:
 				data = python_file.read()
 			print("Replaying: " + args.filename)
-			try:
-				compiled_code = compile(data, '<string>', 'exec')
-				exit_code = eval(compiled_code)
-			except Exception as e:
-				windll.user32.ShowWindow(windll.kernel32.GetConsoleWindow(), 3)
-				exc_type, exc_value, exc_traceback = sys.exc_info()
-				output = traceback.format_exception(exc_type, exc_value, exc_traceback)
-				for line in output:
-					if 'SyntaxError' in output[-1]:
-						if not '.py' in line:
-							if 'File "<string>", line ' in line:
-								print(line.split(',')[1])
-							else:
-								print(line)
-					else:
-						print(line)
-				input("Press Enter to continue...")
+			replay(data)
+			input("Press Enter to continue...")
 		else:
 			print("Error: file '" + args.filename + "' not found.")
-		main_overlay.clear_all()
-		main_overlay.refresh()
 		print("Exit")
 	else:
+		from pywinauto_recorder.player import *
 		from pywinauto_recorder.recorder import *
 		from pywinauto_recorder import __version__
 		from win32api import GetSystemMetrics
+		
 		recorder = Recorder()
 		path_icons = Path(__file__).parent.absolute() / Path("Icons")
 		icon_pywinauto_recorder = str(path_icons / Path("IconPyRec.ico"))
 		icon_record = str(path_icons / Path("record.ico"))
 		icon_stop = str(path_icons / Path("stop.ico"))
+		icon_play = str(path_icons / Path("play.ico"))
 		icon_folder = str(path_icons / Path("folder.ico"))
 		icon_search = str(path_icons / Path("search.ico"))
 		icon_light_on = str(path_icons / Path("light-on.ico"))
@@ -391,47 +411,24 @@ if __name__ == '__main__':
 			else:
 				recorder.start_recording()
 
-		def action_colour(sysTrayIcon):
-			if recorder.mode == 'Stop':
-				sysTrayIcon.menu_options[1][0] = "Stop colouring"
-				sysTrayIcon.menu_options[1][1] = icon_pywinauto_recorder
-				recorder.mode = 'Pause'
-			else:
-				sysTrayIcon.menu_options[1][0] = "Start colouring"
-				sysTrayIcon.menu_options[1][1] = icon_stop
-				recorder.mode = 'Stop'
+		def action_replay(sysTrayIcon):
+			if recorder.mode != "Play":
+				replay(pyperclip.paste())
 
 		def action_display_element_info(sysTrayIcon):
-			if recorder.display_info_tip_mode:
-				sysTrayIcon.menu_options[2][0] = "Start displaying element info"
-				sysTrayIcon.menu_options[2][1] = icon_stop
-				recorder.display_info_tip_mode = False
+			if recorder.mode == "Stop":
+				recorder.mode = "Info"
 			else:
-				sysTrayIcon.menu_options[2][0] = "Stop displaying element info"
-				sysTrayIcon.menu_options[2][1] = icon_search
-				recorder.display_info_tip_mode = True
-				
+				recorder.mode = "Stop"
+
 		def action_smart_mode(sysTrayIcon):
-			if recorder.smart_mode:
-				recorder.smart_mode = False
-			else:
-				recorder.smart_mode = True
+			recorder.smart_mode = not recorder.smart_mode
 
 		def action_relative_coordinates(sysTrayIcon):
-			if recorder.relative_coordinate_mode:
-				sysTrayIcon.menu_options[6][2][0][1] = icon_cross
-				recorder.relative_coordinate_mode = False
-			else:
-				sysTrayIcon.menu_options[6][2][0][1] = icon_check
-				recorder.relative_coordinate_mode = True
-				
+			recorder.relative_coordinate_mode = not recorder.relative_coordinate_mode
+
 		def action_process_menu_click(sysTrayIcon):
-			if recorder.process_menu_click_mode:
-				sysTrayIcon.menu_options[6][2][1][1] = icon_cross
-				recorder.process_menu_click_mode = False
-			else:
-				sysTrayIcon.menu_options[6][2][1][1] = icon_check
-				recorder.process_menu_click_mode = True
+			recorder.process_menu_click_mode = not recorder.process_menu_click_mode
 
 		def action_open_explorer(sysTrayIcon):
 			pywinauto_recorder_path = Path.home() / Path("Pywinauto recorder")
@@ -448,8 +445,8 @@ if __name__ == '__main__':
 
 
 		menu_options = [['Start recording\t\tCTRL+ALT+R', icon_stop, action_record],
-		                ['Stop colouring', icon_pywinauto_recorder, action_colour],
-		                ['Start displaying element info', icon_stop, action_display_element_info],
+		                ['Replay clipboard', icon_pywinauto_recorder, action_replay],
+		                ['Start displaying element info', icon_play, action_display_element_info],
 		                ['Start Smart mode\t\tCTRL+ALT+S', icon_stop, action_smart_mode],
 		                ['- - - - - -', None, hello],
 		                ['Open output folder', icon_folder, action_open_explorer],
@@ -472,7 +469,7 @@ if __name__ == '__main__':
 			print("Exit")
 			print("<----bye")
 
-		SysTrayIcon(icon_pywinauto_recorder, hover_text, menu_options, on_quit=bye, default_menu_index=1)
+		SysTrayIcon(icon_pywinauto_recorder, hover_text, menu_options, on_quit=bye, default_menu_index=2)
 		
 		while recorder.is_alive():
 			time.sleep(0.5)

@@ -26,8 +26,15 @@ FindEvent = namedtuple('FindEvent', ['path', 'dx', 'dy', 'time'])
 MenuEvent = namedtuple('MenuEvent', ['path', 'menu_path', 'menu_type'])
 
 
-# reload(sys)
-# sys.setdefaultencoding('utf-8')
+class IconSet:
+	dir_path = os.path.dirname(os.path.realpath(__file__))
+	hicon_clipboard = oaam.load_ico(dir_path + r'\..\Icons\paste.ico', 48, 48)
+	hicon_light_on = oaam.load_ico(dir_path + r'\..\Icons\light-on.ico', 48, 48)
+	hicon_record = oaam.load_ico(dir_path + r'\..\Icons\record.ico', 48, 48)
+	hicon_play = oaam.load_ico(dir_path + r'\..\Icons\play.ico', 48, 48)
+	hicon_stop = oaam.load_ico(dir_path + r'\..\Icons\stop.ico', 48, 48)
+	hicon_search = oaam.load_ico(dir_path + r'\..\Icons\search.ico', 48, 48)
+
 
 def escape_special_char(string):
 	"""
@@ -509,80 +516,30 @@ def get_send_keys_strings(keyboard_events):
 		return get_typed_keys(keyboard_events)
 
 
-def overlay_add_play_icon(main_overlay, x, y):
-	main_overlay.add(
-		geometry=oaam.Shape.rectangle, x=x, y=y, width=40, height=40,
-		color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 255, 254))
-	main_overlay.add(
-		geometry=oaam.Shape.triangle,
-		xyrgb_array=((x + 1, y + 1, 255, 255, 254), (x + 1, y + 40, 128, 128, 128), (x + 39, y + 40, 255, 255, 254)),
-		thickness=0)
-	main_overlay.add(
-		geometry=oaam.Shape.triangle,
-		xyrgb_array=((x + 5, y + 5, 0, 255, 0), (x + 5, y + 35, 0, 128, 0), (x + 35, y + 20, 50, 255, 99)),
-		thickness=1, color=(0, 128, 0))
-	main_overlay.refresh()
-
-
-def overlay_add_record_icon(main_overlay, x, y):
-	main_overlay.add(
-		geometry=oaam.Shape.rectangle, x=x, y=y, width=40, height=40,
-		color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 255, 254))
-	main_overlay.add(
-		geometry=oaam.Shape.triangle,
-		xyrgb_array=((x + 1, y + 1, 255, 255, 254), (x + 1, y + 40, 128, 128, 128), (x + 39, y + 40, 255, 255, 254)),
-		thickness=0)
-	main_overlay.add(
-		geometry=oaam.Shape.ellipse, x=x + 5, y=y + 5, width=29, height=29,
-		color=(255, 99, 99), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 0, 0))
-
-
-def overlay_add_pause_icon(main_overlay, x, y):
-	main_overlay.add(
-		geometry=oaam.Shape.rectangle, x=x, y=y, width=40, height=40,
-		color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 255, 254))
-	main_overlay.add(
-		geometry=oaam.Shape.triangle,
-		xyrgb_array=((x + 1, y + 1, 255, 255, 254), (x + 1, y + 40, 128, 128, 128), (x + 39, y + 40, 255, 255, 254)),
-		thickness=0)
-	main_overlay.add(
-		geometry=oaam.Shape.rectangle, x=x + 5, y=y + 5, width=12, height=30,
-		color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(0, 0, 0))
-	main_overlay.add(
-		geometry=oaam.Shape.rectangle, x=x + 22, y=y + 5, width=12, height=30,
-		color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(0, 0, 0))
-
-
-def overlay_add_stop_icon(main_overlay, x, y):
-	main_overlay.add(
-		geometry=oaam.Shape.rectangle, x=x, y=y, width=40, height=40,
-		color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 255, 254))
-	main_overlay.add(
-		geometry=oaam.Shape.triangle,
-		xyrgb_array=((x + 1, y + 1, 255, 255, 254), (x + 1, y + 40, 128, 128, 128), (x + 39, y + 40, 255, 255, 254)),
-		thickness=0)
-	main_overlay.add(
-		geometry=oaam.Shape.rectangle, x=x + 5, y=y + 5, width=29, height=30,
-		color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(0, 0, 0))
-
-
 def overlay_add_progress_icon(main_overlay, i, x, y):
 	main_overlay.add(
-		geometry=oaam.Shape.rectangle, x=x, y=y, width=40, height=40,
+		geometry=oaam.Shape.rectangle, x=x, y=y, width=52, height=52,
 		color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 255, 254))
 	main_overlay.add(
 		geometry=oaam.Shape.triangle,
-		xyrgb_array=((x + 1, y + 1, 255, 255, 254), (x + 1, y + 40, 128, 128, 128), (x + 39, y + 40, 255, 255, 254)),
+		xyrgb_array=((x + 1, y + 1, 255, 255, 254), (x + 1, y + 52, 128, 128, 128), (x + 51, y + 52, 255, 255, 254)),
 		thickness=0)
-	for b in range(i % 5):
+	for b in range(i % 6):
 		main_overlay.add(
-			geometry=oaam.Shape.rectangle, x=x + 5, y=y + 5 + b * 8, width=30, height=6,
+			geometry=oaam.Shape.rectangle, x=x + 6, y=y + 6 + b * 8, width=40, height=6,
 			color=(0, 255, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(0, 200, 0))
 
 
-def overlay_add_search_mode_icon(main_overlay, hicon, x, y):
+def overlay_add_mode_icon(main_overlay, hicon, x, y):
 	main_overlay.add(
-		geometry=oaam.Shape.image, hicon=hicon, x=x, y=y)
+		geometry=oaam.Shape.rectangle, x=x, y=y, width=52, height=52,
+		color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 255, 254))
+	main_overlay.add(
+		geometry=oaam.Shape.triangle,
+		xyrgb_array=((x + 1, y + 1, 255, 255, 254), (x + 1, y + 52, 128, 128, 128), (x + 51, y + 52, 255, 255, 254)),
+		thickness=0)
+	main_overlay.add(
+		geometry=oaam.Shape.image, hicon=hicon, x=int(x+2), y=int(y+2))
 
 
 class Recorder(Thread):
@@ -597,7 +554,7 @@ class Recorder(Thread):
 		self.desktop = pywinauto.Desktop(backend='uia', allow_magic_lookup=False)
 		self.daemon = True
 		self.event_list = []
-		self._mode = 'Pause'
+		self._mode = "Info"
 		self._process_menu_click_mode = True
 		self._smart_mode = False
 		self._relative_coordinate_mode = False
@@ -606,12 +563,6 @@ class Recorder(Thread):
 		self.y_info_tip = None
 		self.path_info_tip = None
 		self.last_element_event = None
-		self.distance_inside = 0.0
-		self.mouse_x_inside = 99
-		self.mouse_y_inside = 99
-		self.hicon = None
-		self.hicon_light_on = None
-		self.hicon_light_off = None
 		self.started_recording_with_keyboard = False
 		self.start()
 
@@ -686,36 +637,7 @@ class Recorder(Thread):
 		return unique_array_2d
 
 	def __mouse_on(self, mouse_event):
-		if type(mouse_event) == mouse.MoveEvent:
-			if (10 <= mouse_event.x <= 50) and (10 <= mouse_event.y <= 50):
-				dx = mouse_event.x - self.mouse_x_inside
-				dy = mouse_event.y - self.mouse_y_inside
-				d = math.sqrt(dx * dx + dy * dy)
-				if d > 0:
-					self.distance_inside = self.distance_inside + d
-					"""
-					self.main_overlay.add(
-						geometry=oaam.Shape.rectangle, x=10, y=10 + 45,
-						width=int(40.0 * (self.distance_inside / 300.0)), height=8,
-						color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 0, 0))
-					self.main_overlay.refresh()
-					"""
-				self.mouse_x_inside = mouse_event.x
-				self.mouse_y_inside = mouse_event.y
-				if self.distance_inside > 300:
-					if self.mode == 'Pause':
-						self.distance_inside = 0
-						self.start_recording()
-					elif self.mode == 'Record':
-						self.distance_inside = 0
-						self.stop_recording()
-					elif self.mode == 'Stop':
-						self.distance_inside = 0
-						self.main_overlay.refresh()
-						self.mode = 'Pause'
-			else:
-				self.distance_inside = 0
-		if self.mode == 'Record':
+		if self.mode == "Record":
 			if (type(mouse_event) == mouse.MoveEvent) and (len(self.event_list) > 0):
 				if type(self.event_list[-1]) == mouse.MoveEvent:
 					self.event_list = self.event_list[:-1]
@@ -726,14 +648,11 @@ class Recorder(Thread):
 				e.name == 'r' and e.event_type == 'up'
 				and keyboard.key_to_scan_codes("alt")[0] in keyboard._pressed_events
 				and keyboard.key_to_scan_codes("ctrl")[0] in keyboard._pressed_events):
-			if self.mode == 'Pause':
+			if self.mode != "Record":
 				self.started_recording_with_keyboard = True
 				self.start_recording()
-			elif self.mode == 'Record':
+			else:
 				self.stop_recording()
-			elif self.mode == 'Stop':
-				self.main_overlay.refresh()
-				self.mode = 'Pause'
 		elif (
 				(e.name == 's') and (e.event_type == 'up')
 				and keyboard.key_to_scan_codes("alt")[0] in keyboard._pressed_events
@@ -748,8 +667,9 @@ class Recorder(Thread):
 				l_e_e = self.last_element_event
 				dx, dy = compute_dx_dy(x, y, l_e_e.rectangle)
 				str_dx, str_dy = "{:.2f}".format(round(dx * 100, 2)), "{:.2f}".format(round(dy * 100, 2))
-				self.main_overlay.add(
-					geometry=oaam.Shape.image, hicon=self.hicon, x=x, y=l_e_e.rectangle.top - 70)
+				#self.info_overlay.add(
+				#	geometry=oaam.Shape.image, hicon=IconSet.hicon_clipboard, x=x, y=l_e_e.rectangle.top - 70)
+				overlay_add_mode_icon(self.info_overlay, IconSet.hicon_clipboard, x, l_e_e.rectangle.top - 70)
 				i = l_e_e.path.find(path_separator)
 				window_title = l_e_e.path[0:i]
 				# element_path = l_e_e.path[i+len(path_separator):]
@@ -762,7 +682,7 @@ class Recorder(Thread):
 				pyperclip.copy(code)
 				if self.event_list:
 					self.event_list.append(FindEvent(path=l_e_e.path, dx=dx, dy=dy, time=time.time()))
-		elif self.mode == 'Record':
+		elif self.mode == "Record":
 			self.event_list.append(e)
 
 	def __display_info_tip(self, x, y, wrapper):
@@ -903,9 +823,6 @@ class Recorder(Thread):
 			time.sleep(0.5)
 			os.system(dir_path + r"\pywinauto_recorder.exe --no_splash_screen")
 			sys.exit(1)
-		self.hicon = oaam.load_png(dir_path + r'\copy_clipboard.png', 64, 64)
-		self.hicon_light_on = oaam.load_png(dir_path + r'\light_on.png', 40, 40)
-		self.hicon_light_off = oaam.load_png(dir_path + r'\light_off.png', 40, 40)
 		unique_candidate = None
 		elements = []
 		i = 0
@@ -966,25 +883,40 @@ class Recorder(Thread):
 					if self.event_list and unique_wrapper_path is not None:
 						self.event_list.append(self.last_element_event)
 				nb_icons = 0
-				if self.mode == 'Record':
-					overlay_add_record_icon(self.main_overlay, 10, 10)
+				if self.mode == "Record":
+					overlay_add_mode_icon(self.main_overlay, IconSet.hicon_record, 10, 10)
+					#overlay_add_record_icon(self.main_overlay, 10, 10)
 					nb_icons = nb_icons + 1
-				#elif self.mode == 'Pause':
-				#	overlay_add_pause_icon(self.main_overlay, 10, 10)
-				elif self.mode == 'Stop':
+				elif self.mode == "Play":
+					self.info_overlay.clear_all()
+					self.info_overlay2.clear_all()
 					self.main_overlay.clear_all()
-					#overlay_add_stop_icon(self.main_overlay, 10, 10)
-					self.main_overlay.refresh()
-					while self.mode == 'Stop':
+					overlay_add_mode_icon(self.main_overlay, IconSet.hicon_play, 10, 10)
+					while self.mode == "Play":
 						time.sleep(1.0)
-				if self.mode in ['Record', 'Pause']:
-					overlay_add_progress_icon(self.main_overlay, i, 10+50*nb_icons, 10)
+					self.main_overlay.refresh()
+					self.info_overlay2.refresh()
+					self.main_overlay.refresh()
+				#elif self.mode == "Info":
+				#	overlay_add_pause_icon(self.main_overlay, 10, 10)
+				elif self.mode == "Stop":
+					self.info_overlay.clear_all()
+					self.info_overlay2.clear_all()
+					self.main_overlay.clear_all()
+					overlay_add_mode_icon(self.main_overlay, IconSet.hicon_stop, 10, 10)
+					self.main_overlay.refresh()
+					self.info_overlay2.refresh()
+					self.main_overlay.refresh()
+					while self.mode == "Stop":
+						time.sleep(1.0)
+				if self.mode in ["Record", "Info"]:
+					overlay_add_progress_icon(self.main_overlay, i, 10+60*nb_icons, 10)
+					nb_icons = nb_icons + 1
+					overlay_add_mode_icon(self.main_overlay, IconSet.hicon_search, 10 + 60 * nb_icons, 10)
 					nb_icons = nb_icons + 1
 				if self.smart_mode:
-					overlay_add_search_mode_icon(self.main_overlay, self.hicon_light_on, 10+50*nb_icons, 10)
+					overlay_add_mode_icon(self.main_overlay, IconSet.hicon_light_on, 10 + 60 * nb_icons, 10)
 					nb_icons = nb_icons + 1
-				#else:
-				#	overlay_add_search_mode_icon(self.main_overlay, self.hicon_light_off, 110, 10)
 				i = i + 1
 				
 				if self.display_info_tip_mode:
@@ -1022,11 +954,16 @@ class Recorder(Thread):
 
 	@property
 	def display_info_tip_mode(self):
+		return self._mode == "Info"
 		return self._display_info_tip_mode
 	
 	@display_info_tip_mode.setter
 	def display_info_tip_mode(self, value):
-		self._display_info_tip_mode = value
+		if value:
+			self._mode = "Info"
+		else:
+			self._mode = "Stop"
+		#self._display_info_tip_mode = value
 
 	@property
 	def smart_mode(self):
@@ -1047,15 +984,19 @@ class Recorder(Thread):
 	def start_recording(self):
 		x, y = win32api.GetCursorPos()
 		self.event_list = [mouse.MoveEvent(x, y, time.time())]
-		overlay_add_record_icon(self.main_overlay, 10, 10)
+		overlay_add_mode_icon(self.main_overlay, IconSet.hicon_record, 10, 10)
 		self.main_overlay.refresh()
-		self.mode = 'Record'
+		self.info_overlay2.clear_all()
+		self.main_overlay.clear_all()
+		self.main_overlay.refresh()
+		self.info_overlay2.refresh()
+		self.mode = "Record"
 
 	def stop_recording(self):
-		if self.mode == 'Record' and len(self.event_list) > 2:
+		if self.mode == "Record" and len(self.event_list) > 2:
 			events = list(self.event_list)
 			self.event_list = []
-			self.mode = 'Stop'
+			self.mode = "Stop"
 			if self.started_recording_with_keyboard:
 				clean_events(events, remove_first_up=True)
 			else:
@@ -1067,7 +1008,7 @@ class Recorder(Thread):
 		self.main_overlay.clear_all()
 		overlay_add_pause_icon(self.main_overlay, 10, 10)
 		self.main_overlay.refresh()
-		self.mode = 'Stop'
+		self.mode = "Stop"
 		return None
 
 	def get_last_element_event(self):
