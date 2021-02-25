@@ -21,7 +21,7 @@ Pywinauto_recorder for Windows
 Usage
 -----
 - Double click on "pywinauto_recorder.exe_" or run "python.exe pywinauto_recorder.py_" to start the recorder.
-- When the recorder is started, a tray  icon is added in the right-side of the Windows Taskbar, it is in "Pause" mode.
+- The recorder is started in display information mode, a tray  icon is added in the right-side of the Windows Taskbar.
 - Press CTRL+SHIFT+f to copy the code that finds the element colored green or orange to the clipboard.
 - Press CTRL+ALT+r to switch to "Record" mode.
 - If the element below the mouse cursor can be uniquely identified, it will turn green or orange.
@@ -44,9 +44,11 @@ Usage
 
 Icons
 -----
-Two transparent icons are displayed at the top left of the screen:
- - the first icon corresponds to Record/Pause mode. Press CTRL+ALT+r to switch.
- - the second icon displays a green bar at each iteration of the loop. It allows you to see how fast the loop is running.
+Some transparent icons are displayed at the top left of the screen:
+ - an icon corresponds to Record/Stop mode. Press CTRL+ALT+r to switch.
+ - a magnifiying glass icon cooresponds to Display information mode.
+ - a bulb icon corresponds to Smart mode. Press CTRL+ALT+S to activate it.
+ - another icon displays a green bar at each iteration of the loop. It allows you to see how fast the loop is running.
 
 More explanations
 ^^^^^^^^^^^^^^^^^
