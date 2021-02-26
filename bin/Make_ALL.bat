@@ -34,9 +34,7 @@ rmdir PIL /s /q
 rmdir win32com /s /q
 
 
-REM Add pywinauto_recorder\*.png in pywinauto_recorder.dist
-MKDIR  pywinauto_recorder
-xcopy /y ..\..\pywinauto_recorder\*.png .\pywinauto_recorder
+REM Copy Icons\*.ico in pywinauto_recorder.dist
 MKDIR  Icons
 xcopy /y ..\..\Icons\*.ico .\Icons
 
