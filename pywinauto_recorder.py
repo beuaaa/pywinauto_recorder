@@ -245,17 +245,19 @@ def display_splash_screen():
 	screen_width = GetSystemMetrics(0)
 	screen_height = GetSystemMetrics(1)
 	nb_band = 24
-	line_height = 22.5
+	line_height = 22.4
 	text_lines = [''] * nb_band
 	text_lines[6] = 'Pywinauto recorder ' + __version__
 	text_lines[7] = 'by David Pratmarty'
-	text_lines[9] = 'CTRL+ALT+R : Record / Stop'
-	text_lines[11] = 'Search algorithm speed'
-	text_lines[13] = 'CTRL+SHIFT+S : Smart mode On / Off'
-	text_lines[15] = 'CTRL+SHIFT+F : Copy element path in clipboard'
-	text_lines[17] = 'Click on "Quit" in the tray menu to quit.'
-	text_lines[19] = 'Drag and drop a recorded file on '
-	text_lines[20] = 'pywinauto_recorder.exe to replay it'
+	text_lines[9] = 'Record / Stop                            Smart mode On / Off'
+	text_lines[10] = 'CTRL+ALT+R                                      CTRL+ALT+S'
+	text_lines[12] = 'Search algorithm speed                         Search mode'
+	text_lines[15] = 'Copy python code in clipboard          Click on "Quit" in'
+	text_lines[16] = 'CTRL+SHIFT+F                                tray menu to quit'
+	text_lines[18] = 'To replay your recorded file you can:                          '
+	text_lines[19] = '- Drag and drop it on pywinauto_recorder.exe            '
+	text_lines[20] = '- Click on "Start replaying clipboard" in tray menu       '
+	text_lines[21] = '- Run "python.exe recorded_file.py"                           '
 	
 	splash_background.clear_all()
 	w, h = 640, 540
@@ -302,19 +304,23 @@ def display_splash_screen():
 			)
 			i = i + 1
 		if n % 6 in [0, 1, 2]:
-			overlay_add_mode_icon(splash_foreground, IconSet.hicon_record, splash_left + 99, splash_top + line_height * 8.6)
+			overlay_add_mode_icon(splash_foreground, IconSet.hicon_record, splash_left + 50, splash_top + line_height * 8.7)
 		else:
-			overlay_add_mode_icon(splash_foreground, IconSet.hicon_stop, splash_left + 99, splash_top + line_height * 8.6)
-		overlay_add_progress_icon(splash_foreground, n % 5, splash_left + 99, splash_top + line_height * 10.6)
-		overlay_add_mode_icon(splash_foreground, IconSet.hicon_play, splash_left + 99, int(splash_top + line_height * 19.1))
-		overlay_add_mode_icon(splash_foreground, IconSet.hicon_light_on, int(splash_left + 99), int(splash_top + line_height * 12.6))
+			overlay_add_mode_icon(splash_foreground, IconSet.hicon_stop, splash_left + 50, splash_top + line_height * 8.7)
+		overlay_add_mode_icon(splash_foreground, IconSet.hicon_light_on, int(splash_right - (52+50)), int(splash_top + line_height * 8.7))
+		overlay_add_progress_icon(splash_foreground, n % 6, splash_left + 50, splash_top + line_height * 11.7)
+		overlay_add_mode_icon(splash_foreground, IconSet.hicon_search, int(splash_right - (52+50)), splash_top + line_height * 11.7)
+		overlay_add_mode_icon(splash_foreground, IconSet.hicon_clipboard,  splash_left + 50, splash_top + line_height * 14.7)
+		overlay_add_mode_icon(splash_foreground, IconSet.hicon_power, int(splash_right - (52 + 50)), splash_top + line_height * 14.7)
+		overlay_add_mode_icon(splash_foreground, IconSet.hicon_play, splash_left + 50, int(splash_top + line_height * 19.1))
+		
 		
 		splash_foreground.refresh()
 		time.sleep(0.4)
 		if n % 2 == 0:
-			text_lines[22] = message_to_continue
+			text_lines[23] = message_to_continue
 		else:
-			text_lines[22] = ''
+			text_lines[23] = ''
 		continue_after_splash_screen = False
 		x, y = win32api.GetCursorPos()
 		if (splash_left < x < splash_right) and (splash_top < y < splash_bottom):
@@ -387,6 +393,7 @@ if __name__ == '__main__':
 		from pywinauto_recorder import __version__
 		from win32api import GetSystemMetrics
 		
+		display_splash_screen()
 		recorder = Recorder()
 		path_icons = Path(__file__).parent.absolute() / Path("Icons")
 		icon_pywinauto_recorder = str(path_icons / Path("IconPyRec.ico"))
