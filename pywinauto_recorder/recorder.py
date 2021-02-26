@@ -34,6 +34,7 @@ class IconSet:
 	hicon_play = oaam.load_ico(dir_path + r'\..\Icons\play.ico', 48, 48)
 	hicon_stop = oaam.load_ico(dir_path + r'\..\Icons\stop.ico', 48, 48)
 	hicon_search = oaam.load_ico(dir_path + r'\..\Icons\search.ico', 48, 48)
+	hicon_power = oaam.load_ico(dir_path + r'\..\Icons\power.ico', 48, 48)
 
 
 def escape_special_char(string):
