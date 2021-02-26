@@ -669,7 +669,9 @@ class Recorder(Thread):
 				str_dx, str_dy = "{:.2f}".format(round(dx * 100, 2)), "{:.2f}".format(round(dy * 100, 2))
 				#self.info_overlay.add(
 				#	geometry=oaam.Shape.image, hicon=IconSet.hicon_clipboard, x=x, y=l_e_e.rectangle.top - 70)
-				overlay_add_mode_icon(self.info_overlay, IconSet.hicon_clipboard, x, l_e_e.rectangle.top - 70)
+				info_left = (dx+1)/2 * (self.screen_width - 500)
+				info_top = (dy+1)/2 * (self.screen_height - 50)
+				overlay_add_mode_icon(self.info_overlay, IconSet.hicon_clipboard, info_left, info_top)
 				i = l_e_e.path.find(path_separator)
 				window_title = l_e_e.path[0:i]
 				# element_path = l_e_e.path[i+len(path_separator):]
