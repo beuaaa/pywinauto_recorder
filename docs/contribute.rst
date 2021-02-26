@@ -13,7 +13,7 @@ Get in touch
 - Ask usage questions ("How do I?") on `StackOverflow`_.
 - Report bugs, suggest features or view the source code `on GitHub`_.
 
-.. _StackOverFlow: https://stackoverflow.com/questions/tagged/pywinauto-recorder
+.. _StackOverFlow: https://stackoverflow.com/questions/tagged/pywinauto
 .. _on GitHub: https://github.com/beuaaa/pywinauto_recorder
 
 
