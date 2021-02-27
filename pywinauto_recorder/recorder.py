@@ -490,7 +490,7 @@ def get_typed_strings(keyboard_events, allow_backspace=True):
 				string = string + name
 			else:
 				if string:
-					yield '"' + string + '"'
+					yield '"' + escape_special_char(string) + '"'
 				if 'windows' in event.name:
 					yield '"' + '{LWIN}' + '"'
 				elif 'enter' in event.name:
@@ -988,11 +988,12 @@ class Recorder(Thread):
 		x, y = win32api.GetCursorPos()
 		self.event_list = [mouse.MoveEvent(x, y, time.time())]
 		overlay_add_mode_icon(self.main_overlay, IconSet.hicon_record, 10, 10)
-		self.main_overlay.refresh()
+		self.info_overlay.clear_all()
 		self.info_overlay2.clear_all()
 		self.main_overlay.clear_all()
 		self.main_overlay.refresh()
 		self.info_overlay2.refresh()
+		self.info_overlay.refresh()
 		self.mode = "Record"
 
 	def stop_recording(self):
@@ -1018,7 +1019,11 @@ class Recorder(Thread):
 		return self.last_element_event
 
 	def quit(self):
-		self.mode = 'Quit'
+		self.info_overlay.clear_all()
+		self.info_overlay2.clear_all()
 		self.main_overlay.clear_all()
 		self.main_overlay.refresh()
+		self.info_overlay2.refresh()
+		self.info_overlay.refresh()
+		self.mode = 'Quit'
 		print("Quit")

@@ -312,7 +312,7 @@ def display_splash_screen():
 		overlay_add_mode_icon(splash_foreground, IconSet.hicon_search, int(splash_right - (52+50)), splash_top + line_height * 11.7)
 		overlay_add_mode_icon(splash_foreground, IconSet.hicon_clipboard,  splash_left + 50, splash_top + line_height * 14.7)
 		overlay_add_mode_icon(splash_foreground, IconSet.hicon_power, int(splash_right - (52 + 50)), splash_top + line_height * 14.7)
-		overlay_add_mode_icon(splash_foreground, IconSet.hicon_play, splash_left + 50, int(splash_top + line_height * 19.1))
+		overlay_add_mode_icon(splash_foreground, IconSet.hicon_play, splash_left + 50, int(splash_top + line_height * 19.3))
 		
 		
 		splash_foreground.refresh()
@@ -442,6 +442,7 @@ if __name__ == '__main__':
 			os.system('explorer "' + str(pywinauto_recorder_path) + '"')
 
 		def action_display_help(sysTrayIcon):
+			recorder.mode = "Stop"
 			display_splash_screen()
 
 		def action_display_web_site(sysTrayIcon):
