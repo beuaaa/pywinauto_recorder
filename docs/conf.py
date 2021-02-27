@@ -10,5 +10,7 @@ extensions = ['sphinx.ext.autodoc', 'sphinx.ext.autosummary', ]
 
 autosummary_generate = True
 
+templates_path = ['_templates']
+
 master_doc = 'index'
 
