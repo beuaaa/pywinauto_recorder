@@ -4,6 +4,13 @@
 
 .. include:: api.rst
 
+.. autosummary::
+   :toctree: _autosummary
+   :template: custom-module-template.rst
+   :recursive:
+
+   pywinauto_recorder
+
 .. include:: contribute.rst
 
 .. include:: code-of-conduct.rst
