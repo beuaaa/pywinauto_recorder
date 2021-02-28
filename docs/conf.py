@@ -7,7 +7,7 @@ sys.path.insert(0, os.path.abspath('..'))
 sys.path.insert(0, os.path.abspath('../pywinauto_recorder'))
 
 
-extensions = ['sphinx.ext.autodoc', 'sphinx.ext.autosummary', ]
+extensions = ['sphinx.ext.autodoc', 'sphinx.ext.autosummary']
 
 autodoc_mock_imports = ["pywinauto"]
 
