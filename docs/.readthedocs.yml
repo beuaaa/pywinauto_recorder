@@ -8,7 +8,7 @@ version: 2
 requirements_file: requirements.txt
 
 python:
-  version: 3.7
+  version: 3.8.3
 
 # Build documentation in the current directory with Sphinx
 sphinx:
