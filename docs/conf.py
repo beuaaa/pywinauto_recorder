@@ -9,7 +9,7 @@ sys.path.insert(0, os.path.abspath('../pywinauto_recorder/'))
 
 print(sys.path)
 
-extensions = ['sphinx.ext.autodoc', 'sphinx.ext.autosummary', ']
+extensions = ['sphinx.ext.autodoc', 'sphinx.ext.autosummary', ]
 
 
 autosummary_generate = True
