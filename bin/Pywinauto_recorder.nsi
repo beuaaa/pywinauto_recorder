@@ -62,3 +62,13 @@ Section "Desktop Shortcut" SectionX
 SectionEnd 
 
 
+Section "Run Pywinauto recorder"
+	# Run Pywinauto_recorde_exe
+	MessageBox MB_OKCANCEL "Do you want to run Pywinauto recorder now?" /SD IDCANCEL IDOK OK IDCANCEL CANCEL
+		OK:
+			Exec '"$INSTDIR\pywinauto_recorder.exe"'
+			goto end_run_pywinauto_recorder
+		CANCEL:
+			goto end_run_pywinauto_recorder
+	end_run_pywinauto_recorder:
+SectionEnd 
