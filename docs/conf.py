@@ -6,12 +6,12 @@ import sys
 sys.path.insert(0, os.path.abspath('..'))
 sys.path.insert(0, os.path.abspath('../pywinauto_recorder'))
 
-import pywinauto
-import pywinauto_recorder.player
 
 extensions = ['sphinx.ext.autodoc', 'sphinx.ext.autosummary', ]
 
 autodoc_mock_imports = ["pywinauto"]
+
+import pywinauto_recorder.player
 
 autosummary_generate = True
 
