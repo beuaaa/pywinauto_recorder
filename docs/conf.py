@@ -4,9 +4,10 @@ import os
 import sys
 
 sys.path.insert(0, os.path.abspath('..'))
+sys.path.insert(0, os.path.abspath('../pywinauto_recorder'))
 
 
-import pywinauto_recorder
+import pywinauto_recorder.player
 
 extensions = ['sphinx.ext.autodoc', 'sphinx.ext.autosummary', ]
 
