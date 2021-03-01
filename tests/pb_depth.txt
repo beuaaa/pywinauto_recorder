@@ -1,0 +1,38 @@
+with Window(u"Calculator||Window"):
+	wrapper = find(u"Calculator||Window
+	->||Group
+	->Number pad||Group
+	->Seven||Button")
+
+with Window(u"Calculator||Window"):
+	wrapper = find()
+	
+l = wrapper.descendants(title='Seven', control_type='Button', depth=3)
+	
+But Inspect.exe gives me additional
+Pane
+
+with Window(u"Program Manager||Pane"):
+	wrapper = find(u"Desktop||List->
+	OpenVPN GUI||ListItem")
+
+with Window(u"Program Manager||Pane"):
+	wrapper = find()
+
+l = wrapper.descendants(title='This PC', control_type='ListItem', depth=2)
+
+
+import pywinauto
+
+def print_wrapper_path(wrapper):
+	path = ''
+	wrapper_top_level_parent = wrapper.top_level_parent()
+	while wrapper != wrapper_top_level_parent:
+		path = '->"' + wrapper.element_info.name + '" ' + wrapper.element_info.control_type + path
+		wrapper = wrapper.parent()
+	print('"' + wrapper.element_info.name + '" ' + wrapper.element_info.control_type + path)
+
+desktop = pywinauto.Desktop(backend='uia', allow_magic_lookup=False)
+window = desktop.windows(title='Program Manager', control_type='Pane')[0]
+result = wrapper.descendants(title='This PC', control_type='ListItem', depth=2)
+print_wrapper_path(result[0])
