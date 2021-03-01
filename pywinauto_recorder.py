@@ -341,7 +341,7 @@ def replay(str_code):
 		recorder.mode = "Play"
 	else:
 		main_overlay = oaam.Overlay(transparency=0.5)
-		overlay_add_mode_icon(main_overlay, hicon_play, 10, 10)
+		overlay_add_mode_icon(main_overlay, IconSet.hicon_play, 10, 10)
 	try:
 		compiled_code = compile(str_code, '<string>', 'exec')
 		exit_code = eval(compiled_code)
@@ -378,6 +378,8 @@ if __name__ == '__main__':
 		from pywinauto_recorder.recorder import overlay_add_progress_icon
 		import traceback
 		import codecs
+		
+		recorder = None
 		if os_path_isfile(args.filename):
 			with codecs.open(args.filename, "r", encoding='utf-8') as python_file:
 				data = python_file.read()

@@ -50,7 +50,6 @@ def get_entry_list(path):
     return start_entry.split(path_separator) + [last_entry]
 
 
-
 def get_entry(entry):
     i = entry.find(type_separator)
     if i == -1:
