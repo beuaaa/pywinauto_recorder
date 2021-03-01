@@ -332,7 +332,6 @@ def find_common_path(current_path, next_path):
 			current_entry_list = get_entry_list(y_x[0])[:-1]
 		else:
 			current_entry_list = current_entry_list[:-1]
-	
 	next_entry_list = get_entry_list(next_path)
 	next_entry_list = next_entry_list[:-1]
 	n = 0
@@ -559,7 +558,6 @@ class Recorder(Thread):
 		self._process_menu_click_mode = True
 		self._smart_mode = False
 		self._relative_coordinate_mode = False
-		self._display_info_tip_mode = False
 		self.x_info_tip = None
 		self.y_info_tip = None
 		self.path_info_tip = None
@@ -685,6 +683,14 @@ class Recorder(Thread):
 				pyperclip.copy(code)
 				if self.event_list:
 					self.event_list.append(FindEvent(path=l_e_e.path, dx=dx, dy=dy, time=time.time()))
+		elif (
+				(e.name == 'D') and (e.event_type == 'up')
+				and keyboard.key_to_scan_codes("shift")[0] in keyboard._pressed_events
+				and keyboard.key_to_scan_codes("ctrl")[0] in keyboard._pressed_events):
+			if self.mode == "Info":
+				self.mode = "Stop"
+			else:
+				self.mode = "Info"
 		elif self.mode == "Record":
 			self.event_list.append(e)
 
@@ -891,26 +897,27 @@ class Recorder(Thread):
 					#overlay_add_record_icon(self.main_overlay, 10, 10)
 					nb_icons = nb_icons + 1
 				elif self.mode == "Play":
-					self.info_overlay.clear_all()
-					self.info_overlay2.clear_all()
-					self.main_overlay.clear_all()
-					overlay_add_mode_icon(self.main_overlay, IconSet.hicon_play, 10, 10)
 					while self.mode == "Play":
+						self.info_overlay.clear_all()
+						self.info_overlay2.clear_all()
+						self.main_overlay.clear_all()
+						overlay_add_mode_icon(self.main_overlay, IconSet.hicon_play, 10, 10)
+						self.info_overlay.refresh()
+						self.info_overlay2.refresh()
+						self.main_overlay.refresh()
 						time.sleep(1.0)
-					self.main_overlay.refresh()
-					self.info_overlay2.refresh()
-					self.main_overlay.refresh()
 				#elif self.mode == "Info":
 				#	overlay_add_pause_icon(self.main_overlay, 10, 10)
 				elif self.mode == "Stop":
-					self.info_overlay.clear_all()
-					self.info_overlay2.clear_all()
-					self.main_overlay.clear_all()
-					overlay_add_mode_icon(self.main_overlay, IconSet.hicon_stop, 10, 10)
-					self.main_overlay.refresh()
-					self.info_overlay2.refresh()
-					self.main_overlay.refresh()
 					while self.mode == "Stop":
+						self.info_overlay.clear_all()
+						self.info_overlay2.clear_all()
+						self.main_overlay.clear_all()
+						overlay_add_mode_icon(self.main_overlay, IconSet.hicon_stop, 10, 10)
+						time.sleep(0.1)
+						self.info_overlay.refresh()
+						self.info_overlay2.refresh()
+						self.main_overlay.refresh()
 						time.sleep(1.0)
 				if self.mode in ["Record", "Info"]:
 					overlay_add_progress_icon(self.main_overlay, i, 10+60*nb_icons, 10)
@@ -922,7 +929,7 @@ class Recorder(Thread):
 					nb_icons = nb_icons + 1
 				i = i + 1
 				
-				if self.display_info_tip_mode:
+				if self.mode=="Info":
 					self.__display_info_tip(x, y, wrapper)
 				self.main_overlay.refresh()
 				#self.info_overlay.refresh()
@@ -954,19 +961,6 @@ class Recorder(Thread):
 	@relative_coordinate_mode.setter
 	def relative_coordinate_mode(self, value):
 		self._relative_coordinate_mode = value
-
-	@property
-	def display_info_tip_mode(self):
-		return self._mode == "Info"
-		return self._display_info_tip_mode
-	
-	@display_info_tip_mode.setter
-	def display_info_tip_mode(self, value):
-		if value:
-			self._mode = "Info"
-		else:
-			self._mode = "Stop"
-		#self._display_info_tip_mode = value
 
 	@property
 	def smart_mode(self):
