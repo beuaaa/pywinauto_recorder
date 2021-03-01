@@ -285,7 +285,7 @@ def move(
 
 
 def click(
-        element_path: UI_Element,
+        element_path: Optional[UI_Element] = None,
         duration: Optional[float] = 0.5,
         mode: Enum = MoveMode.linear,
         button: str = 'left',
@@ -302,12 +302,12 @@ def click(
     :param wait_ready: if True waits until the element is ready
     :return: Pywinauto wrapper of clicked element
     """
-    
-    unique_element = move(element_path, duration=duration, mode=mode, timeout=timeout)
-    if wait_ready and isinstance(element_path, string_types):
-        wait_is_ready_try1(unique_element, timeout=timeout)
-    else:
-        unique_element = None
+    if element_path:
+        unique_element = move(element_path, duration=duration, mode=mode, timeout=timeout)
+        if wait_ready and isinstance(element_path, string_types):
+            wait_is_ready_try1(unique_element, timeout=timeout)
+        else:
+            unique_element = None
     if button == 'left' or button == 'double_left' or button == 'triple_left':
         win32api_mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0)
         time.sleep(.01)
@@ -327,7 +327,10 @@ def click(
         time.sleep(.01)
         win32api_mouse_event(MOUSEEVENTF_RIGHTUP, 0, 0)
         time.sleep(.01)
-    return unique_element
+    if element_path:
+        return unique_element
+    else:
+        return None
 
 
 def left_click(

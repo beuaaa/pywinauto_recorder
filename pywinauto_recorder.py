@@ -145,10 +145,10 @@ class SysTrayIcon(object):
 				menu_options[1][0] = "Start replaying clipboard"
 				menu_options[1][1] = icon_play
 			if not recorder.mode == "Info":
-				menu_options[2][0] = "Start displaying element information"
+				menu_options[2][0] = "Start displaying element information\tCTRL+SHIFT+D"
 				menu_options[2][1] = icon_search
 			else:
-				menu_options[2][0] = "Stop displaying element information"
+				menu_options[2][0] = "Stop displaying element information\tCTRL+SHIFT+D"
 				menu_options[2][1] = icon_stop
 			if not recorder.smart_mode:
 				menu_options[3][0] = "Start Smart mode\t\tCTRL+ALT+S"
@@ -251,7 +251,8 @@ def display_splash_screen():
 	text_lines[7] = 'by David Pratmarty'
 	text_lines[9] = 'Record / Stop                            Smart mode On / Off'
 	text_lines[10] = 'CTRL+ALT+R                                      CTRL+ALT+S'
-	text_lines[12] = 'Search algorithm speed                         Search mode'
+	text_lines[12] = 'Search algorithm speed        Display / Hide information'
+	text_lines[13] = '                                                       CTRL+SHIFT+D'
 	text_lines[15] = 'Copy python code in clipboard          Click on "Quit" in'
 	text_lines[16] = 'CTRL+SHIFT+F                                tray menu to quit'
 	text_lines[18] = 'To replay your recorded file you can:                          '
@@ -456,7 +457,7 @@ if __name__ == '__main__':
 
 		menu_options = [['Start recording\t\tCTRL+ALT+R', icon_stop, action_record],
 		                ['Replay clipboard', icon_pywinauto_recorder, action_replay],
-		                ['Start displaying element info', icon_play, action_display_element_info],
+		                ['Start displaying element info\tCTRL+SHIFT+D', icon_play, action_display_element_info],
 		                ['Start Smart mode\t\tCTRL+ALT+S', icon_stop, action_smart_mode],
 		                ['- - - - - -', None, hello],
 		                ['Open output folder', icon_folder, action_open_explorer],
