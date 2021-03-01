@@ -151,23 +151,26 @@ def find(element_path=None, timeout=120):
 
         _, _, y_x, _ = get_entry(entry_list[-1])
         if y_x is not None:
-            nb_y, nb_x, candidates = get_sorted_region(elements)
-            if is_int(y_x[0]):
-                unique_element = candidates[int(y_x[0])][int(y_x[1])]
+            if unique_element and int(y_x[0]) == int(y_x[1]) == 0:
+                return unique_element
             else:
-                ref_entry_list = get_entry_list(Region.common_path) + get_entry_list(y_x[0])
-                ref_unique_element, _ = find_element(
-                    Region.click_desktop, ref_entry_list, window_candidates=[], regex_title=Region.current.regex_title)
-                ref_r = ref_unique_element.rectangle()
-                r_y = 0
-                while r_y < nb_y:
-                    y_candidate = candidates[r_y][0].rectangle().mid_point()[1]
-                    if ref_r.top < y_candidate < ref_r.bottom:
-                        unique_element = candidates[r_y][y_x[1]]
-                        break
-                    r_y = r_y + 1
+                nb_y, nb_x, candidates = get_sorted_region(elements)
+                if is_int(y_x[0]):
+                    unique_element = candidates[int(y_x[0])][int(y_x[1])]
                 else:
-                    unique_element = None
+                    ref_entry_list = get_entry_list(Region.common_path) + get_entry_list(y_x[0])
+                    ref_unique_element, _ = find_element(
+                        Region.click_desktop, ref_entry_list, window_candidates=[], regex_title=Region.current.regex_title)
+                    ref_r = ref_unique_element.rectangle()
+                    r_y = 0
+                    while r_y < nb_y:
+                        y_candidate = candidates[r_y][0].rectangle().mid_point()[1]
+                        if ref_r.top < y_candidate < ref_r.bottom:
+                            unique_element = candidates[r_y][y_x[1]]
+                            break
+                        r_y = r_y + 1
+                    else:
+                        unique_element = None
         if unique_element is not None:
             break
         time.sleep(0.1)
