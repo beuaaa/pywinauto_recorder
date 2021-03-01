@@ -96,7 +96,7 @@ if __name__ == '__main__':
 		move("Google Chrome||Pane->||Pane->Options menu||Button")
 		left_click("Google Chrome||Pane->||Pane->Options menu||Button")
 		left_click("||Pane->||MenuBar->||Pane->||Menu->Open||MenuItem")
-	time.sleep(1.0)
+	time.sleep(2.0)
 	with Window("||Window->Windows Defender SmartScreen||Window"):
 		left_click("about:blank||Pane->||Pane->Windows protected your PC||Group->More info||Hyperlink")
 		left_click("about:blank#||Pane->||Pane->Run anyway||Button")
@@ -209,15 +209,19 @@ if __name__ == '__main__':
 	brian.say("And click on Start playing in the tray menu.")
 	time.sleep(1.5)
 	send_keys("{VK_LWIN}")
+	time.sleep(1.5)
+	# pb 1
 	with Window(u"Taskbar||Pane"):
 		with Region(u"||Pane"):
 			left_click(u"Notification Chevron||Button")
+	time.sleep(0.5)
 	with Window(u"Notification Overflow||Pane"):
 		with Region(u"Overflow Notification Area||ToolBar"):
 			right_click(u"Pywinauto recorder||Button")
 	with Window(u"Context||Menu"):
 		left_click(u"Start replaying clipboard||MenuItem")
-
+	time.sleep(9)
+	
 	####################################
 	# Open 'Pywinauto Recorder' folder #
 	####################################
@@ -231,7 +235,11 @@ if __name__ == '__main__':
 			right_click(u"Pywinauto recorder||Button")
 	with Window(u"Context||Menu"):
 		left_click(u"Open output folder||MenuItem")
-	send_keys("{LWIN down}""{VK_RIGHT}""{LWIN up}")
+	# pb 2
+	with Window(u"C:\\\\Users\\\\.*\\\\Pywinauto recorder||Window", regex_title=True):
+		left_click(u"||TitleBar")
+		time.sleep(0.5)
+		send_keys("{LWIN down}""{VK_RIGHT}""{LWIN up}")
 	with Window(u"Snap Assist||Window"):
 		left_click("Dismiss Task Switching Window||Button%(95,-98)")
 	
@@ -239,7 +247,7 @@ if __name__ == '__main__':
 	# Locate the recorded file #
 	############################
 	with Window(u"C:\\\\Users\\\\.*\\\\Pywinauto recorder||Window", regex_title=True):
-		wrapper = find(
+		wrapper = left_click(
 			u"*->||Pane->Shell Folder View||Pane->Items View||List->||ListItem->Name||Edit#[0,0]")
 		wrapper.draw_outline(colour='red')
 		drag_and_drop_start = get_wrapper_path(wrapper)
@@ -248,6 +256,7 @@ if __name__ == '__main__':
 	# Open the recorded file with Notepad++ #
 	#########################################
 	brian.say("Let's open the file that was just created to see what it looks like.")
+	# pb
 	right_click(drag_and_drop_start)
 	with Window(u"Context||Menu"):
 		with Region():
