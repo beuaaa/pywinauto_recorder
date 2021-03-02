@@ -359,6 +359,7 @@ def replay(str_code):
 						print(line)
 			else:
 				print(line)
+		input("Press Enter to continue...")
 	if recorder:
 		recorder.mode = "Stop"
 	else:
@@ -386,9 +387,9 @@ if __name__ == '__main__':
 				data = python_file.read()
 			print("Replaying: " + args.filename)
 			replay(data)
-			input("Press Enter to continue...")
 		else:
 			print("Error: file '" + args.filename + "' not found.")
+			input("Press Enter to continue...")
 		print("Exit")
 	else:
 		from pywinauto_recorder.player import *
