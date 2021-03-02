@@ -4,7 +4,6 @@
 
 Description
 ===========
-.. warning::  This recorder is still at a very early stage of development.
 
 "Pywinauto recorder" records user interface actions and saves them in a Python script.
 The saved Python script can be run to replay the user interface actions previously recorded.
