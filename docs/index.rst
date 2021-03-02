@@ -9,7 +9,7 @@
    :template: custom-module-template.rst
    :recursive:
 
-   pywinauto_recorder.player
+   _pywinauto_recorder.player # ModuleNotFoundError: No module named 'pywinauto'
 
 .. include:: contribute.rst
 
