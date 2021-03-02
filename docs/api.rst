@@ -21,7 +21,7 @@ Detailed API documentation
    :maxdepth: 2
    :caption: Contents:
 
-.. automodule:: ./pywinauto_recorder/player
+.. automodule:: pywinauto_recorder.player
     :members:
 
 
