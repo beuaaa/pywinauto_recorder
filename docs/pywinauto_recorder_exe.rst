@@ -1,22 +1,24 @@
 Pywinauto_recorder for Windows
-==================================
-- "pywinauto_recorder.exe_" is a standalone application, it's the compiled version of "pywinauto_recorder.py" for 64-bit Windows.
+==============================
+
++--------------------------------------------------------------------------------------+------------------------+
+|  "pywinauto_recorder.exe_" is a standalone application, it's the compiled version of | |button1|              |
+|  "pywinauto_recorder.py" for 64-bit Windows.                                         |                        |
++--------------------------------------------------------------------------------------+------------------------+
+| "pywinauto_recorder.py_" is the main source, you will find the Pyhon code            | |button2|              |
+| downloading the github clone.                                                        |                        |
++--------------------------------------------------------------------------------------+------------------------+
 
 .. _pywinauto_recorder.exe: https://raw.githubusercontent.com/beuaaa/pywinauto_recorder/master/bin/Pywinauto_recorder_installer.exe
 
-.. image:: https://raw.githubusercontent.com/beuaaa/pywinauto_recorder/master/Images/Download.png?sanitize=true
+.. |button1| image:: https://raw.githubusercontent.com/beuaaa/pywinauto_recorder/master/Images/Download.png?sanitize=true
             :target: https://raw.githubusercontent.com/beuaaa/pywinauto_recorder/master/bin/Pywinauto_recorder_installer.exe
-            :width: 200 px
-            :align: center
-
-- "pywinauto_recorder.py_" is the main source, you will find the Pyhon code downloading the github clone.
 
 .. _pywinauto_recorder.py: https://github.com/beuaaa/pywinauto_recorder/archive/master.zip
 
-.. image:: https://raw.githubusercontent.com/beuaaa/pywinauto_recorder/master/Images/Download.png?sanitize=true
+.. |button2| image:: https://raw.githubusercontent.com/beuaaa/pywinauto_recorder/master/Images/Download.png?sanitize=true
             :target: https://github.com/beuaaa/pywinauto_recorder/archive/master.zip
-            :width: 200 px
-            :align: center
+
 
 Usage
 -----
