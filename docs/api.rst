@@ -21,14 +21,9 @@ Detailed API documentation
    :maxdepth: 2
    :caption: Contents:
 
-.. automodule:: pywinauto_recorder.player
-    :members:
+.. autosummary::
+   :toctree: autosummary
+   :template: custom-module-template.rst
+   :recursive:
 
-
-Indices and tables
-^^^^^^^^^^^^^^^^^^
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
-
+   pywinauto_recorder.player
