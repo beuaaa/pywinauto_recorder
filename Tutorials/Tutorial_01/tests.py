@@ -6,9 +6,8 @@ from dp_toolbox import *
 from pywinauto_recorder.player import *
 from pathlib import Path
 
+# WARNING: This script must be launched with admin rights because of the installer
 
-# send_keys("{VK_CONTROL down}""{VK_MENU down}""q""{VK_MENU up}""{VK_CONTROL up}")  # works
-# send_keys("{VK_MENU down}""{VK_CONTROL down}""q""{VK_CONTROL up}""{VK_MENU up}") # does not work
 
 if __name__ == '__main__':
 	brian = Voice(name='Brian')
@@ -74,7 +73,6 @@ if __name__ == '__main__':
 		left_click(
 			"*->” is a standalone application, it’s the compiled version of “pywinauto_recorder.py” for 64-bit Windows.||Text%(-70,-80)",
 			timeout=120)
-
 	brian.say("""
 	"Pywinauto recorder" is a unique "record-replay" tool in the open source field because it generates reliable scripts without hard-coded coordinates thanks to Pywinauto.
 	Pywinauto is a library that uses accessibility technologies allowing you to automate almost any type of GUI.
@@ -96,11 +94,11 @@ if __name__ == '__main__':
 		move("Google Chrome||Pane->||Pane->Options menu||Button")
 		left_click("Google Chrome||Pane->||Pane->Options menu||Button")
 		left_click("||Pane->||MenuBar->||Pane->||Menu->Open||MenuItem")
-	time.sleep(2.0)
+	time.sleep(1.0)
 	with Window("||Window->Windows Defender SmartScreen||Window"):
-		left_click("about:blank||Pane->||Pane->Windows protected your PC||Group->More info||Hyperlink")
-		left_click("about:blank#||Pane->||Pane->Run anyway||Button")
-
+		left_click("*->||Hyperlink")
+		left_click("*->||Button#[1,0]")
+		
 	########################################################################
 	# Do Pywinauto recorder installer steps and Run pywinauto_recorder.exe #
 	########################################################################
@@ -111,12 +109,13 @@ if __name__ == '__main__':
 		time.sleep(1)
 		send_keys("{ENTER}")
 	speech = """
-    When you run Pywinauto Recorder it starts with the help dialog.
+    When you run Pywinauto Recorder it starts with this splash screen.
+    It contains some helpfull informations.
     All actions can be triggered by a keyboard shortcut or by clicking in the tray menu.
-    The help dialog is closed my moving the mouse outside.
+    This splash screen is closed my moving the mouse outside.
 	"""
 	brian.say(speech, wait_until_the_end_of_the_sentence=True)
-	move((0,0))
+	move((0, 0))
 	speech = """
 	It is runnning displaying element information.
 	In this mode represented by the magnifying glass icon displayed in the top left corner of the screen,
@@ -141,8 +140,8 @@ if __name__ == '__main__':
 		time.sleep(1)
 		move("||ProgressBar") # get value 100%
 		time.sleep(1)
-		left_click("Show details||Button") #click
-		move("Completed||List->Completed||ListItem->Completed||Text", duration=9)
+		left_click("Show details||Button")
+		move("Completed||List->Completed||ListItem->Completed||Text", duration=3)
 		move("< Back||Button")
 		time.sleep(1)
 		move("Close||Button")
@@ -150,7 +149,7 @@ if __name__ == '__main__':
 		move("Cancel||Button")
 		time.sleep(1)
 		left_click("Close||Button")
-		
+	move((0, 0))
 	brian.say("To start recording my next actions I press 'alt' 'control' 'r'.", wait_until_the_end_of_the_sentence=True)
 	time.sleep(1.0)
 
@@ -169,6 +168,13 @@ if __name__ == '__main__':
 		left_click(u"Search||Window->||Edit")
 		send_keys("calculator""{ENTER}", pause=0.2, vk_packet=False)
 	time.sleep(2.0)
+	
+	################################
+	# Move Calculator to the right #
+	################################
+	import win32gui
+	hwnd = win32gui.FindWindow(None, 'Calculator')
+	win32gui.MoveWindow(hwnd, 1100, 150, 800, 800, True)
 
 	###################################
 	# Press 1+2= and close Calculator #
@@ -210,18 +216,18 @@ if __name__ == '__main__':
 	time.sleep(1.5)
 	send_keys("{VK_LWIN}")
 	time.sleep(1.5)
-	# pb 1
 	with Window(u"Taskbar||Pane"):
 		with Region(u"||Pane"):
 			left_click(u"Notification Chevron||Button")
-	time.sleep(0.5)
 	with Window(u"Notification Overflow||Pane"):
 		with Region(u"Overflow Notification Area||ToolBar"):
 			right_click(u"Pywinauto recorder||Button")
+			time.sleep(0.5)
+			click(button='right')
 	with Window(u"Context||Menu"):
 		left_click(u"Start replaying clipboard||MenuItem")
 	time.sleep(9)
-	
+
 	####################################
 	# Open 'Pywinauto Recorder' folder #
 	####################################
@@ -233,30 +239,29 @@ if __name__ == '__main__':
 	with Window(u"Notification Overflow||Pane"):
 		with Region(u"Overflow Notification Area||ToolBar"):
 			right_click(u"Pywinauto recorder||Button")
+			time.sleep(0.5)
+			click(button='right')
 	with Window(u"Context||Menu"):
 		left_click(u"Open output folder||MenuItem")
-	# pb 2
 	with Window(u"C:\\\\Users\\\\.*\\\\Pywinauto recorder||Window", regex_title=True):
 		left_click(u"||TitleBar")
 		time.sleep(0.5)
 		send_keys("{LWIN down}""{VK_RIGHT}""{LWIN up}")
 	with Window(u"Snap Assist||Window"):
+		left_click("*->Description — Python documentation - Google Chrome||ListItem->Close||Button")
 		left_click("Dismiss Task Switching Window||Button%(95,-98)")
-	
+
 	############################
 	# Locate the recorded file #
 	############################
 	with Window(u"C:\\\\Users\\\\.*\\\\Pywinauto recorder||Window", regex_title=True):
-		wrapper = left_click(
-			u"*->||Pane->Shell Folder View||Pane->Items View||List->||ListItem->Name||Edit#[0,0]")
-		wrapper.draw_outline(colour='red')
-		drag_and_drop_start = get_wrapper_path(wrapper)
+		drag_and_drop_start = left_click("*->||Pane->Shell Folder View||Pane->Items View||List->||ListItem->Name||Edit#[0,0]")
+		drag_and_drop_start.draw_outline(colour='red')
 
 	#########################################
 	# Open the recorded file with Notepad++ #
 	#########################################
 	brian.say("Let's open the file that was just created to see what it looks like.")
-	# pb
 	right_click(drag_and_drop_start)
 	with Window(u"Context||Menu"):
 		with Region():
@@ -275,28 +280,47 @@ if __name__ == '__main__':
 	brian.say("I'm going to call draw outline on some of these wrappers")
 	send_keys("{VK_END}""{ENTER}")
 	brian.say("The first draw outline will display a red rectangle around the One button.")
-	send_keys("pywinauto_wrapper1.draw_outline{(}colour='red', thickness=22{)}")
+	send_keys("pywinauto_wrapper1.draw_outline(colour='red', thickness=22)")
 	send_keys("{VK_HOME}""{VK_DOWN}")
 	send_keys("pywinauto_wrapper2 = ")
 	send_keys("{VK_END}""{ENTER}")
 	brian.say("The second one will display a green rectangle around the Plus button.")
-	send_keys("pywinauto_wrapper2.draw_outline{(}colour='green', thickness=22{)}")
+	send_keys("pywinauto_wrapper2.draw_outline(colour='green', thickness=22)")
 	send_keys("{VK_HOME}""{VK_DOWN}")
 	send_keys("pywinauto_wrapper3 = ")
 	send_keys("{VK_END}""{ENTER}")
 	brian.say("And the third one will display a blue rectangle around the Two button.")
-	send_keys("pywinauto_wrapper3.draw_outline{(}colour='blue', thickness=22{)}")
+	send_keys("pywinauto_wrapper3.draw_outline(colour='blue', thickness=22)")
 	send_keys("{VK_CONTROL down}""s""{VK_CONTROL up}")
 	brian.say("Let's replay it!", wait_until_the_end_of_the_sentence=True)
 	send_keys("{VK_MENU down}""{VK_F4}""{VK_MENU up}")
+	
+	################################
+	# Close pywinauto_recorder.exe #
+	################################
+	send_keys("{VK_LWIN}")
+	time.sleep(1.5)
+	with Window("Taskbar||Pane"):
+		with Region("||Pane"):
+			left_click("Notification Chevron||Button")
+	with Window("Notification Overflow||Pane"):
+		with Region("Overflow Notification Area||ToolBar"):
+			right_click("Pywinauto recorder||Button")
+			time.sleep(0.5)
+			click(button='right')
+	with Window("Context||Menu"):
+		left_click("Quit||MenuItem")
 
 	#############################################################
 	# Drag and drop the recorded file on pywinauto_recorder.exe #
 	#############################################################
+	with Window(u"C:\\\\Users\\\\.*\\\\Pywinauto recorder||Window", regex_title=True):
+		drag_and_drop_start = left_click("*->Shell Folder View||Pane->Items View||List->||ListItem->Name||Edit#[0,0]")
+		drag_and_drop_start.draw_outline(colour='blue')
 	with Window(u"||List"):
-		wrapper = find(u"Pywinauto recorder||ListItem")
-	wrapper.draw_outline()
-	drag_and_drop_end = get_wrapper_path(wrapper)
+		drag_and_drop_end = find(u"Pywinauto recorder||ListItem")
+		drag_and_drop_end.draw_outline()
+	time.sleep(1)
 	drag_and_drop(drag_and_drop_start, drag_and_drop_end)
 	brian.say("""
 		Now Pywinauto recorder is replaying. You can see the Replay icon in the top left corner of the screen.
@@ -307,6 +331,7 @@ if __name__ == '__main__':
 
 	obs.stop_recording()
 	obs.quit()
+
 
 	exit(0)
 
