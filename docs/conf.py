@@ -9,6 +9,7 @@ sys.path.insert(0, os.path.abspath('../pywinauto_recorder'))
 
 extensions = ['sphinx.ext.autodoc', 'sphinx.ext.autosummary']
 
+exclude_patterns = ['contribute.rst', 'description.rst', 'pywinauto_recorder_exe.rst', 'smart_mode.rst']
 autodoc_mock_imports = ["pywinauto", "win32api"]
 # import pywinauto_recorder.player
 
