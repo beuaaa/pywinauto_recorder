@@ -13,9 +13,10 @@ from win32con import IDC_WAIT, MOUSEEVENTF_MOVE, MOUSEEVENTF_ABSOLUTE, MOUSEEVEN
     MOUSEEVENTF_MIDDLEDOWN, MOUSEEVENTF_MIDDLEUP, MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP, MOUSEEVENTF_WHEEL, WHEEL_DELTA
 import time
 from enum import Enum
-from typing import Any, Optional, Union
+from typing import Any, Optional, Union, NewType
 
-UI_Element = Union[str, pywinauto.controls.uiawrapper.UIAWrapper]
+UI_Coordinates = NewType('UI_Coordinates', (float, float))
+UI_Element = Union[str, pywinauto.controls.uiawrapper.UIAWrapper, UI_Coordinates]
 
 # TODO special_char_array in core for recorder.py and player.py (check when to call escape & unescape)
 def unescape_special_char(string):
