@@ -17,6 +17,7 @@ from typing import Any, Optional, Union, NewType
 UI_Coordinates = NewType('UI_Coordinates', (float, float))
 UI_Element = Union[str, pywinauto.controls.uiawrapper.UIAWrapper, UI_Coordinates]
 
+
 # TODO special_char_array in core for recorder.py and player.py (check when to call escape & unescape)
 def unescape_special_char(string):
     for r in (("\\\\", "\\"), ("\\t", "\t"), ("\\n", "\n"), ("\\r", "\r"), ("\\v", "\v"), ("\\f", "\f"), ('\\"', '"')):
