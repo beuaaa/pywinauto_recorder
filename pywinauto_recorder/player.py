@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 
 # print('__file__={0:<35} | __name__={1:<20} | __package__={2:<20}'.format(__file__, __name__, str(__package__)))
-from six import string_types
 from .core import *
 import pywinauto
 from win32api import GetCursorPos as win32api_GetCursorPos
