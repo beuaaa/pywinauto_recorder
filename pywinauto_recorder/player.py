@@ -42,8 +42,12 @@ element_path_old = ''
 w_rOLD = None
 
 
-def load_dictionary(filename):
-    
+def load_dictionary(filename: str) -> None:
+    """
+    Loads a dictionary
+
+    :param filename:filename of the dictionary
+    """
     with open(filename) as fp:
         for line in fp:
             words = line.split("\t")
@@ -55,8 +59,13 @@ def load_dictionary(filename):
             _dictionary[variable] = value
 
 
-def shortcut(variable):
-    return _dictionary[variable]
+def shortcut(str_shortcut: str) -> str:
+    """
+    Returns the element_path associated to th shortcut in the previously loaded dictionary
+
+    :param str_shortcut: shortcut
+    """
+    return _dictionary[str_shortcut]
 
 
 def wait_is_ready_try1(wrapper, timeout=120):
@@ -118,7 +127,16 @@ class Region(object):
 Window = Region
 
 
-def find(element_path=None, timeout=120):
+def find(
+        element_path: UI_Element,
+        timeout: float = 120) -> UI_Element:
+    """
+    Finds an element
+
+    :param element_path: element path
+    :param timeout: period of time in seconds that will be allowed to find the element
+    :return: Pywinauto wrapper of clicked element
+    """
     if not Region.click_desktop:
         Region.click_desktop = pywinauto.Desktop(backend='uia', allow_magic_lookup=False)
     if Region.common_path:
@@ -626,7 +644,7 @@ def set_text(
         timeout: float = 120,
         pause: float = 0.1) -> None:
     """
-    Sets the value of a combobox.
+    Sets the value of a text field.
     
     :param element_path: element path
     :param value: value of the combobox
