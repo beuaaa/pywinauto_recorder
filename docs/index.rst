@@ -5,7 +5,7 @@
 .. include:: api.rst
 
 .. autosummary::
-   :toctree: _autosummary
+   :toctree: autosummary
    :template: custom-module-template.rst
    :recursive:
 
