@@ -665,7 +665,7 @@ def select_file(
         full_path: str,
         force_slow_path_typing: bool = False) -> None:
     """
-    Opens a dialog box and select a file.
+    Selects a file in an already opened file dialog.
     
     :param element_path: element path
     :param full_path: the full path of the file to select
