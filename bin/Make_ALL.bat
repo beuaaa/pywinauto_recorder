@@ -1,5 +1,5 @@
 REM COMPILE EXE
-C:\Users\oktalse\AppData\Local\Programs\Python\Python38\python.exe -m nuitka --standalone --mingw64 --windows-dependency-tool=peffile ..\pywinauto_recorder.py --show-progress --show-scons
+C:\Users\oktalse\AppData\Local\Programs\Python\Python38\python.exe -m nuitka --standalone --mingw64 --windows-dependency-tool=peffile ..\pywinauto_recorder.py --show-scons
 
 REM CLEAN pywinauto_recorder.dist
 cd pywinauto_recorder.dist
@@ -37,6 +37,11 @@ rmdir win32com /s /q
 REM Copy Icons\*.ico in pywinauto_recorder.dist
 MKDIR  Icons
 xcopy /y ..\..\Icons\*.ico .\Icons
+
+
+REM Copy clear_comtypes_cache.exe
+xcopy /y ..\clear_comtypes_cache.dist\*.exe .
+
 
 cd ..
 
