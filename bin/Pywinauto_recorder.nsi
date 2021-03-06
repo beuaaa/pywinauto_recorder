@@ -62,7 +62,12 @@ Section "Desktop Shortcut" SectionX
 SectionEnd 
 
 
-Section "Run Pywinauto recorder"
+Section "Run clear_comtypes_cache.exe"
+	Exec '"$INSTDIR\clear_comtypes_cache.exe" -y'
+SectionEnd
+
+
+Section "Run pywinauto_recorder.exe"
 	# Run Pywinauto_recorde_exe
 	MessageBox MB_OKCANCEL "Do you want to run Pywinauto recorder now?" /SD IDCANCEL IDOK OK IDCANCEL CANCEL
 		OK:
