@@ -13,6 +13,7 @@ from os.path import isfile as os_path_isfile
 from sys import exit as sys_exit
 from pathlib import Path
 import os
+import sys
 import win32api
 import win32con
 import win32gui_struct

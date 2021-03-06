@@ -218,7 +218,7 @@ def move(
     global w_rOLD
     
     x, y = win32api_GetCursorPos()
-    if isinstance(element_path, string_types):
+    if isinstance(element_path, str):
         element_path2 = element_path
         if Region.common_path:
             if Region.common_path != element_path[0:len(Region.common_path)]:
@@ -323,7 +323,7 @@ def click(
     """
     if element_path:
         unique_element = move(element_path, duration=duration, mode=mode, timeout=timeout)
-        if wait_ready and isinstance(element_path, string_types):
+        if wait_ready and isinstance(element_path, str):
             wait_is_ready_try1(unique_element, timeout=timeout)
         else:
             unique_element = None
