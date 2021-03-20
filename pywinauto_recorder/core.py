@@ -197,12 +197,11 @@ def find_element(desktop, entry_list, window_candidates=[], visible_only=True, e
     candidates = []
     for window in window_candidates:
         title, control_type, _, _ = get_entry(entry_list[-1])
-        descendants = window.descendants(title=title, control_type=control_type) # , depth=max(1, len(entry_list)-2)
+        descendants = window.descendants(title=title, control_type=control_type)  # , depth=max(1, len(entry_list)-2)
         for descendant in descendants:
+        #for descendant in window.iter_descendants(title=title, control_type=control_type): # iter_descendants is slower than descendants = window.descendants
             if same_entry_list(descendant, entry_list, regex_title=regex_title):
                 candidates.append(descendant)
-            else:
-                continue
 
     if not candidates:
         if active_only:
