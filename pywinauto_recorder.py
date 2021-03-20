@@ -400,7 +400,11 @@ if __name__ == '__main__':
 		
 		display_splash_screen()
 		recorder = Recorder()
-		path_icons = Path(__file__).parent.absolute() / Path("Icons")
+		if "__compiled__" in globals():
+			path_icons = Path(__file__).parent.absolute() / Path("Icons")
+		else:
+			path_icons = Path(__file__).parent.absolute() / Path("pywinauto_recorder") / Path("Icons")
+		print("ICONS PATH: "+ str(path_icons))
 		icon_pywinauto_recorder = str(path_icons / Path("IconPyRec.ico"))
 		icon_record = str(path_icons / Path("record.ico"))
 		icon_stop = str(path_icons / Path("stop.ico"))

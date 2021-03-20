@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+"""This module contains functions to record a sequence of user actions."""
 
 import sys
 import os
@@ -27,14 +27,17 @@ MenuEvent = namedtuple('MenuEvent', ['path', 'menu_path', 'menu_type'])
 
 
 class IconSet:
-	dir_path = os.path.dirname(os.path.realpath(__file__))
-	hicon_clipboard = oaam.load_ico(dir_path + r'\..\Icons\paste.ico', 48, 48)
-	hicon_light_on = oaam.load_ico(dir_path + r'\..\Icons\light-on.ico', 48, 48)
-	hicon_record = oaam.load_ico(dir_path + r'\..\Icons\record.ico', 48, 48)
-	hicon_play = oaam.load_ico(dir_path + r'\..\Icons\play.ico', 48, 48)
-	hicon_stop = oaam.load_ico(dir_path + r'\..\Icons\stop.ico', 48, 48)
-	hicon_search = oaam.load_ico(dir_path + r'\..\Icons\search.ico', 48, 48)
-	hicon_power = oaam.load_ico(dir_path + r'\..\Icons\power.ico', 48, 48)
+	if "__compiled__" in globals():
+		path_icons = os.path.dirname(os.path.realpath(__file__)) + r'\..'
+	else:
+		path_icons = os.path.dirname(os.path.realpath(__file__))
+	hicon_clipboard = oaam.load_ico(path_icons + r'\Icons\paste.ico', 48, 48)
+	hicon_light_on = oaam.load_ico(path_icons + r'\Icons\light-on.ico', 48, 48)
+	hicon_record = oaam.load_ico(path_icons + r'\Icons\record.ico', 48, 48)
+	hicon_play = oaam.load_ico(path_icons + r'\Icons\play.ico', 48, 48)
+	hicon_stop = oaam.load_ico(path_icons + r'\Icons\stop.ico', 48, 48)
+	hicon_search = oaam.load_ico(path_icons + r'\Icons\search.ico', 48, 48)
+	hicon_power = oaam.load_ico(path_icons + r'\Icons\power.ico', 48, 48)
 
 
 def escape_special_char(string):
@@ -546,11 +549,11 @@ class Recorder(Thread):
 	def __init__(self):
 		Thread.__init__(self)
 		from win32api import GetSystemMetrics
+		self._loop_t0 = None
 		self.screen_width = GetSystemMetrics(0)
 		self.screen_height = GetSystemMetrics(1)
 		self.main_overlay = oaam.Overlay(transparency=0.4)
 		self.info_overlay = oaam.Overlay(transparency=0.0)
-		self.info_overlay2 = oaam.Overlay(transparency=0.0)
 		self.desktop = pywinauto.Desktop(backend='uia', allow_magic_lookup=False)
 		self.daemon = True
 		self.event_list = []
@@ -558,9 +561,8 @@ class Recorder(Thread):
 		self._process_menu_click_mode = True
 		self._smart_mode = False
 		self._relative_coordinate_mode = False
-		self.x_info_tip = None
-		self.y_info_tip = None
-		self.path_info_tip = None
+		self.wrapper_old_info_tip = None
+		self.common_path_info_tip = ""
 		self.last_element_event = None
 		self.started_recording_with_keyboard = False
 		self.start()
@@ -695,25 +697,20 @@ class Recorder(Thread):
 			self.event_list.append(e)
 
 	def __display_info_tip(self, x, y, wrapper):
-		if (self.x_info_tip == x) and (self.y_info_tip == y):
-			return
-		
 		tooltip_width = 500
 		tooltip_height = 25
 		r = wrapper.rectangle()
 		
-		self.x_info_tip = x
-		self.y_info_tip = y
-		
-		common_path = ""
-		if self.path_info_tip:
-			common_path = find_common_path(get_wrapper_path(wrapper), self.path_info_tip)
-		self.path_info_tip = get_wrapper_path(wrapper)
-		end_path = self.path_info_tip[len(common_path)::]
+		if wrapper != self.wrapper_old_info_tip:
+			if self.wrapper_old_info_tip:
+				self.common_path_info_tip = find_common_path(get_wrapper_path(wrapper), get_wrapper_path(self.wrapper_old_info_tip))
+			self.wrapper_old_info_tip = wrapper
+			
+		end_path = get_wrapper_path(wrapper)[len(self.common_path_info_tip)::]
 		
 		text = ''
 		text_width = 0
-		for c in common_path:
+		for c in self.common_path_info_tip:
 			if c == '\n':
 				text_width = 0
 				tooltip_height = tooltip_height + 16
@@ -724,8 +721,8 @@ class Recorder(Thread):
 				text = text + '\n'
 				text_width = 0
 				tooltip_height = tooltip_height + 16
-				
-		tooltip2_height = 25
+
+		tooltip2_height = tooltip_height
 		text2 = ''
 		text_width = 0
 		for c in end_path:
@@ -742,78 +739,107 @@ class Recorder(Thread):
 		dx, dy = (x - r.left) / r.width(), (y - r.top) / r.height()
 		info_left = dx * (self.screen_width - tooltip_width)
 		info_top = dy * (self.screen_height - (tooltip_height+tooltip2_height))
-		self.info_overlay.clear_all()
-		self.info_overlay2.clear_all()
+		if x>self.screen_width /2:
+			info_left = 9
+		else:
+			info_left = self.screen_width - tooltip_width - 10
+		info_top = 100
 		
-		self.info_overlay2.add(
+		self.info_overlay.clear_all()
+		
+		self.info_overlay.add(
 			geometry=oaam.Shape.rectangle, x=info_left, y=info_top - 2, width=tooltip_width, height=tooltip_height,
 			thickness=1, color=(0, 0, 0), brush=oaam.Brush.solid, brush_color=(222, 254, 255))
 		self.info_overlay.add(
-			x=info_left + 5, y=info_top + 1, width=tooltip_width,
-			height=25,
+			x=info_left + 5, y=info_top + 1, width=tooltip_width-7,
+			height=tooltip_height-5,
 			text=text,
 			text_format="win32con.DT_LEFT|win32con.DT_TOP|win32con.DT_WORDBREAK|win32con.DT_NOCLIP|win32con.DT_VCENTER",
-			font_size=16, text_color=(0, 0, 0), color=(254, 255, 255),
+			font_size=16, text_color=(0, 0, 0), brush=oaam.Brush.solid, brush_color=(222, 254, 255),
 			geometry=oaam.Shape.rectangle, thickness=0
 		)
-		self.info_overlay2.add(
+		self.info_overlay.add(
 			geometry=oaam.Shape.rectangle, x=info_left, y=info_top - 2 + tooltip_height, width=tooltip_width, height=tooltip2_height,
 			thickness=1, color=(0, 0, 0), brush=oaam.Brush.solid, brush_color=(180, 254, 255))
 		self.info_overlay.add(
-			x=info_left + 5, y=info_top + tooltip_height, width=tooltip_width,
-			height=25,
+			x=info_left + 5, y=info_top + tooltip_height, width=tooltip_width-7,
+			height=tooltip_height-5,
 			text=text2,
 			text_format="win32con.DT_LEFT|win32con.DT_TOP|win32con.DT_WORDBREAK|win32con.DT_NOCLIP|win32con.DT_VCENTER",
-			font_size=16, text_color=(0, 0, 0), color=(254, 255, 255),
+			font_size=16, text_color=(0, 0, 0), brush=oaam.Brush.solid, brush_color=(180, 254, 255),
 			geometry=oaam.Shape.rectangle, thickness=0
 		)
-		text = ""
-		try:
-			has_get_value = getattr(wrapper, "get_value", None)
-			if callable(has_get_value):
-				text = "wrapper.get_value(): " + wrapper.get_value()
-		except:
-			has_get_value = False
-			pass
-		if wrapper.legacy_properties()['Value']:
-			if not has_get_value or (has_get_value and wrapper.get_value() != wrapper.legacy_properties()['Value']):
-				if text:
-					text = text + "\n"
-				text = text + " wrapper.legacy_properties()['Value']: " + wrapper.legacy_properties()['Value']
-		_, str_type, _, _ = get_entry(end_path)
-		if str_type in ["RadioButton", "CheckBox"]:
-			if text:
-				text = text + "\n"
-			text = text + " wrapper.legacy_properties()['State']: " + str(wrapper.legacy_properties()['State'])
-		tooltip3_height = 25
-		text3 = ''
-		text_width = 0
-		for c in text:
-			if c == '\n':
-				text_width = 0
-				tooltip3_height = tooltip3_height + 16
-			else:
-				text_width = text_width + 6.8
-			text3 = text3 + c
-			if text_width > tooltip_width:
-				text3 = text3 + '\n'
-				text_width = 0
-				tooltip3_height = tooltip3_height + 16
-		if text3:
-			self.info_overlay2.add(
-				geometry=oaam.Shape.rectangle, x=info_left, y=info_top - 4 + tooltip_height + tooltip2_height, width=tooltip_width,
-				height=tooltip3_height, thickness=1, color=(0, 0, 0), brush=oaam.Brush.solid, brush_color=(2, 254, 255))
-			self.info_overlay.add(
-				x=info_left + 5, y=info_top + tooltip_height + tooltip2_height, width=tooltip_width,
-				height=tooltip3_height,
-				text=text3,
-				text_format="win32con.DT_LEFT|win32con.DT_TOP|win32con.DT_WORDBREAK|win32con.DT_NOCLIP|win32con.DT_VCENTER",
-				font_size=16, text_color=(0, 0, 0), color=(254, 255, 255),
-				geometry=oaam.Shape.rectangle, thickness=0
-			)
-		self.info_overlay2.refresh()
-		#time.sleep(0.1)
-		#self.info_overlay.refresh()
+		if True:
+			text = ""
+			try:
+				has_get_value = getattr(wrapper, "get_value", None)
+				if callable(has_get_value):
+					text = "wrapper.get_value(): " + wrapper.get_value()
+			except:
+				has_get_value = False
+				pass
+			if wrapper.legacy_properties()['Value']:
+				if not has_get_value or (has_get_value and wrapper.get_value() != wrapper.legacy_properties()['Value']):
+					if text:
+						text = text + "\n"
+					text = text + " wrapper.legacy_properties()['Value']: " + wrapper.legacy_properties()['Value']
+			str_name, str_type, _, _ = get_entry(end_path.split(path_separator)[-1])
+			try:
+				if str_type in ["Button", "CheckBox", "RadioButton", "GroupBox"]:
+					if text:
+						text = text + "\n"
+					text = text + "wrapper.legacy_properties()['State']: " + str(wrapper.legacy_properties()['State']) + "\n"
+					# l'un ou l'autre fonctionne mais pas les 2 en même temps! Pourquoi?
+					#text = text + "wrapper.get_toggle_state(): " + str(wrapper.get_toggle_state()) + "\n"
+					
+					
+					from pywinauto.controls.win32_controls import ButtonWrapper
+					text = text + "ButtonWrapper(wrapper).is_checked(): " + str(ButtonWrapper(wrapper).is_checked()) + "\n"
+					
+				elif str_type in ["ComboBox"]:
+					from pywinauto.controls.win32_controls import ComboBoxWrapper
+					if text:
+						text = text + "\n"
+						text = text + " ComboBoxWrapper(wrapper).selected_text(): " + str(ComboBoxWrapper(wrapper).selected_text()) + "\n"
+				elif str_type in ["Edit"]:
+					if text:
+						str_wrapper_text_block = str(wrapper.text_block())
+						if str_wrapper_text_block != str_name:
+							text = text + "\n"
+							text = text + "wrapper.text_block(): " + str_wrapper_text_block + "\n"
+			except:
+				pass
+			tooltip3_height = tooltip_height
+			text3 = ''
+			text_width = 0
+			for c in text:
+				if c == '\n':
+					text_width = 0
+					tooltip3_height = tooltip3_height + 16
+				else:
+					text_width = text_width + 6.8
+				text3 = text3 + c
+				if text_width > tooltip_width:
+					text3 = text3 + '\n'
+					text_width = 0
+					tooltip3_height = tooltip3_height + 16
+			if text3:
+				self.info_overlay.add(
+					geometry=oaam.Shape.rectangle, x=info_left, y=info_top - 4 + tooltip_height + tooltip2_height, width=tooltip_width,
+					height=tooltip3_height, thickness=1, color=(0, 0, 0), brush=oaam.Brush.solid, brush_color=(2, 254, 255))
+				self.info_overlay.add(
+					x=info_left + 5, y=info_top + tooltip_height + tooltip2_height, width=tooltip_width-7,
+					height=tooltip3_height-5,
+					text=text3,
+					text_format="win32con.DT_LEFT|win32con.DT_TOP|win32con.DT_WORDBREAK|win32con.DT_NOCLIP|win32con.DT_VCENTER",
+					font_size=16, text_color=(0, 0, 0), brush=oaam.Brush.solid, brush_color=(2, 254, 255),
+					geometry=oaam.Shape.rectangle, thickness=0
+				)
+		loop_duration = time.time() - self._loop_t0
+		while loop_duration < 0.1:
+			time.sleep(0.01)
+			loop_duration = time.time() - self._loop_t0
+		self.info_overlay.refresh()
 
 	def run(self):
 		import comtypes.client
@@ -841,8 +867,8 @@ class Recorder(Thread):
 		i_strategy = 0
 		while self.mode != "Quit":
 			try:
+				self._loop_t0 = time.time()
 				self.main_overlay.clear_all()
-				# self.info_overlay.clear_all()
 				x, y = win32api.GetCursorPos()
 				wrapper = self.desktop.from_point(x, y)
 				if wrapper is None:
@@ -899,11 +925,9 @@ class Recorder(Thread):
 				elif self.mode == "Play":
 					while self.mode == "Play":
 						self.info_overlay.clear_all()
-						self.info_overlay2.clear_all()
 						self.main_overlay.clear_all()
 						overlay_add_mode_icon(self.main_overlay, IconSet.hicon_play, 10, 10)
 						self.info_overlay.refresh()
-						self.info_overlay2.refresh()
 						self.main_overlay.refresh()
 						time.sleep(1.0)
 				#elif self.mode == "Info":
@@ -911,12 +935,10 @@ class Recorder(Thread):
 				elif self.mode == "Stop":
 					while self.mode == "Stop":
 						self.info_overlay.clear_all()
-						self.info_overlay2.clear_all()
 						self.main_overlay.clear_all()
 						overlay_add_mode_icon(self.main_overlay, IconSet.hicon_stop, 10, 10)
 						time.sleep(0.1)
 						self.info_overlay.refresh()
-						self.info_overlay2.refresh()
 						self.main_overlay.refresh()
 						time.sleep(1.0)
 				if self.mode in ["Record", "Info"]:
@@ -928,22 +950,21 @@ class Recorder(Thread):
 					overlay_add_mode_icon(self.main_overlay, IconSet.hicon_light_on, 10 + 60 * nb_icons, 10)
 					nb_icons = nb_icons + 1
 				i = i + 1
-				
-				if self.mode=="Info":
-					self.__display_info_tip(x, y, wrapper)
 				self.main_overlay.refresh()
-				#self.info_overlay.refresh()
-				self.info_overlay.refresh()
-				time.sleep(0.005)  # main_overlay.clear_all() doit attendre la fin de main_overlay.refresh()
+				if self.mode == "Info":
+					self.__display_info_tip(x, y, wrapper)
+				
+				#time.sleep(0.005)  # main_overlay.clear_all() doit attendre la fin de main_overlay.refresh()
 			except Exception as e:
 				exc_type, exc_value, exc_traceback = sys.exc_info()
 				print(repr(traceback.format_exception(exc_type, exc_value, exc_traceback)))
-		self.main_overlay.clear_all()
-		self.main_overlay.refresh()
+				self.common_path_info_tip = ""
+				self.wrapper_old_info_tip = None
 		if self.event_list:
 			self.stop_recording()
 		mouse.unhook_all()
 		keyboard.unhook_all()
+		self.quit()
 		print("Run end")
 
 	@property
@@ -983,10 +1004,8 @@ class Recorder(Thread):
 		self.event_list = [mouse.MoveEvent(x, y, time.time())]
 		overlay_add_mode_icon(self.main_overlay, IconSet.hicon_record, 10, 10)
 		self.info_overlay.clear_all()
-		self.info_overlay2.clear_all()
 		self.main_overlay.clear_all()
 		self.main_overlay.refresh()
-		self.info_overlay2.refresh()
 		self.info_overlay.refresh()
 		self.mode = "Record"
 
@@ -1014,10 +1033,8 @@ class Recorder(Thread):
 
 	def quit(self):
 		self.info_overlay.clear_all()
-		self.info_overlay2.clear_all()
 		self.main_overlay.clear_all()
 		self.main_overlay.refresh()
-		self.info_overlay2.refresh()
 		self.info_overlay.refresh()
 		self.mode = 'Quit'
 		print("Quit")

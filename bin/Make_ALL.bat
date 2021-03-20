@@ -36,7 +36,7 @@ rmdir win32com /s /q
 
 REM Copy Icons\*.ico in pywinauto_recorder.dist
 MKDIR  Icons
-xcopy /y ..\..\Icons\*.ico .\Icons
+xcopy /y ..\..\pywinauto_recorder\Icons\*.ico .\Icons
 
 
 REM Copy clear_comtypes_cache.exe

@@ -1,5 +1,5 @@
 !include "MUI2.nsh"
-!define MUI_ICON "..\Icons\IconPyRec.ico"
+!define MUI_ICON "..\pywinauto_recorder\Icons\IconPyRec.ico"
 
 !define ZIP2EXE_COMPRESSOR_SOLID
 !define ZIP2EXE_COMPRESSOR_LZMA
