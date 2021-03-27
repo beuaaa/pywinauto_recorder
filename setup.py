@@ -58,5 +58,7 @@ setup(
         'Topic :: Software Development :: Testing',
         'Topic :: Software Development :: User Interfaces',
         'Topic :: Software Development :: Quality Assurance',
-    ]
+    ],
+    include_package_data=True,
+    package_data={'': ['Icons/*.ico']},
 )
