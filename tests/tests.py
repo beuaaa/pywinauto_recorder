@@ -40,12 +40,20 @@ class TestMouseMethods(unittest.TestCase):
 		""" Tests the precision of the relative coordinates in an element"""
 		with Window("Untitled - Paint||Window"):
 			find().set_focus()
+			
+			left_click("*->||Custom->Home||Custom->Image||ToolBar->Resize||Button")
+			with Region("Resize and Skew||Window"):
+				left_click("Pixels||RadioButton")
+				left_click("Resize Horizontal||Edit")
+				set_text("Resize Horizontal||Edit", "1900")
+
 			left_click("*->||Custom->Home||Custom->Tools||ToolBar->Pencil||Button")
 			send_keys("{VK_LWIN down}""{VK_UP}""{VK_LWIN up}")
 			wrapper = move("||Pane->Using Pencil tool on Canvas||Pane")
 		
 		time.sleep(1)
 		recorder = Recorder()
+		recorder.relative_coordinate_mode = True
 		recorder.start_recording()
 		time.sleep(2.0)
 		for i in range(9):
