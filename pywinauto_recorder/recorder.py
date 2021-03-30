@@ -953,8 +953,8 @@ class Recorder(Thread):
 				self.main_overlay.refresh()
 				if self.mode == "Info":
 					self.__display_info_tip(x, y, wrapper)
-				
-				#time.sleep(0.005)  # main_overlay.clear_all() doit attendre la fin de main_overlay.refresh()
+				else:
+					time.sleep(0.005)  # main_overlay.clear_all() doit attendre la fin de main_overlay.refresh()
 			except Exception as e:
 				exc_type, exc_value, exc_traceback = sys.exc_info()
 				print(repr(traceback.format_exception(exc_type, exc_value, exc_traceback)))
