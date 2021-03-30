@@ -128,8 +128,8 @@ Window = Region
 
 
 def find(
-        element_path: UI_Element,
-        timeout: float = 120) -> UI_Element:
+        element_path: Optional[UI_Element] = None,
+        timeout: Optional[float] = 120) -> UI_Element:
     """
     Finds an element
 
@@ -696,7 +696,9 @@ def select_file(
     folder = p.parent
     filename = p.name
     with Region(element_path, regex_title=True):
-        left_click(find().descendants(title="All locations", control_type="SplitButton")[0])
+        wrapper = find()
+        wait_is_ready_try1(wrapper)
+        left_click(wrapper.descendants(title="All locations", control_type="SplitButton")[0])
         if not force_slow_path_typing:
             send_keys("{VK_CONTROL down}""c""{VK_CONTROL up}")
         if force_slow_path_typing or pathlib.Path(pyperclip.paste()) != folder:
