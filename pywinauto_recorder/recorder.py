@@ -920,7 +920,6 @@ class Recorder(Thread):
 				nb_icons = 0
 				if self.mode == "Record":
 					overlay_add_mode_icon(self.main_overlay, IconSet.hicon_record, 10, 10)
-					#overlay_add_record_icon(self.main_overlay, 10, 10)
 					nb_icons = nb_icons + 1
 				elif self.mode == "Play":
 					while self.mode == "Play":
@@ -930,8 +929,6 @@ class Recorder(Thread):
 						self.info_overlay.refresh()
 						self.main_overlay.refresh()
 						time.sleep(1.0)
-				#elif self.mode == "Info":
-				#	overlay_add_pause_icon(self.main_overlay, 10, 10)
 				elif self.mode == "Stop":
 					while self.mode == "Stop":
 						self.info_overlay.clear_all()
@@ -944,6 +941,7 @@ class Recorder(Thread):
 				if self.mode in ["Record", "Info"]:
 					overlay_add_progress_icon(self.main_overlay, i, 10+60*nb_icons, 10)
 					nb_icons = nb_icons + 1
+				if self.mode == "Info":
 					overlay_add_mode_icon(self.main_overlay, IconSet.hicon_search, 10 + 60 * nb_icons, 10)
 					nb_icons = nb_icons + 1
 				if self.smart_mode:
