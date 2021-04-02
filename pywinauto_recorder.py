@@ -283,9 +283,9 @@ def display_splash_screen():
 	x, y = win32api.GetCursorPos()
 	if (splash_left < x < splash_right) and (splash_top < y < splash_bottom):
 		mouse_was_splash_screen = True
-		message_to_continue = 'To continue: move the mouse cursor out of this splash screen'
+		message_to_continue = 'To continue: move the mouse cursor out of this window'
 	else:
-		message_to_continue = 'To continue: move the mouse cursor over this splash screen'
+		message_to_continue = 'To continue: move the mouse cursor over this window'
 
 	py_rec_icon_rect = (splash_left + splash_width / 2 - 200 / 2, splash_top + 30, 200, 100)
 	overlay_add_pywinauto_recorder_icon(splash_background, py_rec_icon_rect[0], py_rec_icon_rect[1])
