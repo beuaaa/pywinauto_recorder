@@ -557,6 +557,7 @@ class Recorder(Thread):
 		self.desktop = pywinauto.Desktop(backend='uia', allow_magic_lookup=False)
 		self.daemon = True
 		self.event_list = []
+		self._copy_count = 0
 		self._mode = "Info"
 		self._process_menu_click_mode = True
 		self._smart_mode = False
@@ -664,15 +665,11 @@ class Recorder(Thread):
 				and keyboard.key_to_scan_codes("shift")[0] in keyboard._pressed_events
 				and keyboard.key_to_scan_codes("ctrl")[0] in keyboard._pressed_events):
 			if self.last_element_event:
+				self._copy_count = 2
 				x, y = win32api.GetCursorPos()
 				l_e_e = self.last_element_event
 				dx, dy = compute_dx_dy(x, y, l_e_e.rectangle)
 				str_dx, str_dy = "{:.2f}".format(round(dx * 100, 2)), "{:.2f}".format(round(dy * 100, 2))
-				#self.info_overlay.add(
-				#	geometry=oaam.Shape.image, hicon=IconSet.hicon_clipboard, x=x, y=l_e_e.rectangle.top - 70)
-				info_left = (dx+1)/2 * (self.screen_width - 500)
-				info_top = (dy+1)/2 * (self.screen_height - 50)
-				overlay_add_mode_icon(self.info_overlay, IconSet.hicon_clipboard, info_left, info_top)
 				i = l_e_e.path.find(path_separator)
 				window_title = l_e_e.path[0:i]
 				# element_path = l_e_e.path[i+len(path_separator):]
@@ -807,6 +804,7 @@ class Recorder(Thread):
 						if str_wrapper_text_block != str_name:
 							text = text + "\n"
 							text = text + "wrapper.text_block(): " + str_wrapper_text_block + "\n"
+
 			except:
 				pass
 			tooltip3_height = tooltip_height
@@ -947,6 +945,10 @@ class Recorder(Thread):
 				if self.smart_mode:
 					overlay_add_mode_icon(self.main_overlay, IconSet.hicon_light_on, 10 + 60 * nb_icons, 10)
 					nb_icons = nb_icons + 1
+				if self._copy_count > 0:
+					overlay_add_mode_icon(self.main_overlay, IconSet.hicon_clipboard, 10 + 60 * nb_icons, 10)
+					nb_icons = nb_icons + 1
+					self._copy_count = self._copy_count - 1
 				i = i + 1
 				self.main_overlay.refresh()
 				if self.mode == "Info":
