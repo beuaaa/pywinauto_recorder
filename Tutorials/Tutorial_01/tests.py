@@ -10,11 +10,18 @@ from pathlib import Path
 
 
 if __name__ == '__main__':
+	os.chdir(os.path.dirname(os.path.abspath(__file__)))
+
 	brian = Voice(name='Brian')
+	obs = OBSStudio()
 
-	obs = OBSStudio(
-		r'D:\workbench-2020\Software\AutomatedValidation\SE-VALIDATION\OBSStudio\OBS-Studio-22.0.2-Full-x64\bin\64bit\obs64.exe')
-
+	###############################################
+	# Remove Pywinauto Recorder icon from desktop #
+	###############################################
+	pr_icon_path = Path.home() / Path("Desktop") / Path("Pywinauto recorder")
+	if pr_icon_path.is_file():
+		pr_icon_path.unlink()
+	
 	###############################################################################
 	# Remove Downloads\pywinauto_recorder.dist.zip and R:\pywinauto_recorder.dist #
 	###############################################################################
@@ -46,10 +53,10 @@ if __name__ == '__main__':
 	screen_zoom_in()
 	brian.say("Hi, let me introduce you to 'Pywinauto recorder'.")
 	with Window(u"New Tab - Google Chrome (Guest)||Pane"):
-		left_click(u"Google Chrome||Pane->||Pane->||Pane->||Pane->Address and search bar||Edit%(-38.88,-23.33)")
+		left_click("*->Address and search bar||Edit%(-99,-23.33)")
 
 	brian.say("Go to pywinauto-recorder dot read the docs dot io")
-	send_keys(u"pywinauto-recorder.readthedocs.io""{ENTER}", pause=0.15, vk_packet=True)
+	send_keys("pywinauto-recorder.readthedocs.io""{ENTER}", pause=0.15, vk_packet=True)
 	screen_zoom_out()
 
 
@@ -61,13 +68,12 @@ if __name__ == '__main__':
 	########################################################
 	# Wait page to be ready and click on the download link #
 	########################################################
-	pywinauto_recorder_documentation_page = u"Description — Python documentation - Google Chrome (Guest)||Pane"
+	pywinauto_recorder_documentation_page = "Description — pywinauto_recorder documentation - Google Chrome (Guest)||Pane"
 	with Window(pywinauto_recorder_documentation_page):
 		button_wrapper = None
 		while not button_wrapper:
 			try:
-				button_wrapper = find(
-					"*->https://raw.githubusercontent.com/beuaaa/pywinauto_recorder/master/Images/Download.png?sanitize=true||Hyperlink#[0,0]")
+				button_wrapper = find("*->||Group->Download installer||Hyperlink")
 			except IndexError:
 				pass
 		left_click(
@@ -76,9 +82,9 @@ if __name__ == '__main__':
 	brian.say("""
 	"Pywinauto recorder" is a unique "record-replay" tool in the open source field because it generates reliable scripts without hard-coded coordinates thanks to Pywinauto.
 	Pywinauto is a library that uses accessibility technologies allowing you to automate almost any type of GUI.
-	The functions of the generated Python script return Pywinauto wrappers so it can be enhanced with Pywinauto functions.
+	The functions of the generated Python script return Pywinauto wrappers so it can be enhanced with Pywinauto methods.
 	""")
-	brian.say("Let's get started! Download Pywinauto recorder for Windows on this web page")
+	brian.say("Let's get started! Download Pywinauto recorder installer for 64-bit Windows on this web page")
 	#send_keys("{PGDN}")
 	time.sleep(1)
 	highlight(button_wrapper, color=(0, 0, 255))
@@ -109,23 +115,24 @@ if __name__ == '__main__':
 		time.sleep(1)
 		send_keys("{ENTER}")
 	speech = """
-    When you run Pywinauto Recorder it starts with this splash screen.
+    When you run Pywinauto Recorder it starts with this window.
     It contains some helpfull informations.
     All actions can be triggered by a keyboard shortcut or by clicking in the tray menu.
-    This splash screen is closed my moving the mouse outside.
+    This window is closed my moving the mouse outside.
 	"""
 	brian.say(speech, wait_until_the_end_of_the_sentence=True)
 	move((0, 0))
 	speech = """
-	It is runnning displaying element information.
+	Now It is running in inspection mode.
 	In this mode represented by the magnifying glass icon displayed in the top left corner of the screen,
-	Pywinauto Recorder colors green the interface elements it can identify under the mouse cursor.
+	Pywinauto Recorder colors green the UI element it can identify under the mouse cursor.
 		"""
 	brian.say(speech)
 	# admin
 	with Window(u"Pywinauto recorder Setup ||Window"):
 		move("||TitleBar")
 		time.sleep(1)
+		brian.say("The mouse cursor can be moved around the installer and Pywinauto recorder shows UI element information in real time based on what UI element the cursor is hovering over.")
 		move("||TitleBar->Minimize||Button")
 		time.sleep(1)
 		move("||TitleBar->Maximize||Button")
@@ -140,6 +147,7 @@ if __name__ == '__main__':
 		time.sleep(1)
 		move("||ProgressBar") # get value 100%
 		time.sleep(1)
+		brian.say("For instance this progress bar is interesting because Pywinauto recorder informs you that you can use a Pywinauto method to retrieve the progress percentage.", wait_until_the_end_of_the_sentence=True)
 		left_click("Show details||Button")
 		move("Completed||List->Completed||ListItem->Completed||Text", duration=3)
 		move("< Back||Button")
@@ -226,13 +234,17 @@ if __name__ == '__main__':
 			click(button='right')
 	with Window(u"Context||Menu"):
 		left_click(u"Start replaying clipboard||MenuItem")
-	time.sleep(9)
+	time.sleep(1)
+	brian.say("Now it's replaying.")
+	time.sleep(8)
 
 	####################################
 	# Open 'Pywinauto Recorder' folder #
 	####################################
 	brian.say("The generated file is in 'Pywinauto Recorder' folder under your home folder.")
+	time.sleep(1.5)
 	send_keys("{VK_LWIN}")
+	time.sleep(1.5)
 	with Window(u"Taskbar||Pane"):
 		with Region(u"||Pane"):
 			left_click(u"Notification Chevron||Button")
@@ -248,7 +260,7 @@ if __name__ == '__main__':
 		time.sleep(0.5)
 		send_keys("{LWIN down}""{VK_RIGHT}""{LWIN up}")
 	with Window(u"Snap Assist||Window"):
-		left_click("*->Description — Python documentation - Google Chrome||ListItem->Close||Button")
+		left_click("*->Description — pywinauto_recorder documentation - Google Chrome||ListItem->Close||Button")
 		left_click("Dismiss Task Switching Window||Button%(95,-98)")
 
 	############################
@@ -265,7 +277,7 @@ if __name__ == '__main__':
 	right_click(drag_and_drop_start)
 	with Window(u"Context||Menu"):
 		with Region():
-			left_click(u"Edit with Notepad++||MenuItem%(-32.11,14.29)")
+			left_click(u"Edit with Notepad++||MenuItem%(-64.22,28.58)")
 	time.sleep(0.5)
 	send_keys("{VK_LWIN down}""{VK_UP}""{VK_LWIN up}")
 	brian.say("You can see that it is an easy to read Python script.")
@@ -298,6 +310,7 @@ if __name__ == '__main__':
 	################################
 	# Close pywinauto_recorder.exe #
 	################################
+	time.sleep(1.5)
 	send_keys("{VK_LWIN}")
 	time.sleep(1.5)
 	with Window("Taskbar||Pane"):
@@ -315,7 +328,7 @@ if __name__ == '__main__':
 	# Drag and drop the recorded file on pywinauto_recorder.exe #
 	#############################################################
 	with Window(u"C:\\\\Users\\\\.*\\\\Pywinauto recorder||Window", regex_title=True):
-		drag_and_drop_start = left_click("*->Shell Folder View||Pane->Items View||List->||ListItem->Name||Edit#[0,0]")
+		drag_and_drop_start = find("*->Shell Folder View||Pane->Items View||List->||ListItem->Name||Edit#[0,0]")
 		drag_and_drop_start.draw_outline(colour='blue')
 	with Window(u"||List"):
 		drag_and_drop_end = find(u"Pywinauto recorder||ListItem")
@@ -324,10 +337,10 @@ if __name__ == '__main__':
 	drag_and_drop(drag_and_drop_start, drag_and_drop_end)
 	brian.say("""
 		Now Pywinauto recorder is replaying. You can see the Replay icon in the top left corner of the screen.
-		The actions we recorded in the Python script are going to be replayed and the three draw outline functions we've just added are going to be called.
+		The actions we recorded in the Python script have been replayed and the three draw outline functions we've just added have been called.
 		""")
-	time.sleep(25)
-	brian.say("Thank you for watching!", wait_until_the_end_of_the_sentence=True)
+	time.sleep(15)
+	brian.say("Thanks for watching! In the next tutorial, you will see how to make a robust recorded script. See you soon!", wait_until_the_end_of_the_sentence=True)
 
 	obs.stop_recording()
 	obs.quit()
