@@ -37,7 +37,7 @@ Usage
 .. raw:: html
 
     <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; height: auto;">
-        <iframe src="https://www.youtube.com/embed/-7W-rOvUjdE" frameborder="0" allowfullscreen style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></iframe>
+        <iframe src="https://www.youtube.com/embed/GQiT5w4dzgE" frameborder="0" allowfullscreen style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></iframe>
     </div>
 
 .. warning::  Pywinauto_recorder_exe does not work on all PCs. If it doesn't work use the Python version. Help me to find a solution by filling this form_.
