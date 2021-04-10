@@ -10,7 +10,7 @@ BLOCK "StringFileInfo"
 	BLOCK "000004B0"
 	{
 		VALUE "ProductName", "Pywinauto Recorder"
-		VALUE "ProductVersion", "0.4.3" 
+		VALUE "ProductVersion", "0.4.4" 
 	}
 }
 
