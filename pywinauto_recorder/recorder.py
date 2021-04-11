@@ -841,6 +841,7 @@ class Recorder(Thread):
 
 	def run(self):
 		import comtypes.client
+		print("")
 		print("COMPTYPES CACHE FOLDER:", comtypes.client._code_cache._find_gen_dir())
 		
 		dir_path = os.path.dirname(os.path.realpath(__file__))

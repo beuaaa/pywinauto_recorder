@@ -240,6 +240,23 @@ def overlay_add_pywinauto_recorder_icon(overlay, x, y):
 
 
 def display_splash_screen():
+	import urllib.request
+	import urllib.error
+	from pywinauto_recorder import __version__
+	url_version = "https://raw.githubusercontent.com/beuaaa/pywinauto_recorder/master/bin/VersionInfo.rc"
+	latest_version = __version__
+	try:
+		with urllib.request.urlopen(url_version) as f:
+			line = f.read().decode('utf-8')
+		latest_version = line.split('ProductVersion')[1].split('"')[2]
+	except urllib.error.URLError:
+		pass
+	
+	if __version__ == latest_version:
+		print("Your Pywinauto recorder is up to date.")
+	else:
+		print("Pywinauto recorder v" + latest_version + " is available!")
+
 	splash_foreground = oaam.Overlay(transparency=0.0)
 	time.sleep(0.2)
 	splash_background = oaam.Overlay(transparency=0.1)
@@ -248,7 +265,10 @@ def display_splash_screen():
 	nb_band = 24
 	line_height = 22.4
 	text_lines = [''] * nb_band
-	text_lines[6] = 'Pywinauto recorder ' + __version__
+	if __version__ == latest_version:
+		text_lines[6] = 'Pywinauto recorder ' + __version__
+	else:
+		text_lines[6] = 'Your version of Pywinauto recorder (' +  __version__ + ') is not up to date (' + latest_version + ' is available!)'
 	text_lines[7] = 'by David Pratmarty'
 	text_lines[9] = 'Record / Stop                            Smart mode On / Off'
 	text_lines[10] = 'CTRL+ALT+R                                      CTRL+ALT+S'
@@ -395,7 +415,6 @@ if __name__ == '__main__':
 	else:
 		from pywinauto_recorder.player import *
 		from pywinauto_recorder.recorder import *
-		from pywinauto_recorder import __version__
 		from win32api import GetSystemMetrics
 		
 		display_splash_screen()
