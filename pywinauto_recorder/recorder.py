@@ -784,6 +784,7 @@ class Recorder(Thread):
 		The function is called in a loop, and it tries to find the unique element under the mouse cursor.
 		"""
 		import comtypes.client
+		print("")
 		print("COMPTYPES CACHE FOLDER:", comtypes.client._code_cache._find_gen_dir())
 		
 		dir_path = os.path.dirname(os.path.realpath(__file__))
