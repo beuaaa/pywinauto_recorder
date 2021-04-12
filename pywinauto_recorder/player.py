@@ -42,13 +42,14 @@ element_path_old = ''
 w_rOLD = None
 
 
-def load_dictionary(filename: str) -> None:
+def load_dictionary(filename: str, encoding: str = 'utf8') -> None:
     """
     Loads a dictionary
 
-    :param filename:filename of the dictionary
+    :param filename: filename of the dictionary
+    :param encoding: encoding of the dictionary file
     """
-    with open(filename) as fp:
+    with open(filename, encoding=encoding) as fp:
         for line in fp:
             words = line.split("\t")
             i = 0
