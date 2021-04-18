@@ -19,16 +19,21 @@ File /r pywinauto_recorder.dist\*.*
 Section
 	# define output path
 	SetOutPath $INSTDIR
-	CreateDirectory "$INSTDIR\Pywinauto recorder"
-	CreateShortCut "$INSTDIR\Pywinauto recorder\Pywinauto recorder.lnk" "$INSTDIR\pywinauto_recorder.exe"
-
-
+	
+	SetShellVarContext all
+	
+	# create Pywinauto recorder folder entry in Start menu
+	CreateDirectory "$SMPROGRAMS\Pywinauto recorder"
+	
+	# create Pywinauto recorder\Pywinauto recorder.lnk entry in Start menu
+	CreateShortCut "$SMPROGRAMS\Pywinauto recorder\Pywinauto recorder.lnk" "$INSTDIR\pywinauto_recorder.exe"
+	
 	# define uninstaller
 	WriteUninstaller $INSTDIR\uninstall_Pywinauto_recorder.exe
-	CreateShortCut "$INSTDIR\Pywinauto recorder\Uninstall.lnk" "$INSTDIR\uninstall_Pywinauto_recorder.exe"
 
-	CreateShortcut "$SMPROGRAMS\Pywinauto recorder.lnk" "$INSTDIR\Pywinauto recorder"
-	 
+	# create Pywinauto recorder\ywinauto recorder.lnk entry in Start menu
+	CreateShortCut "$SMPROGRAMS\Pywinauto recorder\Uninstall Pywinauto recorder.lnk" "$INSTDIR\uninstall_Pywinauto_recorder.exe"
+
 	#-------
 	# default section end
 SectionEnd
@@ -40,8 +45,10 @@ Section "Uninstall"
 	# Delete the directory
 	MessageBox MB_OKCANCEL|MB_ICONEXCLAMATION "Are you sure you want to delete $INSTDIR" /SD IDCANCEL IDOK OK IDCANCEL CANCEL
 		OK:
+			SetShellVarContext all
 			RMDir /r $INSTDIR
 			Delete "$DESKTOP\Pywinauto recorder.lnk"
+			RMDir /r "$SMPROGRAMS\Pywinauto recorder"
 			goto end_uninstall
 		CANCEL:
 			Abort
@@ -53,7 +60,7 @@ Section "Desktop Shortcut" SectionX
 	# Create shortcut on desktop
 	MessageBox MB_OKCANCEL "Do you want to add Pywinauto recorder shortcut on desktop?" /SD IDCANCEL IDOK OK IDCANCEL CANCEL
 		OK:
-			SetShellVarContext current
+			SetShellVarContext all
 			CreateShortCut "$DESKTOP\Pywinauto recorder.lnk" "$INSTDIR\pywinauto_recorder.exe"
 			goto end_create_shortcut_on_desktop
 		CANCEL:

@@ -1,18 +1,18 @@
-Calculator||Window->Calculator||Window->||Group			Calculator
-	Number pad||Group									Number pad
-		Zero||Button									Zero
-		One||Button										One
-		Two||Button										Two
-		Three||Button									Three
-		Four||Button									Four
-		Five||Button									Five
-		Six||Button										Six
-		Seven||Button									Seven
-		Eight||Button									Eight
-		Nine||Button									Nine
-	Standard operators									Standard operators
-		Divide by||Button								Divide by
-		Multiply by||Button								Multiply by
-		Minus||Button									Minus
-		Plus||Button									Plus
-		Equals||Button									Equals
+Calculator			:	Calculator||Window->Calculator||Window->||Group
+Number pad			:		Number pad||Group
+0					:			Zero||Button
+1					:			One||Button
+2					:			Two||Button
+3					:			Three||Button
+4					:			Four||Button
+5					:			Five||Button
+6					:			Six||Button
+7					:			Seven||Button
+8					:			Eight||Button
+9					:			Nine||Button
+Standard operators	:		Standard operators
+/					:			Divide by||Button
+*					:			Multiply by||Button
+-					:			Minus||Button
++					:			Plus||Button
+=					:			Equals||Button

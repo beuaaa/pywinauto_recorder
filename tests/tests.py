@@ -270,13 +270,13 @@ def test_dictionary():
 	time.sleep(1)
 	with Window(shortcut("Calculator")):
 		with Region(shortcut("Number pad")):
-			left_click(shortcut("One"))
+			left_click(shortcut("1"))
 		with Region(shortcut("Standard operators")):
-			left_click(shortcut("Plus"))
+			left_click(shortcut("+"))
 		with Region(shortcut("Number pad")):
-			left_click(shortcut("Two"))
+			left_click(shortcut("2"))
 		with Region(shortcut("Standard operators")):
-			left_click(shortcut("Equals"))
+			left_click(shortcut("="))
 	display = None
 	with Window(shortcut("Calculator")):
 		results = find().children(control_type='Text')

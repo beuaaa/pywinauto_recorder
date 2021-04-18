@@ -358,7 +358,7 @@ def display_splash_screen():
 	splash_background.refresh()
 
 
-def replay(str_code):
+def replay(str_code, filename=''):
 	if recorder:
 		recorder.mode = "Play"
 	else:
@@ -372,10 +372,10 @@ def replay(str_code):
 		exc_type, exc_value, exc_traceback = sys.exc_info()
 		output = traceback.format_exception(exc_type, exc_value, exc_traceback)
 		for line in output:
-			if 'SyntaxError' in output[-1]:
+			if 'Error' in output[-1]:
 				if not '.py' in line:
 					if 'File "<string>", line ' in line:
-						print(line.split(',')[1])
+						print('File "' + filename + '"' + line.split(',')[1])
 					else:
 						print(line)
 			else:
@@ -407,7 +407,7 @@ if __name__ == '__main__':
 			with codecs.open(args.filename, "r", encoding='utf-8') as python_file:
 				data = python_file.read()
 			print("Replaying: " + args.filename)
-			replay(data)
+			replay(data, args.filename)
 		else:
 			print("Error: file '" + args.filename + "' not found.")
 			input("Press Enter to continue...")
