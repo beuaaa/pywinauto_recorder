@@ -49,25 +49,41 @@ def load_dictionary(filename: str, encoding: str = 'utf8') -> None:
     :param filename: filename of the dictionary
     :param encoding: encoding of the dictionary file
     """
+    abs_path = [x for x in range(99)]
     with open(filename, encoding=encoding) as fp:
         for line in fp:
             words = line.split("\t")
+            word = words[0]
             i = 0
-            while words[i] == '':
+            while words[i] != ':':
                 i += 1
-            variable = words[-1].translate(str.maketrans('', '', '\n\t\r'))
-            value = words[i]
-            _dictionary[variable] = value
+            level = len(words)-2-i
+            #print(level)
+            definition = words[-1].translate(str.maketrans('', '', '\n\t\r'))
+            abs_path[level] = definition
+            abs_definition = abs_path[0]
+            for i in range(1, level):
+                abs_definition +=  path_separator + abs_path[i]
+            #print(abs_definition + path_separator + definition)
+            _dictionary[word] = (abs_definition, definition)
 
 
 def shortcut(str_shortcut: str) -> str:
     """
-    Returns the element_path associated to th shortcut in the previously loaded dictionary
+    Returns the shortcut path associated to the shortcut defined in the previously loaded dictionary
 
     :param str_shortcut: shortcut
     """
-    return _dictionary[str_shortcut]
+    return _dictionary[str_shortcut][1]
 
+
+def full_definition(str_shortcut: str) -> str:
+    """
+    Returns the full element path associated to the shortcut defined in the previously loaded dictionary
+
+    :param str_shortcut: shortcut
+    """
+    return _dictionary[str_shortcut][0] + path_separator + _dictionary[str_shortcut][1]
 
 def wait_is_ready_try1(wrapper, timeout=120):
     """
