@@ -66,9 +66,6 @@ def write_in_file(events, relative_coordinate_mode=False, menu_click=False):
 	record_file_name = home_dir / Path('recorded ' + time.asctime().replace(':', '_') + '.py')
 	print('Recording in file: ' + str(record_file_name.absolute()))
 	script = "# encoding: {}\n\n".format(sys.getdefaultencoding())
-	script += u"import os, sys\n"
-	script += u"script_dir = os.path.dirname(__file__)\n"
-	script += u"sys.path.append(script_dir)\n"
 	script += "from pywinauto_recorder.player import *\n\n"
 	common_path = ''
 	common_window = ''
@@ -968,7 +965,7 @@ class Recorder(Thread):
 			self.stop_recording()
 		mouse.unhook_all()
 		keyboard.unhook_all()
-		self.quit()
+		#self.quit()
 		print("Run end")
 
 	@property
@@ -1041,4 +1038,5 @@ class Recorder(Thread):
 		self.main_overlay.refresh()
 		self.info_overlay.refresh()
 		self.mode = 'Quit'
+		self.join()
 		print("Quit")
