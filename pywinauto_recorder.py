@@ -365,21 +365,25 @@ def replay(str_code, filename=''):
 		main_overlay = oaam.Overlay(transparency=0.5)
 		overlay_add_mode_icon(main_overlay, IconSet.hicon_play, 10, 10)
 	try:
-		compiled_code = compile(str_code, '<string>', 'exec')
-		exit_code = eval(compiled_code)
+		script_dir = os.path.abspath(os.path.dirname(filename))
+		os.chdir(os.path.abspath(script_dir))
+		sys.path.append(script_dir)
+		compiled_code = compile(str_code, filename, 'exec')
+		exec(compiled_code)
 	except Exception as e:
 		windll.user32.ShowWindow(windll.kernel32.GetConsoleWindow(), 3)
 		exc_type, exc_value, exc_traceback = sys.exc_info()
 		output = traceback.format_exception(exc_type, exc_value, exc_traceback)
-		for line in output:
-			if 'Error' in output[-1]:
-				if not '.py' in line:
-					if 'File "<string>", line ' in line:
-						print('File "' + filename + '"' + line.split(',')[1])
-					else:
-						print(line)
-			else:
-				print(line)
+		i_line = d_line = 0
+		full_traceback = False
+		if not full_traceback:
+			for line in output:
+				i_line += 1
+				if "pywinauto_recorder.py" in line:
+					d_line = i_line
+					
+		for line in output[d_line:]:
+			print(line, file=sys.stderr, end='')
 		input("Press Enter to continue...")
 	if recorder:
 		recorder.mode = "Stop"
