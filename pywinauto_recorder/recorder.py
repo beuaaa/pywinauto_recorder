@@ -889,6 +889,8 @@ class Recorder(Thread):
 					unique_candidate, elements = find_element(self.desktop, entry_list, window_candidates=[])
 				strategy = strategies[i_strategy]
 				unique_wrapper_path = None
+				# *** ----> this block of code must start a new while iteration if mouse cursor is outside wrapper rectangle
+				# => add tests to leave if mouse cursor is outside wrapper rectangle
 				if strategy == Strategy.unique_path:
 					if unique_candidate is not None:
 						unique_wrapper_path = get_wrapper_path(unique_candidate)
@@ -912,6 +914,7 @@ class Recorder(Thread):
 					unique_array_2d = self.__find_unique_element_array_2d(wrapper.rectangle(), elements)
 					if unique_array_2d is not None:
 						unique_wrapper_path = wrapper_path + unique_array_2d
+				# <----- ***
 				if unique_wrapper_path is not None:
 					self.last_element_event = ElementEvent(strategy, wrapper.rectangle(), unique_wrapper_path)
 					if self.event_list and unique_wrapper_path is not None:
