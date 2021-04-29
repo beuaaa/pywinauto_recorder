@@ -76,9 +76,10 @@ class TestMouseMethods(unittest.TestCase):
 			
 			win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0)
 			time.sleep(0.5)		# This pause is mandatory for the recorder
+			#wait_recorder_ready(recorder, "||Pane->Using Pencil tool on Canvas||Pane")
 		recorded_file = recorder.stop_recording()
 		recorder.quit()
-		#time.sleep(5.5)
+		# time.sleep(5.5)
 		
 		# The thickness is set to 3px
 		with Window(u"Untitled - Paint||Window"):
@@ -265,7 +266,7 @@ def wait_recorder_ready(recorder, path_end, sleep=0.4):
 
 
 def test_dictionary():
-	load_dictionary("Calculator.dic")
+	load_dictionary("Calculator.key", "Calculator.def")
 	os.system('calc.exe')
 	time.sleep(1)
 	with Window(shortcut("Calculator")):
@@ -305,14 +306,16 @@ class TestCalculator(unittest.TestCase):
 
 	def test_clicks(self):
 		""" Tests the ability to record all clicks """
+		os.system('calc.exe')
+		import win32gui
+		hwnd = win32gui.FindWindow(None, 'Calculator')
+		win32gui.MoveWindow(hwnd, 0, 100, 400, 400, True)
+		
 		start_time = time.time()
-
+		
 		recorder = Recorder()
 		recorder.start_recording()
-
-		time.sleep(0.5)
-		send_keys("{LWIN}Calculator{ENTER}", pause=0.2)
-
+		
 		with Region("Calculator||Window->Calculator||Window->||Group->Number pad||Group"):
 			move("Zero||Button", duration=0)
 			move("One||Button", duration=0)
@@ -336,16 +339,17 @@ class TestCalculator(unittest.TestCase):
 			wait_recorder_ready(recorder, "Six||Button")
 			triple_left_click("Six||Button")
 			triple_left_click("Six||Button")
-
 		with Region("Calculator||Window->Calculator||Window"):
 			move("Close Calculator||Button", duration=0)
 			wait_recorder_ready(recorder, "Close Calculator||Button")
 			left_click("Close Calculator||Button")
 
 		record_file_name = recorder.stop_recording()
-		time.sleep(0.5)
 		recorder.quit()
-
+		
+		duration = time.time() - start_time
+		assert duration < 7, "The duration of this test is " + str(duration) + " s. It must be lower than 7 s"
+		
 		str2num = {"Zero": 0, "One": 1, "Two": 2, "Three": 3, "Four": 4, "Five": 5, "Six": 6}
 		click_count = [0, 0, 0, 0, 0, 0, 0]
 		with open(record_file_name, 'r') as f:
@@ -364,11 +368,8 @@ class TestCalculator(unittest.TestCase):
 			assert click_count[i_number] == i_number
 		os.remove(record_file_name)
 
-		duration = time.time() - start_time
-		assert duration < 11, "The duration of this test is " + str(duration) + " s. It must be lower than 11 s"
-
 	def test_recorder_performance(self):
-		""" Tests the performance of the recorder to find a unique path """
+		""" Tests the performance to find a unique path """
 		recorder = Recorder()
 		os.system('calc.exe')
 		str_num = ["Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"]

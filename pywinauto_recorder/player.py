@@ -42,28 +42,28 @@ element_path_old = ''
 w_rOLD = None
 
 
-def load_dictionary(filename: str, encoding: str = 'utf8') -> None:
+def load_dictionary(filename_key: str, filename_def: str,encoding: str = 'utf8') -> None:
     """
     Loads a dictionary
 
-    :param filename: filename of the dictionary
+    :param filename_key: filename of the key file
+    :param filename_def: filename of the definition file
     :param encoding: encoding of the dictionary file
     """
     abs_path = [x for x in range(99)]
-    with open(filename, encoding=encoding) as fp:
-        for line in fp:
-            words = line.split("\t")
-            word = words[0]
-            i = 0
-            while words[i] != ':':
-                i += 1
-            level = len(words)-2-i
-            #print(level)
+    with open(filename_key, encoding=encoding) as fp_key, open(filename_def, encoding=encoding) as fp_def:
+        for line_key, line_def in zip(fp_key, fp_def):
+            words = line_key.split("\t")
+            word = words[-1].translate(str.maketrans('', '', '\n\t\r'))
+
+            words = line_def.split("\t")
             definition = words[-1].translate(str.maketrans('', '', '\n\t\r'))
+            level = len(words) - 1
+            #print(level)
             abs_path[level] = definition
             abs_definition = abs_path[0]
             for i in range(1, level):
-                abs_definition +=  path_separator + abs_path[i]
+                abs_definition += path_separator + abs_path[i]
             #print(abs_definition + path_separator + definition)
             _dictionary[word] = (abs_definition, definition)
 
@@ -339,11 +339,16 @@ def click(
     :return: Pywinauto wrapper of clicked element
     """
     if element_path:
-        unique_element = move(element_path, duration=duration, mode=mode, timeout=timeout)
-        if wait_ready and isinstance(element_path, str):
-            wait_is_ready_try1(unique_element, timeout=timeout)
+        if duration == 0:
+            wrapper = find(element_path)
+            wrapper.click()
+            return wrapper
         else:
-            unique_element = None
+            wrapper = move(element_path, duration=duration, mode=mode, timeout=timeout)
+            if wait_ready and isinstance(element_path, str):
+                wait_is_ready_try1(wrapper, timeout=timeout)
+            else:
+                wrapper = None
     if button == 'left' or button == 'double_left' or button == 'triple_left':
         win32api_mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0)
         time.sleep(.01)
@@ -364,7 +369,7 @@ def click(
         win32api_mouse_event(MOUSEEVENTF_RIGHTUP, 0, 0)
         time.sleep(.01)
     if element_path:
-        return unique_element
+        return wrapper
     else:
         return None
 
@@ -388,7 +393,6 @@ def left_click(
     if not duration:
         duration = PlayerSettings.mouse_move_duration
     return click(element_path, duration=duration, mode=mode, button='left', timeout=timeout, wait_ready=wait_ready)
-
 
 def right_click(
         element_path: UI_Element,

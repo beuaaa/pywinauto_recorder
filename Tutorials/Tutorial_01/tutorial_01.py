@@ -111,7 +111,8 @@ if __name__ == '__main__':
 	time.sleep(1.5)
 	with Window(u"Pywinauto recorder Setup ||Window"):
 		left_click("Install||Button")
-		left_click("Pywinauto recorder Setup||Window->OK||Button")
+		left_click("Show details||Button")
+		left_click("Pywinauto recorder Setup||Window->Yes||Button")
 		time.sleep(1)
 		send_keys("{ENTER}")
 	speech = """
@@ -139,17 +140,12 @@ if __name__ == '__main__':
 		time.sleep(1)
 		move("||TitleBar->Close||Button")
 		time.sleep(1)
-		move("Installation Complete||Text")
-		time.sleep(1)
-		move("Setup was completed successfully.||Text")
-		time.sleep(1)
-		move("Setup was completed successfully.||Image")
+		wrapper = find("*->Completed||List").get_item(-2)
+		move(wrapper)
 		time.sleep(1)
 		move("||ProgressBar") # get value 100%
 		time.sleep(1)
 		brian.say("For instance this progress bar is interesting because Pywinauto recorder informs you that you can use a Pywinauto method to retrieve the progress percentage.", wait_until_the_end_of_the_sentence=True)
-		left_click("Show details||Button")
-		move("Completed||List->Completed||ListItem->Completed||Text", duration=3)
 		move("< Back||Button")
 		time.sleep(1)
 		move("Close||Button")
@@ -221,17 +217,18 @@ if __name__ == '__main__':
 	brian.say("I press 'alt' 'control' 'r' to stop recording.")
 	send_keys("{VK_CONTROL down}""{VK_MENU down}""r""{VK_MENU up}""{VK_CONTROL up}")
 	brian.say("And click on Start playing in the tray menu.")
-	time.sleep(1.5)
-	send_keys("{VK_LWIN}")
+	#time.sleep(1.5)
+	#send_keys("{VK_LWIN}")
 	time.sleep(1.5)
 	with Window(u"Taskbar||Pane"):
 		with Region(u"||Pane"):
 			left_click(u"Notification Chevron||Button")
 	with Window(u"Notification Overflow||Pane"):
 		with Region(u"Overflow Notification Area||ToolBar"):
-			right_click(u"Pywinauto recorder||Button")
 			time.sleep(0.5)
-			click(button='right')
+			right_click(u"Pywinauto recorder||Button")
+			#time.sleep(0.5)
+			#click(button='right')
 	with Window(u"Context||Menu"):
 		left_click(u"Start replaying clipboard||MenuItem")
 	time.sleep(1)
@@ -242,23 +239,25 @@ if __name__ == '__main__':
 	# Open 'Pywinauto Recorder' folder #
 	####################################
 	brian.say("The generated file is in 'Pywinauto Recorder' folder under your home folder.")
-	time.sleep(1.5)
-	send_keys("{VK_LWIN}")
+	#time.sleep(1.5)
+	#send_keys("{VK_LWIN}")
 	time.sleep(1.5)
 	with Window(u"Taskbar||Pane"):
 		with Region(u"||Pane"):
 			left_click(u"Notification Chevron||Button")
 	with Window(u"Notification Overflow||Pane"):
 		with Region(u"Overflow Notification Area||ToolBar"):
-			right_click(u"Pywinauto recorder||Button")
 			time.sleep(0.5)
-			click(button='right')
+			right_click(u"Pywinauto recorder||Button")
+			#time.sleep(0.5)
+			#click(button='right')
 	with Window(u"Context||Menu"):
 		left_click(u"Open output folder||MenuItem")
 	with Window(u"C:\\\\Users\\\\.*\\\\Pywinauto recorder||Window", regex_title=True):
 		left_click(u"||TitleBar")
 		time.sleep(0.5)
 		send_keys("{LWIN down}""{VK_RIGHT}""{LWIN up}")
+		time.sleep(0.5)
 	with Window(u"Snap Assist||Window"):
 		left_click("*->Description — pywinauto_recorder documentation - Google Chrome||ListItem->Close||Button")
 		left_click("Dismiss Task Switching Window||Button%(95,-98)")

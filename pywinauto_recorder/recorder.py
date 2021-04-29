@@ -516,7 +516,12 @@ def get_send_keys_strings(keyboard_events):
 		return get_typed_keys(keyboard_events)
 
 
+t0_progress_icon_timings = time.time()
+progress_icon_timings = [0, 0, 0, 0, 0, 0, 0]
+
+
 def overlay_add_progress_icon(main_overlay, i, x, y):
+	global t0_progress_icon_timings
 	main_overlay.add(
 		geometry=oaam.Shape.rectangle, x=x, y=y, width=52, height=52,
 		color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 255, 254))
@@ -524,10 +529,19 @@ def overlay_add_progress_icon(main_overlay, i, x, y):
 		geometry=oaam.Shape.triangle,
 		xyrgb_array=((x + 1, y + 1, 255, 255, 254), (x + 1, y + 52, 128, 128, 128), (x + 51, y + 52, 255, 255, 254)),
 		thickness=0)
+	dt = time.time() - t0_progress_icon_timings
+	nb_dt = int(dt/0.01)
+	if nb_dt > 255:
+		nb_dt = int(255)
+	progress_icon_timings[i % 6 -1] = nb_dt
+	
 	for b in range(i % 6):
+		c = progress_icon_timings[b]
 		main_overlay.add(
 			geometry=oaam.Shape.rectangle, x=x + 6, y=y + 6 + b * 8, width=40, height=6,
-			color=(0, 255, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(0, 200, 0))
+			# color=(0, 255, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(0, 200, 0))
+			color=(c, int(255 - c/2), c ), thickness=1, brush=oaam.Brush.solid, brush_color=(c, int(255 - c), 0))
+	t0_progress_icon_timings = time.time()
 
 
 def overlay_add_mode_icon(main_overlay, hicon, x, y):
@@ -730,7 +744,12 @@ class Recorder(Thread):
 				text2 = text2 + '\n'
 				text_width = 0
 				tooltip2_height = tooltip2_height + 16
-		dx, dy = (x - r.left) / r.width(), (y - r.top) / r.height()
+		if r.width() == 0:
+			dx = 0
+		if r.height() == 0:
+			dy = 0
+		else:
+			dx, dy = (x - r.left) / r.width(), (y - r.top) / r.height()
 		info_left = dx * (self.screen_width - tooltip_width)
 		info_top = dy * (self.screen_height - (tooltip_height+tooltip2_height))
 		if x>self.screen_width /2:
@@ -772,11 +791,13 @@ class Recorder(Thread):
 			except:
 				has_get_value = False
 				pass
-			if wrapper.legacy_properties()['Value']:
-				if not has_get_value or (has_get_value and wrapper.get_value() != wrapper.legacy_properties()['Value']):
-					if text:
-						text = text + "\n"
-					text = text + " wrapper.legacy_properties()['Value']: " + wrapper.legacy_properties()['Value']
+			has_legacy_properties = getattr(wrapper, "legacy_properties", None)
+			if callable(has_legacy_properties):
+				if wrapper.legacy_properties()['Value']:
+					if not has_get_value or (has_get_value and wrapper.get_value() != wrapper.legacy_properties()['Value']):
+						if text:
+							text = text + "\n"
+						text = text + " wrapper.legacy_properties()['Value']: " + wrapper.legacy_properties()['Value']
 			str_name, str_type, _, _ = get_entry(end_path.split(path_separator)[-1])
 			try:
 				if str_type in ["Button", "CheckBox", "RadioButton", "GroupBox"]:
@@ -862,6 +883,7 @@ class Recorder(Thread):
 		strategies = [Strategy.unique_path, Strategy.array_2D, Strategy.array_1D]
 		i_strategy = 0
 		while self.mode != "Quit":
+			i = i + 1
 			try:
 				self._loop_t0 = time.time()
 				self.main_overlay.clear_all()
@@ -888,10 +910,16 @@ class Recorder(Thread):
 				unique_wrapper_path = None
 				# *** ----> this block of code must start a new while iteration if mouse cursor is outside wrapper rectangle
 				# => add tests to leave if mouse cursor is outside wrapper rectangle
+				wrapper_rectangle = wrapper.rectangle()
 				if strategy == Strategy.unique_path:
+					x_new, y_new = win32api.GetCursorPos()
+					if not ((wrapper_rectangle.left < x_new < wrapper_rectangle.right) and (
+							wrapper_rectangle.top < y_new < wrapper_rectangle.bottom)):
+						i_strategy = 0
+						continue
 					if unique_candidate is not None:
 						unique_wrapper_path = get_wrapper_path(unique_candidate)
-						r = wrapper.rectangle()
+						r = wrapper_rectangle
 						self.main_overlay.add(
 							geometry=oaam.Shape.rectangle, x=r.left, y=r.top, width=r.width(), height=r.height(),
 							thickness=1, color=(0, 128, 0), brush=oaam.Brush.solid, brush_color=(0, 255, 0))
@@ -902,12 +930,22 @@ class Recorder(Thread):
 								geometry=oaam.Shape.rectangle, x=r.left, y=r.top, width=r.width(), height=r.height(),
 								thickness=1, color=(0, 128, 0), brush=oaam.Brush.solid, brush_color=(255, 0, 0))
 				if strategy == Strategy.array_1D and elements:
+					x_new, y_new = win32api.GetCursorPos()
+					if not ((wrapper_rectangle.left < x_new < wrapper_rectangle.right) and (
+							wrapper_rectangle.top < y_new < wrapper_rectangle.bottom)):
+						i_strategy = 0
+						continue
 					unique_array_1d = self.__find_unique_element_array_1d(wrapper.rectangle(), elements)
 					if unique_array_1d is not None:
 						unique_wrapper_path = wrapper_path + unique_array_1d
 					else:
 						strategy = Strategy.array_2D
 				if strategy == Strategy.array_2D and elements:
+					x_new, y_new = win32api.GetCursorPos()
+					if not ((wrapper_rectangle.left < x_new < wrapper_rectangle.right) and (
+							wrapper_rectangle.top < y_new < wrapper_rectangle.bottom)):
+						i_strategy = 0
+						continue
 					unique_array_2d = self.__find_unique_element_array_2d(wrapper.rectangle(), elements)
 					if unique_array_2d is not None:
 						unique_wrapper_path = wrapper_path + unique_array_2d
@@ -950,7 +988,7 @@ class Recorder(Thread):
 					overlay_add_mode_icon(self.main_overlay, IconSet.hicon_clipboard, 10 + 60 * nb_icons, 10)
 					nb_icons = nb_icons + 1
 					self._copy_count = self._copy_count - 1
-				i = i + 1
+				
 				self.main_overlay.refresh()
 				if self.mode == "Info":
 					self.__display_info_tip(x, y, wrapper)
@@ -965,7 +1003,8 @@ class Recorder(Thread):
 			self.stop_recording()
 		mouse.unhook_all()
 		keyboard.unhook_all()
-		#self.quit()
+		self.main_overlay.quit()
+		self.info_overlay.quit()
 		print("Run end")
 
 	@property
