@@ -224,11 +224,14 @@ def move(
     Moves on element
     
     :param element_path: element path
-    :param duration: duration in seconds of the mouse move
+    :param duration: duration in seconds of the mouse move (if duration is -1 the mouse cursor doesn't move)
     :param mode: move mouse mode
     :param timeout: period of time in seconds that will be allowed to find the element
     :return: Pywinauto wrapper of clicked element
     """
+    
+    if duration == -1:
+        return
     
     global unique_element_old
     global element_path_old
@@ -331,7 +334,7 @@ def click(
     Clicks on element
     
     :param element_path: element path
-    :param duration: duration in seconds of the mouse move
+    :param duration: duration in seconds of the mouse move (if duration is -1 the mouse cursor doesn't move, it just sends WM_CLICK window message, useful for minimized or non-active window).
     :param mode: move mouse mode
     :param button: mouse button: 'left','double_left', 'triple_left', 'right'
     :param timeout: period of time in seconds that will be allowed to find the element
@@ -339,7 +342,7 @@ def click(
     :return: Pywinauto wrapper of clicked element
     """
     if element_path:
-        if duration == 0:
+        if duration == -1:
             wrapper = find(element_path)
             wrapper.click()
             return wrapper
@@ -384,7 +387,7 @@ def left_click(
     Left clicks on element
     
     :param element_path: element path
-    :param duration: duration in seconds of the mouse move
+    :param duration: duration in seconds of the mouse move (if duration is -1 the mouse cursor doesn't move)
     :param mode: move mouse mode
     :param timeout: period of time in seconds that will be allowed to find the element
     :param wait_ready: if True waits until the element is ready
@@ -404,7 +407,7 @@ def right_click(
     Right clicks on element
     
     :param element_path: element path
-    :param duration: duration in seconds of the mouse move
+    :param duration: duration in seconds of the mouse move (if duration is -1 the mouse cursor doesn't move)
     :param mode: move mouse mode
     :param timeout: period of time in seconds that will be allowed to find the element
     :param wait_ready: if True waits until the element is ready
@@ -425,7 +428,7 @@ def double_left_click(
     Double left clicks on element
     
     :param element_path: element path
-    :param duration: duration in seconds of the mouse move
+    :param duration: duration in seconds of the mouse move (if duration is -1 the mouse cursor doesn't move)
     :param mode: move mouse mode
     :param timeout: period of time in seconds that will be allowed to find the element
     :param wait_ready: if True waits until the element is ready
@@ -447,7 +450,7 @@ def triple_left_click(
     Triple left clicks on element
     
     :param element_path: element path
-    :param duration: duration in seconds of the mouse move
+    :param duration: duration in seconds of the mouse move (if duration is -1 the mouse cursor doesn't move)
     :param mode: move mouse mode
     :param timeout: period of time in seconds that will be allowed to find the element
     :param wait_ready: if True waits until the element is ready
@@ -469,7 +472,7 @@ def drag_and_drop(
     
     :param element_path1: element path
     :param element_path2: element path
-    :param duration: duration in seconds of the mouse move
+    :param duration: duration in seconds of the mouse move (if duration is -1 the mouse cursor doesn't move)
     :param mode: move mouse mode
     :param timeout: period of time in seconds that will be allowed to find the element
     :return: Pywinauto wrapper with element_path2
@@ -495,7 +498,7 @@ def middle_drag_and_drop(
     
     :param element_path1: element path
     :param element_path2: element path
-    :param duration: duration in seconds of the mouse move
+    :param duration: duration in seconds of the mouse move (if duration is -1 the mouse cursor doesn't move)
     :param mode: move mouse mode
     :param timeout: period of time in seconds that will be allowed to find the element
     :return: Pywinauto wrapper with element_path2
@@ -520,7 +523,7 @@ def right_drag_and_drop(
     
     :param element_path1: element path
     :param element_path2: element path
-    :param duration: duration in seconds of the mouse move
+    :param duration: duration in seconds of the mouse move (if duration is -1 the mouse cursor doesn't move)
     :param mode: move mouse mode
     :param timeout: period of time in seconds that will be allowed to find the element
     :return: Pywinauto wrapper with element_path2
@@ -546,7 +549,7 @@ def menu_click(
     
     :param element_path: element path
     :param menu_path: menu path
-    :param duration: duration in seconds of the mouse move
+    :param duration: duration in seconds of the mouse move (if duration is -1 the mouse cursor doesn't move)
     :param mode: move mouse mode
     :param menu_type: menu type ('QT', 'NPP')
     :param timeout: period of time in seconds that will be allowed to find the element
@@ -646,7 +649,7 @@ def set_combobox(
     
     :param element_path: element path
     :param value: value of the combobox
-    :param duration: duration in seconds of the mouse move
+    :param duration: duration in seconds of the mouse move (if duration is -1 the mouse cursor doesn't move)
     :param mode: move mouse mode
     :param timeout: period of time in seconds that will be allowed to find the element
     """
@@ -669,7 +672,7 @@ def set_text(
     
     :param element_path: element path
     :param value: value of the combobox
-    :param duration: duration in seconds of the mouse move
+    :param duration: duration in seconds of the mouse move (if duration is -1 the mouse cursor doesn't move)
     :param mode: move mouse mode
     :param timeout: period of time in seconds that will be allowed to find the element
     :param pause: pause in seconds between each typed key
