@@ -625,8 +625,7 @@ class Recorder(Thread):
 								thickness=1, color=(255, 0, 0), brush=oaam.Brush.solid,
 								brush_color=(255, 200, 0))
 							return '#[' + wrapper_path2 + ',' + str(r_x) + ']'
-					else:
-						return None
+					return None
 		return None
 
 	def __find_unique_element_array_2d(self, wrapper_rectangle, elements):
@@ -750,8 +749,6 @@ class Recorder(Thread):
 			dy = 0
 		else:
 			dx, dy = (x - r.left) / r.width(), (y - r.top) / r.height()
-		info_left = dx * (self.screen_width - tooltip_width)
-		info_top = dy * (self.screen_height - (tooltip_height+tooltip2_height))
 		if x>self.screen_width /2:
 			info_left = 9
 		else:
@@ -782,75 +779,74 @@ class Recorder(Thread):
 			font_size=16, text_color=(0, 0, 0), brush=oaam.Brush.solid, brush_color=(180, 254, 255),
 			geometry=oaam.Shape.rectangle, thickness=0
 		)
-		if True:
-			text = ""
-			try:
-				has_get_value = getattr(wrapper, "get_value", None)
-				if callable(has_get_value):
-					text = "wrapper.get_value(): " + wrapper.get_value()
-			except:
-				has_get_value = False
-				pass
-			has_legacy_properties = getattr(wrapper, "legacy_properties", None)
-			if callable(has_legacy_properties):
-				if wrapper.legacy_properties()['Value']:
-					if not has_get_value or (has_get_value and wrapper.get_value() != wrapper.legacy_properties()['Value']):
-						if text:
-							text = text + "\n"
-						text = text + " wrapper.legacy_properties()['Value']: " + wrapper.legacy_properties()['Value']
-			str_name, str_type, _, _ = get_entry(end_path.split(path_separator)[-1])
-			try:
-				if str_type in ["Button", "CheckBox", "RadioButton", "GroupBox"]:
-					if text:
-						text = text + "\n"
-					text = text + "wrapper.legacy_properties()['State']: " + str(wrapper.legacy_properties()['State']) + "\n"
-					# l'un ou l'autre fonctionne mais pas les 2 en même temps! Pourquoi?
-					#text = text + "wrapper.get_toggle_state(): " + str(wrapper.get_toggle_state()) + "\n"
-					
-					
-					from pywinauto.controls.win32_controls import ButtonWrapper
-					text = text + "ButtonWrapper(wrapper).is_checked(): " + str(ButtonWrapper(wrapper).is_checked()) + "\n"
-					
-				elif str_type in ["ComboBox"]:
-					from pywinauto.controls.win32_controls import ComboBoxWrapper
-					if text:
-						text = text + "\n"
-						text = text + " ComboBoxWrapper(wrapper).selected_text(): " + str(ComboBoxWrapper(wrapper).selected_text()) + "\n"
-				elif str_type in ["Edit"]:
-					if text:
-						str_wrapper_text_block = str(wrapper.text_block())
-						if str_wrapper_text_block != str_name:
-							text = text + "\n"
-							text = text + "wrapper.text_block(): " + str_wrapper_text_block + "\n"
 
-			except:
-				pass
-			tooltip3_height = tooltip_height
-			text3 = ''
-			text_width = 0
-			for c in text:
-				if c == '\n':
-					text_width = 0
-					tooltip3_height = tooltip3_height + 16
-				else:
-					text_width = text_width + 6.8
-				text3 = text3 + c
-				if text_width > tooltip_width:
-					text3 = text3 + '\n'
-					text_width = 0
-					tooltip3_height = tooltip3_height + 16
-			if text3:
-				self.info_overlay.add(
-					geometry=oaam.Shape.rectangle, x=info_left, y=info_top - 4 + tooltip_height + tooltip2_height, width=tooltip_width,
-					height=tooltip3_height, thickness=1, color=(0, 0, 0), brush=oaam.Brush.solid, brush_color=(2, 254, 255))
-				self.info_overlay.add(
-					x=info_left + 5, y=info_top + tooltip_height + tooltip2_height, width=tooltip_width-7,
-					height=tooltip3_height-5,
-					text=text3,
-					text_format="win32con.DT_LEFT|win32con.DT_TOP|win32con.DT_WORDBREAK|win32con.DT_NOCLIP|win32con.DT_VCENTER",
-					font_size=16, text_color=(0, 0, 0), brush=oaam.Brush.solid, brush_color=(2, 254, 255),
-					geometry=oaam.Shape.rectangle, thickness=0
-				)
+		text = ""
+		try:
+			has_get_value = getattr(wrapper, "get_value", None)
+			if callable(has_get_value):
+				text = "wrapper.get_value(): " + wrapper.get_value()
+		except:
+			has_get_value = False
+		has_legacy_properties = getattr(wrapper, "legacy_properties", None)
+		if callable(has_legacy_properties):
+			if wrapper.legacy_properties()['Value']:
+				if not has_get_value or (has_get_value and wrapper.get_value() != wrapper.legacy_properties()['Value']):
+					if text:
+						text = text + "\n"
+					text = text + " wrapper.legacy_properties()['Value']: " + wrapper.legacy_properties()['Value']
+		str_name, str_type, _, _ = get_entry(end_path.split(path_separator)[-1])
+		try:
+			if str_type in ["Button", "CheckBox", "RadioButton", "GroupBox"]:
+				if text:
+					text = text + "\n"
+				text = text + "wrapper.legacy_properties()['State']: " + str(wrapper.legacy_properties()['State']) + "\n"
+				# l'un ou l'autre fonctionne mais pas les 2 en même temps! Pourquoi?
+				#text = text + "wrapper.get_toggle_state(): " + str(wrapper.get_toggle_state()) + "\n"
+
+
+				from pywinauto.controls.win32_controls import ButtonWrapper
+				text = text + "ButtonWrapper(wrapper).is_checked(): " + str(ButtonWrapper(wrapper).is_checked()) + "\n"
+
+			elif str_type in ["ComboBox"]:
+				from pywinauto.controls.win32_controls import ComboBoxWrapper
+				if text:
+					text = text + "\n"
+					text = text + " ComboBoxWrapper(wrapper).selected_text(): " + str(ComboBoxWrapper(wrapper).selected_text()) + "\n"
+			elif str_type in ["Edit"]:
+				if text:
+					str_wrapper_text_block = str(wrapper.text_block())
+					if str_wrapper_text_block != str_name:
+						text = text + "\n"
+						text = text + "wrapper.text_block(): " + str_wrapper_text_block + "\n"
+
+		except:
+			pass
+		tooltip3_height = tooltip_height
+		text3 = ''
+		text_width = 0
+		for c in text:
+			if c == '\n':
+				text_width = 0
+				tooltip3_height = tooltip3_height + 16
+			else:
+				text_width = text_width + 6.8
+			text3 = text3 + c
+			if text_width > tooltip_width:
+				text3 = text3 + '\n'
+				text_width = 0
+				tooltip3_height = tooltip3_height + 16
+		if text3:
+			self.info_overlay.add(
+				geometry=oaam.Shape.rectangle, x=info_left, y=info_top - 4 + tooltip_height + tooltip2_height, width=tooltip_width,
+				height=tooltip3_height, thickness=1, color=(0, 0, 0), brush=oaam.Brush.solid, brush_color=(2, 254, 255))
+			self.info_overlay.add(
+				x=info_left + 5, y=info_top + tooltip_height + tooltip2_height, width=tooltip_width-7,
+				height=tooltip3_height-5,
+				text=text3,
+				text_format="win32con.DT_LEFT|win32con.DT_TOP|win32con.DT_WORDBREAK|win32con.DT_NOCLIP|win32con.DT_VCENTER",
+				font_size=16, text_color=(0, 0, 0), brush=oaam.Brush.solid, brush_color=(2, 254, 255),
+				geometry=oaam.Shape.rectangle, thickness=0
+			)
 		loop_duration = time.time() - self._loop_t0
 		while loop_duration < 0.1:
 			time.sleep(0.01)
@@ -977,13 +973,13 @@ class Recorder(Thread):
 						time.sleep(1.0)
 				if self.mode in ["Record", "Info"]:
 					overlay_add_progress_icon(self.main_overlay, i, 10+60*nb_icons, 10)
-					nb_icons = nb_icons + 1
+					nb_icons += 1
 				if self.mode == "Info":
 					overlay_add_mode_icon(self.main_overlay, IconSet.hicon_search, 10 + 60 * nb_icons, 10)
-					nb_icons = nb_icons + 1
+					nb_icons += 1
 				if self.smart_mode:
 					overlay_add_mode_icon(self.main_overlay, IconSet.hicon_light_on, 10 + 60 * nb_icons, 10)
-					nb_icons = nb_icons + 1
+					nb_icons += 1
 				if self._copy_count > 0:
 					overlay_add_mode_icon(self.main_overlay, IconSet.hicon_clipboard, 10 + 60 * nb_icons, 10)
 					nb_icons = nb_icons + 1

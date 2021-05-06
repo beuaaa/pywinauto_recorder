@@ -106,7 +106,6 @@ def wait_is_ready_try1(wrapper, timeout=120):
                     break
         except Exception:
             time.sleep(0.1)
-            pass
         if (time.time() - t0) > timeout:
             msg = "Element " + get_wrapper_path(wrapper) + "  was not found after " + str(timeout) + " s of searching."
             raise TimeoutError("Time out! ", msg)
