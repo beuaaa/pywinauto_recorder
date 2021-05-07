@@ -953,7 +953,7 @@ class Recorder(Thread):
 				nb_icons = 0
 				if self.mode == "Record":
 					overlay_add_mode_icon(self.main_overlay, IconSet.hicon_record, 10, 10)
-					nb_icons = nb_icons + 1
+					nb_icons += 1
 				elif self.mode == "Play":
 					while self.mode == "Play":
 						self.info_overlay.clear_all()
@@ -982,7 +982,7 @@ class Recorder(Thread):
 					nb_icons += 1
 				if self._copy_count > 0:
 					overlay_add_mode_icon(self.main_overlay, IconSet.hicon_clipboard, 10 + 60 * nb_icons, 10)
-					nb_icons = nb_icons + 1
+					nb_icons += 1
 					self._copy_count = self._copy_count - 1
 				
 				self.main_overlay.refresh()
