@@ -14,6 +14,11 @@ import time
 from enum import Enum
 from typing import Any, Optional, Union, NewType
 
+__all__ = ['PlayerSettings', 'MoveMode', 'load_dictionary', 'shortcut', 'full_definition', 'Window', 'Region', 'find',
+           'move', 'click', 'left_click', 'right_click', 'double_left_click', 'triple_left_click', 'drag_and_drop',
+           'middle_drag_and_drop', 'right_drag_and_drop', 'menu_click', 'mouse_wheel', 'send_keys', 'set_combobox',
+           'set_text', 'exists', 'select_file' ]
+
 UI_Coordinates = NewType('UI_Coordinates', (float, float))
 UI_Element = Union[str, pywinauto.controls.uiawrapper.UIAWrapper, UI_Coordinates]
 
@@ -343,7 +348,11 @@ def click(
     if element_path:
         if duration == -1:
             wrapper = find(element_path)
-            wrapper.click()
+            has_get_value = getattr(wrapper, "click", None)
+            if callable(has_get_value):
+                wrapper.click()
+            else:
+                wrapper.click_input()
             return wrapper
         else:
             wrapper = move(element_path, duration=duration, mode=mode, timeout=timeout)
