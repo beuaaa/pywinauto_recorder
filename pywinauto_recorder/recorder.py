@@ -13,7 +13,6 @@ import keyboard
 import mouse
 from collections import namedtuple
 import pyperclip
-import math
 import codecs
 from .core import *
 
@@ -743,13 +742,7 @@ class Recorder(Thread):
 				text2 = text2 + '\n'
 				text_width = 0
 				tooltip2_height = tooltip2_height + 16
-		if r.width() == 0:
-			dx = 0
-		if r.height() == 0:
-			dy = 0
-		else:
-			dx, dy = (x - r.left) / r.width(), (y - r.top) / r.height()
-		if x>self.screen_width /2:
+		if x > self.screen_width / 2:
 			info_left = 9
 		else:
 			info_left = self.screen_width - tooltip_width - 10
