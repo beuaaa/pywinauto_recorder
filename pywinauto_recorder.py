@@ -285,7 +285,6 @@ def display_splash_screen():
 	w, h = 640, 540
 	x, y = screen_width / 2 - w / 2, screen_height / 2 - h / 2
 	splash_width = w
-	splash_height = h
 	splash_left = x
 	splash_right = x + w
 	splash_top = y

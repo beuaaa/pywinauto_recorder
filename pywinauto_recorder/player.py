@@ -12,12 +12,12 @@ from win32con import IDC_WAIT, MOUSEEVENTF_MOVE, MOUSEEVENTF_ABSOLUTE, MOUSEEVEN
     MOUSEEVENTF_MIDDLEDOWN, MOUSEEVENTF_MIDDLEUP, MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP, MOUSEEVENTF_WHEEL, WHEEL_DELTA
 import time
 from enum import Enum
-from typing import Any, Optional, Union, NewType
+from typing import Optional, Union, NewType
 
 __all__ = ['PlayerSettings', 'MoveMode', 'load_dictionary', 'shortcut', 'full_definition', 'Window', 'Region', 'find',
            'move', 'click', 'left_click', 'right_click', 'double_left_click', 'triple_left_click', 'drag_and_drop',
            'middle_drag_and_drop', 'right_drag_and_drop', 'menu_click', 'mouse_wheel', 'send_keys', 'set_combobox',
-           'set_text', 'exists', 'select_file' ]
+           'set_text', 'exists', 'select_file']
 
 UI_Coordinates = NewType('UI_Coordinates', (float, float))
 UI_Element = Union[str, pywinauto.controls.uiawrapper.UIAWrapper, UI_Coordinates]
@@ -170,7 +170,6 @@ def find(
     entry_list = get_entry_list(element_path2)
     unique_element = None
     elements = None
-    strategy = None
     t0 = time.time()
     while (time.time() - t0) < timeout:
         while unique_element is None and not elements:
@@ -199,8 +198,8 @@ def find(
                     unique_element = candidates[int(y_x[0])][int(y_x[1])]
                 else:
                     ref_entry_list = get_entry_list(Region.common_path) + get_entry_list(y_x[0])
-                    ref_unique_element, _ = find_element(
-                        Region.click_desktop, ref_entry_list, window_candidates=[], regex_title=Region.current.regex_title)
+                    ref_unique_element, _ = find_element(Region.click_desktop, ref_entry_list,
+                                                         window_candidates=[], regex_title=Region.current.regex_title)
                     ref_r = ref_unique_element.rectangle()
                     r_y = 0
                     while r_y < nb_y:
