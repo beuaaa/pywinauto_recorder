@@ -5,7 +5,7 @@ import traceback
 from enum import Enum
 
 __all__ = ['path_separator', 'type_separator', 'Strategy',
-           'get_wrapper_path', 'get_entry_list', 'get_entry', 'get_sorted_region',
+           'get_wrapper_path', 'get_entry_list', 'get_entry', 'same_entry_list', 'get_sorted_region',
            'find_element']
 
 path_separator = "->"

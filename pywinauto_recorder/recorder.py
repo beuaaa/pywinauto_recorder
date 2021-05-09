@@ -16,6 +16,8 @@ import pyperclip
 import codecs
 from .core import *
 
+__all__ = ['Recorder', 'overlay_add_mode_icon', 'overlay_add_progress_icon']
+
 ElementEvent = namedtuple('ElementEvent', ['strategy', 'rectangle', 'path'])
 SendKeysEvent = namedtuple('SendKeysEvent', ['line'])
 MouseWheelEvent = namedtuple('MouseWheelEvent', ['delta'])
@@ -705,7 +707,6 @@ class Recorder(Thread):
 	def __display_info_tip(self, x, y, wrapper):
 		tooltip_width = 500
 		tooltip_height = 25
-		r = wrapper.rectangle()
 		
 		if wrapper != self.wrapper_old_info_tip:
 			if self.wrapper_old_info_tip:
