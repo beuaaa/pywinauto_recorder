@@ -5,11 +5,14 @@ import os
 import platform
 from pywinauto_recorder.player import *
 from pywinauto_recorder.recorder import Recorder
+from pywinauto_recorder.core import *
 import pyperclip
 import random
 import win32api
 import win32con
 from PIL import Image
+import pywinauto
+import time
 
 	
 def percentage_white_pixels(recorded_image):

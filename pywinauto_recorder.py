@@ -21,6 +21,7 @@ import win32gui
 import win32ui
 import pyperclip
 from pywinauto_recorder.recorder import IconSet
+import time
 
 
 class SysTrayIcon(object):
