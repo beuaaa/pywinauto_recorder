@@ -243,7 +243,7 @@ def overlay_add_pywinauto_recorder_icon(overlay, x, y):
 def display_splash_screen():
 	import urllib.request
 	import urllib.error
-	from pywinauto_recorder import __version__
+	from pywinauto_recorder.__init__ import __version__
 	url_version = "https://raw.githubusercontent.com/beuaaa/pywinauto_recorder/master/bin/VersionInfo.rc"
 	latest_version = __version__
 	try:
@@ -427,7 +427,7 @@ if __name__ == '__main__':
 			path_icons = Path(__file__).parent.absolute() / Path("Icons")
 		else:
 			path_icons = Path(__file__).parent.absolute() / Path("pywinauto_recorder") / Path("Icons")
-		print("ICONS PATH: "+ str(path_icons))
+		# print("ICONS PATH: " + str(path_icons))
 		icon_pywinauto_recorder = str(path_icons / Path("IconPyRec.ico"))
 		icon_record = str(path_icons / Path("record.ico"))
 		icon_stop = str(path_icons / Path("stop.ico"))
