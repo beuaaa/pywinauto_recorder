@@ -642,7 +642,7 @@ def send_keys(
         with_newlines=with_newlines,
         turn_off_numlock=turn_off_numlock,
         vk_packet=vk_packet
-    )
+    )   # lgtm [py/call/wrong-named-argument]
 
 
 def set_combobox(
