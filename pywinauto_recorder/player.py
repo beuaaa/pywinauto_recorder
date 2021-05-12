@@ -634,7 +634,7 @@ def send_keys(
     """
     for r in (('(', '{(}'),  (')', '{)}'), ('+', '{+}')):
         str_keys = str_keys.replace(*r)
-    pywinauto.keyboard.send_keys(
+    pywinauto.keyboard.send_keys(   # lgtm [py/call/wrong-named-argument]
         str_keys,
         pause=pause,
         with_spaces=with_spaces,
@@ -642,7 +642,7 @@ def send_keys(
         with_newlines=with_newlines,
         turn_off_numlock=turn_off_numlock,
         vk_packet=vk_packet
-    )   # lgtm [py/call/wrong-named-argument]
+    )
 
 
 def set_combobox(
