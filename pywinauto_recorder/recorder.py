@@ -794,7 +794,7 @@ class Recorder(Thread):
 				if text:
 					text = text + "\n"
 				text = text + "wrapper.legacy_properties()['State']: " + str(wrapper.legacy_properties()['State']) + "\n"
-				# l'un ou l'autre fonctionne mais pas les 2 en même temps! Pourquoi?
+				# l'un ou l'autre fonctionne mais pas les 2 en même temps! Pourquoi? Une exception??
 				#text = text + "wrapper.get_toggle_state(): " + str(wrapper.get_toggle_state()) + "\n"
 
 
