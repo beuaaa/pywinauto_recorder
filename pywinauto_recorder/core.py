@@ -4,7 +4,7 @@ import re
 import traceback
 from enum import Enum
 
-__all__ = ['path_separator', 'type_separator', 'Strategy',
+__all__ = ['path_separator', 'type_separator', 'Strategy', 'is_int',
            'get_wrapper_path', 'get_entry_list', 'get_entry', 'same_entry_list', 'get_sorted_region',
            'find_element']
 
@@ -144,6 +144,18 @@ def is_filter_criteria_ok(child, min_height=8, max_height=200, min_width=8, max_
     return False
 
 
+def all_height_equal(iterator):
+    iterator = iter(iterator)
+    try:
+        first = next(iterator)
+        first_height = first.rectangle().height()
+    except StopIteration:
+        return True
+    for x in iterator:
+        if first_height != x.rectangle().height():
+            return False
+    return True
+
 def get_sorted_region(elements, min_height=8, max_height=9999, min_width=8, max_width=9999, line_tolerance=20):
     filtered_elements = []
     for e in elements:
@@ -152,6 +164,9 @@ def get_sorted_region(elements, min_height=8, max_height=9999, min_width=8, max_
 
     filtered_elements.sort(key=lambda widget: (widget.rectangle().top, widget.rectangle().left))
     arrays = [[]]
+
+    if all_height_equal(filtered_elements):
+        line_tolerance = filtered_elements[0].rectangle().height()
 
     h = 0
     w = -1
