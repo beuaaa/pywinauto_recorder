@@ -33,6 +33,7 @@ def unescape_special_char(string):
 
 class PlayerSettings:
     mouse_move_duration = 0.5
+    timeout = 10
 
 
 class MoveMode(Enum):
@@ -150,7 +151,7 @@ Window = Region
 
 def find(
         element_path: Optional[UI_Element] = None,
-        timeout: Optional[float] = 120) -> UI_Element:
+        timeout: Optional[float] = None) -> UI_Element:
     """
     Finds an element
 
@@ -158,6 +159,9 @@ def find(
     :param timeout: period of time in seconds that will be allowed to find the element
     :return: Pywinauto wrapper of clicked element
     """
+    if not timeout:
+        timeout = PlayerSettings.timeout
+
     if not Region.click_desktop:
         Region.click_desktop = pywinauto.Desktop(backend='uia', allow_magic_lookup=False)
     if Region.common_path:
@@ -203,10 +207,11 @@ def find(
                     ref_r = ref_unique_element.rectangle()
                     r_y = 0
                     while r_y < nb_y:
-                        y_candidate = candidates[r_y][0].rectangle().mid_point()[1]
-                        if ref_r.top < y_candidate < ref_r.bottom:
-                            unique_element = candidates[r_y][y_x[1]]
-                            break
+                        for candidate in candidates[r_y]:
+                            y_candidate = candidate.rectangle().mid_point()[1]
+                            if ref_r.top < y_candidate < ref_r.bottom:
+                                unique_element = candidates[r_y][y_x[1]]
+                                return unique_element
                         r_y = r_y + 1
                     else:
                         unique_element = None
@@ -232,7 +237,9 @@ def move(
     :param timeout: period of time in seconds that will be allowed to find the element
     :return: Pywinauto wrapper of clicked element
     """
-    
+    if not duration:
+        duration = PlayerSettings.mouse_move_duration
+
     if duration == -1:
         return
     
@@ -328,10 +335,10 @@ def move(
 
 def click(
         element_path: Optional[UI_Element] = None,
-        duration: Optional[float] = 0.5,
+        duration: Optional[float] = None,
         mode: Enum = MoveMode.linear,
         button: str = 'left',
-        timeout: float = 120,
+        timeout: float = None,
         wait_ready: bool = True) -> UI_Element:
     """
     Clicks on element
@@ -344,6 +351,12 @@ def click(
     :param wait_ready: if True waits until the element is ready
     :return: Pywinauto wrapper of clicked element
     """
+    if not duration:
+        duration = PlayerSettings.mouse_move_duration
+
+    if not timeout:
+        timeout = PlayerSettings.timeout
+
     if element_path:
         if duration == -1:
             wrapper = find(element_path)
@@ -388,7 +401,7 @@ def left_click(
         element_path: UI_Element,
         duration: Optional[float] = None,
         mode: Enum = MoveMode.linear,
-        timeout: float = 120,
+        timeout: Optional[float] = None,
         wait_ready: bool = True) -> UI_Element:
     """
     Left clicks on element
@@ -400,15 +413,13 @@ def left_click(
     :param wait_ready: if True waits until the element is ready
     :return: Pywinauto wrapper of clicked element
     """
-    if not duration:
-        duration = PlayerSettings.mouse_move_duration
     return click(element_path, duration=duration, mode=mode, button='left', timeout=timeout, wait_ready=wait_ready)
 
 def right_click(
         element_path: UI_Element,
         duration: Optional[float] = None,
         mode: Enum = MoveMode.linear,
-        timeout: float = 120,
+        timeout: Optional[float] = None,
         wait_ready: bool = True) -> UI_Element:
     """
     Right clicks on element
@@ -420,8 +431,6 @@ def right_click(
     :param wait_ready: if True waits until the element is ready
     :return: Pywinauto wrapper of clicked element
     """
-    if not duration:
-        duration = PlayerSettings.mouse_move_duration
     return click(element_path, duration=duration, mode=mode, button='right', timeout=timeout, wait_ready=wait_ready)
 
 
@@ -429,7 +438,7 @@ def double_left_click(
         element_path: UI_Element,
         duration: Optional[float] = None,
         mode: Enum = MoveMode.linear,
-        timeout: float = 120,
+        timeout: Optional[float] = None,
         wait_ready: bool = True) -> UI_Element:
     """
     Double left clicks on element
@@ -441,9 +450,6 @@ def double_left_click(
     :param wait_ready: if True waits until the element is ready
     :return: Pywinauto wrapper of clicked element
     """
-    
-    if not duration:
-        duration = PlayerSettings.mouse_move_duration
     return click(element_path, duration=duration, mode=mode, button='double_left', timeout=timeout, wait_ready=wait_ready)
 
 
@@ -451,7 +457,7 @@ def triple_left_click(
         element_path: UI_Element,
         duration: Optional[float] = None,
         mode: Enum = MoveMode.linear,
-        timeout: float = 120,
+        timeout: Optional[float] = None,
         wait_ready: bool = True) -> UI_Element:
     """
     Triple left clicks on element
@@ -463,8 +469,6 @@ def triple_left_click(
     :param wait_ready: if True waits until the element is ready
     :return: Pywinauto wrapper of clicked element
     """
-    if not duration:
-        duration = PlayerSettings.mouse_move_duration
     return click(element_path, duration=duration, mode=mode, button='triple_left', timeout=timeout, wait_ready=wait_ready)
 
 
@@ -473,7 +477,7 @@ def drag_and_drop(
         element_path2: UI_Element,
         duration: Optional[float] = None,
         mode: Enum = MoveMode.linear,
-        timeout: float = 120) -> UI_Element:
+        timeout: Optional[float] = None) -> UI_Element:
     """
     Drags and drop with left button pressed from element_path1 to element_path2.
     
@@ -484,9 +488,6 @@ def drag_and_drop(
     :param timeout: period of time in seconds that will be allowed to find the element
     :return: Pywinauto wrapper with element_path2
     """
-    
-    if not duration:
-        duration = PlayerSettings.mouse_move_duration
     move(element_path1, duration=duration, mode=mode, timeout=timeout)
     win32api_mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0)
     unique_element = move(element_path2, duration=duration, timeout=timeout)
@@ -499,7 +500,7 @@ def middle_drag_and_drop(
         element_path2: UI_Element,
         duration: Optional[float] = None,
         mode: Enum = MoveMode.linear,
-        timeout: float = 120) -> UI_Element:
+        timeout: Optional[float] = None) -> UI_Element:
     """
     Drags and drop with middle button pressed from element_path1 to element_path2.
     
@@ -510,8 +511,6 @@ def middle_drag_and_drop(
     :param timeout: period of time in seconds that will be allowed to find the element
     :return: Pywinauto wrapper with element_path2
     """
-    if not duration:
-        duration = PlayerSettings.mouse_move_duration
     move(element_path1, duration=duration, mode=mode, timeout=timeout)
     win32api_mouse_event(MOUSEEVENTF_MIDDLEDOWN, 0, 0)
     unique_element = move(element_path2, duration=duration, mode=mode, timeout=timeout)
@@ -524,7 +523,7 @@ def right_drag_and_drop(
         element_path2: UI_Element,
         duration: Optional[float] = None,
         mode: Enum = MoveMode.linear,
-        timeout: float = 120) -> UI_Element:
+        timeout: Optional[float] = None) -> UI_Element:
     """
     Drags and drop with right button pressed from element_path1 to element_path2.
     
@@ -535,8 +534,6 @@ def right_drag_and_drop(
     :param timeout: period of time in seconds that will be allowed to find the element
     :return: Pywinauto wrapper with element_path2
     """
-    if not duration:
-        duration = PlayerSettings.mouse_move_duration
     move(element_path1, duration=duration, mode=mode, timeout=timeout)
     win32api_mouse_event(MOUSEEVENTF_RIGHTDOWN, 0, 0)
     unique_element = move(element_path2, duration=duration, mode=mode, timeout=timeout)
@@ -550,7 +547,7 @@ def menu_click(
         duration: Optional[float] = None,
         mode: Enum = MoveMode.linear,
         menu_type: str = 'QT',
-        timeout: float = 120) -> UI_Element:
+        timeout: Optional[float] = None) -> UI_Element:
     """
     Clicks on menu item.
     
@@ -562,8 +559,6 @@ def menu_click(
     :param timeout: period of time in seconds that will be allowed to find the element
     :return: Pywinauto wrapper of the clicked item
     """
-    if not duration:
-        duration = PlayerSettings.mouse_move_duration
     menu_entry_list = menu_path.split(path_separator)
     if menu_type == 'QT':
         menu_entry_list = [''] + menu_entry_list
@@ -650,7 +645,7 @@ def set_combobox(
         value: str,
         duration: Optional[float] = None,
         mode: Enum = MoveMode.linear,
-        timeout: float = 120) -> None:
+        timeout: Optional[float] = None) -> None:
     """
     Sets the value of a combobox.
     
@@ -660,8 +655,6 @@ def set_combobox(
     :param mode: move mouse mode
     :param timeout: period of time in seconds that will be allowed to find the element
     """
-    if not duration:
-        duration = PlayerSettings.mouse_move_duration
     left_click(element_path, duration=duration, mode=mode, timeout=timeout)
     time.sleep(0.9)
     send_keys(value + "{ENTER}")
@@ -672,7 +665,7 @@ def set_text(
         value: str,
         duration: Optional[float] = None,
         mode: Enum = MoveMode.linear,
-        timeout: float = 120,
+        timeout: Optional[float] = None,
         pause: float = 0.1) -> None:
     """
     Sets the value of a text field.
@@ -684,8 +677,6 @@ def set_text(
     :param timeout: period of time in seconds that will be allowed to find the element
     :param pause: pause in seconds between each typed key
     """
-    if not duration:
-        duration = PlayerSettings.mouse_move_duration
     double_left_click(element_path, duration=duration, mode=mode, timeout=timeout)
     send_keys("{VK_CONTROL down}a{VK_CONTROL up}", pause=0)
     time.sleep(0.1)
@@ -694,7 +685,7 @@ def set_text(
 
 def exists(
         element_path: UI_Element,
-        timeout: float = 120) -> UI_Element:
+        timeout: Optional[float] = None) -> UI_Element:
     """
     Tests if en UI_Element exists.
     
