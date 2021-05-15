@@ -213,8 +213,6 @@ def find(
                                 unique_element = candidates[r_y][y_x[1]]
                                 return unique_element
                         r_y = r_y + 1
-                    else:
-                        unique_element = None
         if unique_element is not None:
             break
         time.sleep(0.1)
