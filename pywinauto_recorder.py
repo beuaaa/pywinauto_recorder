@@ -22,6 +22,7 @@ import win32ui
 import pyperclip
 from pywinauto_recorder.recorder import IconSet
 import time
+import traceback
 
 
 class SysTrayIcon(object):
