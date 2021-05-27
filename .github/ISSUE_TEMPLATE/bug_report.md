@@ -15,6 +15,6 @@
 
 ## Specifications
 
-  - Pywinauto version:
+  - Pywinauto Recorder version:
   - Python version and bitness:
   - Platform and OS:
