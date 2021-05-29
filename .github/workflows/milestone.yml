@@ -22,4 +22,4 @@ jobs:
         ACTION_NAME: beuaaa
         MD_FOLDER: temp_release_notes
         OWNER: beuaaa
-        REPO_NAME: pywinauto-recoreder
+        REPO_NAME: pywinauto_recorder
