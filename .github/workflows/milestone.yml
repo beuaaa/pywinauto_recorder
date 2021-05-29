@@ -14,9 +14,9 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         OUTPUT_FOLDER: temp_release_notes
         USE_MILESTONE_TITLE: "true"
-    - name: "Deploy Github Pages"
-      uses: JamesIves/github-pages-deploy-action@3.7.1
-      with:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        BRANCH: gh-pages     # <- Branche sur laquelle seront commités les fichiers
-        FOLDER: temp_release_notes  # <- Dossier contenant notre documentation générée
+    - name: Upload Release notes to Wiki
+        uses: SwiftDocOrg/github-wiki-publish-action@v1
+        with:
+          path: temp_release_notes
+        env:
+          GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
