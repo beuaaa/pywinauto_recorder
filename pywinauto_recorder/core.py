@@ -135,12 +135,11 @@ def same_entry_list(element, entry_list, regex_title=False):
 
 def is_filter_criteria_ok(child, min_height=8, max_height=200, min_width=8, max_width=800):
     if child.is_visible():
-        h = child.rectangle().height()
-        if (min_height <= h) and (h <= max_height):
-            w = child.rectangle().width()
-            if (min_width <= w) and (w <= max_width):
-                if child.rectangle().top > 0:
-                    return True
+        r = child.rectangle()
+        h = r.height()
+        w = r.width()
+        if (min_height <= h <= max_height) and (min_width <= w <= max_width):
+             return True
     return False
 
 
