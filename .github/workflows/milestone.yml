@@ -14,12 +14,9 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         OUTPUT_FOLDER: temp_release_notes
         USE_MILESTONE_TITLE: "true"
-    - name: Upload Release Notes to Wiki
-      uses: docker://decathlon/wiki-page-creator-action:latest
-      env:
-        GH_PAT: ${{ secrets.GH_PAT }}
-        ACTION_MAIL: d_pratmarty@hotmail.com
-        ACTION_NAME: beuaaa
-        MD_FOLDER: temp_release_notes
-        OWNER: beuaaa
-        REPO_NAME: pywinauto_recorder
+    - name: "Deploy Github Pages"
+      uses: JamesIves/github-pages-deploy-action@3.7.1
+      with:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        BRANCH: gh-pages     # <- Branche sur laquelle seront commités les fichiers
+        FOLDER: temp_release_notes  # <- Dossier contenant notre documentation générée
