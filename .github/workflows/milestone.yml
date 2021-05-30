@@ -19,4 +19,4 @@ jobs:
       with:
         path: temp_release_notes
       env:
-        GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GH_PERSONAL_ACCESS_TOKEN: ${{ secrets.GH_PERSONAL_ACCESS_TOKEN }}
