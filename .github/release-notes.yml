@@ -10,3 +10,5 @@ changelog:
       labels: ["dependencies"]
     - title: ":beetle: Bug Fixes"
       labels: ["bug"]
+    - title: ":test_tube: Tests"
+      labels: ["test"]
