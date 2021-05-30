@@ -1,6 +1,14 @@
 changelog:
   sections:
-  - title: "Enhancements"
-    labels: ["enhancement"]
-  - title: "Bugs"
-    labels: ["bug"]
+    - title: "Breaking Changes"
+      emoji: ":warning:"
+      labels: ["breaking change"]
+    - title: "Enhancements"
+      emoji: ":star:"
+      labels: ["enhancement"]
+    - title: "Dependency Upgrades"
+      emoji: ":package:"
+      labels: ["dependencies"]
+    - title: "Bugs"
+      emoji: ":beetle:"
+      labels: ["bug"]
