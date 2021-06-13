@@ -145,6 +145,10 @@ class Region(object):
             Region.list_path = Region.list_path[0:-1]
         Region.common_path = path_separator.join(self.list_path)
 
+    def __truediv__(self, other_region):
+        if type(other_region) is str:
+            return Region(self.relative_path + '->' + other_region)
+        return Region(self.relative_path + '->' + other_region.relative_path)
 
 Window = Region
 

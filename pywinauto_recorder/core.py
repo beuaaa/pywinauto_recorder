@@ -94,9 +94,7 @@ def get_entry(entry):
         y_x = None
     if str_dx_dy:
         words = str_dx_dy.split(',')
-        dx = float(words[0])
-        dy = float(words[1][:-1])
-        dx_dy = (dx, dy)
+        dx_dy = (float(words[0]), float(words[1].split(')')[0]))
     else:
         dx_dy = None
     return str_name, str_type, y_x, dx_dy
@@ -139,7 +137,7 @@ def is_filter_criteria_ok(child, min_height=8, max_height=200, min_width=8, max_
         h = r.height()
         w = r.width()
         if (min_height <= h <= max_height) and (min_width <= w <= max_width):
-             return True
+            return True
     return False
 
 
@@ -156,11 +154,8 @@ def all_height_equal(iterator):
     return True
 
 def get_sorted_region(elements, min_height=8, max_height=9999, min_width=8, max_width=9999, line_tolerance=20):
-    filtered_elements = []
-    for e in elements:
-        if is_filter_criteria_ok(e, min_height, max_height, min_width, max_width):
-            filtered_elements.append(e)
-
+    filtered_elements = list(filter(
+        lambda e: is_filter_criteria_ok(e, min_height, max_height, min_width, max_width), elements))
     filtered_elements.sort(key=lambda widget: (widget.rectangle().top, widget.rectangle().left))
     arrays = [[]]
 
@@ -216,10 +211,7 @@ def find_element(desktop, entry_list, window_candidates=[], visible_only=True, e
     for window in window_candidates:
         title, control_type, _, _ = get_entry(entry_list[-1])
         descendants = window.descendants(title=title, control_type=control_type)  # , depth=max(1, len(entry_list)-2)
-        for descendant in descendants:
-        #for descendant in window.iter_descendants(title=title, control_type=control_type): # iter_descendants is slower than descendants = window.descendants
-            if same_entry_list(descendant, entry_list, regex_title=regex_title):
-                candidates.append(descendant)
+        candidates += filter(lambda e: same_entry_list(e, entry_list, regex_title=regex_title), descendants)
 
     if not candidates:
         if active_only:
