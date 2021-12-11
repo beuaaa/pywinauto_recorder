@@ -690,6 +690,7 @@ class Recorder(Thread):
 				if self.relative_coordinate_mode and eval(str_dx) != 0 and eval(str_dy) != 0:
 					code += '%(' + str_dx + ',' + str_dy + ')'
 				code += '")\n'
+				code += '\twrapper.draw_outline()\n'
 				pyperclip.copy(code)
 				if self.event_list:
 					self.event_list.append(FindEvent(path=l_e_e.path, dx=dx, dy=dy, time=time.time()))
@@ -847,6 +848,47 @@ class Recorder(Thread):
 			loop_duration = time.time() - self._loop_t0
 		self.info_overlay.refresh()
 
+	# Ne fonctionne pas car un rectangle pere n'englobe pas forcement un rectangle fils (par exemple un TreeItem)
+	'''
+	def my_from_point(self, x, y, wrapper=None):
+		def get_children_of_children_whith_empty_rectangle(wrapper_children):
+			children_of_children_whith_empty_rectangle = []
+			for child in wrapper_children:
+				child_rectangle = child.rectangle()
+				if child_rectangle.width() ==0 or child_rectangle.width()==0:
+					children_of_children_whith_empty_rectangle += child.children()
+			return children_of_children_whith_empty_rectangle
+		def get_children_of_children_not_in_parent_rectangle(wrapper_children):
+			children_of_children_whith_empty_rectangle = []
+			for child in wrapper_children:
+				child_rectangle = child.rectangle()
+				grandchildren = child.children()
+				if grandchildren:
+					x = grandchildren[0].rectangle().left
+					y = grandchildren[0].rectangle().top
+					if not ((child_rectangle.left < x < child_rectangle.right) and (child_rectangle.top < y < child_rectangle.bottom)):
+						return grandchildren
+			return []
+		if not wrapper:
+			wrapper = self.desktop.top_from_point(x, y)
+		wrapper_children = wrapper.children()
+		for child in wrapper_children:
+			child_rectangle = child.rectangle()
+			if (child_rectangle.left < x < child_rectangle.right) and (child_rectangle.top < y < child_rectangle.bottom):
+				return self.my_from_point(x, y, wrapper=child)
+		for grandchild in get_children_of_children_whith_empty_rectangle(wrapper_children):
+			child_rectangle = grandchild.rectangle()
+			if (child_rectangle.left < x < child_rectangle.right) and (child_rectangle.top < y < child_rectangle.bottom):
+				return self.my_from_point(x, y, wrapper=grandchild)
+			
+		for grandchild in get_children_of_children_not_in_parent_rectangle(wrapper_children):
+			child_rectangle = grandchild.rectangle()
+			if (child_rectangle.left < x < child_rectangle.right) and (child_rectangle.top < y < child_rectangle.bottom):
+				return self.my_from_point(x, y, wrapper=grandchild)
+
+		return wrapper
+	'''
+	
 	def run(self):
 		import comtypes.client
 		print("COMPTYPES CACHE FOLDER:", comtypes.client._code_cache._find_gen_dir())
@@ -871,6 +913,7 @@ class Recorder(Thread):
 		unique_wrapper_path = None
 		strategies = [Strategy.unique_path, Strategy.array_2D, Strategy.array_1D]
 		i_strategy = 0
+		#strategy_unique_path_again_done = False
 		while self.mode != "Quit":
 			i = i + 1
 			try:
@@ -878,6 +921,7 @@ class Recorder(Thread):
 				self.main_overlay.clear_all()
 				cursor_pos = win32api.GetCursorPos()
 				wrapper = self.desktop.from_point(*cursor_pos)
+				#wrapper = self.my_from_point(*cursor_pos)
 				if wrapper is None:
 					continue
 				wrapper_path = get_wrapper_path(wrapper)
@@ -891,16 +935,58 @@ class Recorder(Thread):
 						if i_strategy >= len(strategies):
 							i_strategy = len(strategies) - 1
 				else:
+					# strategy_unique_path_again_done = False
 					i_strategy = 0
 					previous_wrapper_path = wrapper_path
 					entry_list = get_entry_list(wrapper_path)
 					unique_candidate, elements = find_element(self.desktop, entry_list, window_candidates=[])
+				#if wrapper_path == previous_wrapper_path and unique_wrapper_path:
+				#	strategy = Strategy.unique_path_again
+				# else:
+				#	strategy = strategies[i_strategy]
 				strategy = strategies[i_strategy]
 				unique_wrapper_path = None
 				# *** ----> this block of code must start a new while iteration if mouse cursor is outside wrapper rectangle
 				# => add tests to leave if mouse cursor is outside wrapper rectangle
 				wrapper_rectangle = wrapper.rectangle()
-				if strategy == Strategy.unique_path:
+				
+				'''
+				# TODO: cette strategie n'est utique que pour palier à self.desktop.from_point(*cursor_pos) qui ne fn pas
+				# dans tous les cas (par exemple CMD.exe). L'autre solution est de reimplementer from_point
+				if strategy == Strategy.unique_path_again and unique_candidate and not strategy_unique_path_again_done:
+					x_new, y_new = win32api.GetCursorPos()
+					if not ((wrapper_rectangle.left < x_new < wrapper_rectangle.right) and (
+							wrapper_rectangle.top < y_new < wrapper_rectangle.bottom)):
+						i_strategy = 0
+						continue
+					better_candidates = []
+					better_father_candidates = []
+					curent_wrapper = unique_candidate.top_level_parent()
+					for curent_wrapper_child in curent_wrapper.children():
+						rect_child = curent_wrapper_child.rectangle()
+						if ((rect_child.left < x_new < rect_child.right) and (rect_child.top < y_new < rect_child.bottom)):
+							better_father_candidates.append(curent_wrapper_child)
+							
+					while better_father_candidates:
+						curent_wrapper = better_father_candidates.pop()
+						curent_wrapper_children = curent_wrapper.children()
+						if curent_wrapper_children:
+							for curent_wrapper_child in curent_wrapper_children:
+								rect_child = curent_wrapper_child.rectangle()
+								if ((rect_child.left < x_new < rect_child.right) and (
+										rect_child.top < y_new < rect_child.bottom)):
+									better_father_candidates.append(curent_wrapper_child)
+						else:
+							better_candidates.append(curent_wrapper)
+					if better_candidates:
+						better_candidates.sort(key=lambda widget: widget.rectangle().width() * widget.rectangle().height())
+						unique_candidate = better_candidates[0]
+						wrapper = unique_candidate
+						wrapper_rectangle = wrapper.rectangle()
+					strategy_unique_path_again_done = True
+				'''
+				
+				if strategy in [Strategy.unique_path, Strategy.unique_path_again]:
 					x_new, y_new = win32api.GetCursorPos()
 					if not ((wrapper_rectangle.left < x_new < wrapper_rectangle.right) and (
 							wrapper_rectangle.top < y_new < wrapper_rectangle.bottom)):
@@ -916,8 +1002,10 @@ class Recorder(Thread):
 						for e in elements:
 							r = e.rectangle()
 							self.main_overlay.add(
-								geometry=oaam.Shape.rectangle, x=r.left, y=r.top, width=r.width(), height=r.height(),
+								geometry=oaam.Shape.rectangle, x=r.left, y=r.top, width=r.width(),
+								height=r.height(),
 								thickness=1, color=(0, 128, 0), brush=oaam.Brush.solid, brush_color=(255, 0, 0))
+
 				if strategy == Strategy.array_1D and elements:
 					x_new, y_new = win32api.GetCursorPos()
 					if not ((wrapper_rectangle.left < x_new < wrapper_rectangle.right) and (
