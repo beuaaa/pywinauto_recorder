@@ -176,11 +176,12 @@ def find(
     else:
         element_path2 = element_path
     entry_list = get_entry_list(element_path2)
+    _, _, y_x, _ = get_entry(entry_list[-1])
     unique_element = None
     elements = None
     t0 = time.time()
     while (time.time() - t0) < timeout:
-        while unique_element is None and not elements:
+        while (not y_x and not unique_element and not elements) or (y_x and not elements):
             try:
                 if Region.current:
                     regex_title = Region.current.regex_title
@@ -188,15 +189,14 @@ def find(
                     regex_title = False
                 unique_element, elements = find_element(
                     Region.click_desktop, entry_list, window_candidates=[], regex_title=regex_title)
-                if unique_element is None and not elements:
+                if (not y_x and not unique_element and not elements) or (y_x and not elements):
                     time.sleep(2.0)
             except Exception:
                 pass
             if (time.time() - t0) > timeout:
-                msg = "Element " + element_path2 + "  was not found after " + str(timeout) + " s of searching."
+                msg = "Element " + element_path2 + " was not found after " + str(timeout) + " s of searching."
                 raise TimeoutError("Time out! ", msg)
 
-        _, _, y_x, _ = get_entry(entry_list[-1])
         if y_x is not None:
             if unique_element and int(y_x[0]) == int(y_x[1]) == 0:
                 return unique_element
@@ -208,6 +208,8 @@ def find(
                     ref_entry_list = get_entry_list(Region.common_path) + get_entry_list(y_x[0])
                     ref_unique_element, _ = find_element(Region.click_desktop, ref_entry_list,
                                                          window_candidates=[], regex_title=Region.current.regex_title)
+                    if not ref_unique_element:
+                        raise Exception("Unique element not found! " + Region.common_path + core.separator + y_x[0])
                     ref_r = ref_unique_element.rectangle()
                     r_y = 0
                     while r_y < nb_y:
@@ -647,7 +649,8 @@ def set_combobox(
         value: str,
         duration: Optional[float] = None,
         mode: Enum = MoveMode.linear,
-        timeout: Optional[float] = None) -> None:
+        timeout: Optional[float] = None,
+        wait_ready: bool = True) -> None:
     """
     Sets the value of a combobox.
     
@@ -657,7 +660,7 @@ def set_combobox(
     :param mode: move mouse mode
     :param timeout: period of time in seconds that will be allowed to find the element
     """
-    left_click(element_path, duration=duration, mode=mode, timeout=timeout)
+    left_click(element_path, duration=duration, mode=mode, timeout=timeout, wait_ready=wait_ready)
     time.sleep(0.9)
     send_keys(value + "{ENTER}")
 
