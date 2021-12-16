@@ -6,6 +6,8 @@
 # comtypes.client.gen_dir = None
 # import pywinauto
 
+import ctypes
+from ctypes import wintypes
 from ctypes import windll
 import argparse
 import overlay_arrows_and_more as oaam
@@ -23,6 +25,27 @@ import pyperclip
 from pywinauto_recorder.recorder import IconSet
 import time
 import traceback
+
+
+def get_AC_line_satus():
+	class SYSTEM_POWER_STATUS(ctypes.Structure):
+		_fields_ = [
+			('ACLineStatus', wintypes.BYTE),
+			('BatteryFlag', wintypes.BYTE),
+			('BatteryLifePercent', wintypes.BYTE),
+			('Reserved1', wintypes.BYTE),
+			('BatteryLifeTime', wintypes.DWORD),
+			('BatteryFullLifeTime', wintypes.DWORD),
+		]
+	SYSTEM_POWER_STATUS_P = ctypes.POINTER(SYSTEM_POWER_STATUS)
+	GetSystemPowerStatus = ctypes.windll.kernel32.GetSystemPowerStatus
+	GetSystemPowerStatus.argtypes = [SYSTEM_POWER_STATUS_P]
+	GetSystemPowerStatus.restype = wintypes.BOOL
+	status = SYSTEM_POWER_STATUS()
+	if not GetSystemPowerStatus(ctypes.pointer(status)):
+		raise ctypes.WinError()
+
+	return status.ACLineStatus == 1
 
 
 class SysTrayIcon(object):
@@ -394,6 +417,10 @@ def replay(str_code, filename=''):
 
 
 if __name__ == '__main__':
+	if not get_AC_line_satus():
+		ctypes.windll.user32.MessageBoxW(0, "Not plugging your laptop in the AC Power can dramatically slow down Pywinauto Recorder.",
+		                                 "AC line status is off!", win32con.MB_OK | win32con.MB_ICONEXCLAMATION)
+		
 	windll.user32.ShowWindow(windll.kernel32.GetConsoleWindow(), 6)
 	parser = argparse.ArgumentParser()
 	parser.add_argument(
@@ -493,7 +520,7 @@ if __name__ == '__main__':
 		                ['Open output folder', icon_folder, action_open_explorer],
 		                ['Process events', icon_settings, [
 			                ['% relative coordinates', icon_cross, action_relative_coordinates],
-			                ['menu_click', icon_check, action_process_menu_click],
+			                ['menu_click', icon_cross, action_process_menu_click],
 			                ['set_text', icon_cross, hello],
 			                ['set_combobox', icon_cross, hello], ]],
 		                ['- - - - - -', None, hello],

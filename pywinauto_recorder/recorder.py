@@ -571,7 +571,7 @@ class Recorder(Thread):
 		self.event_list = []
 		self._copy_count = 0
 		self._mode = "Info"
-		self._process_menu_click_mode = True
+		self._process_menu_click_mode = False
 		self._smart_mode = False
 		self._relative_coordinate_mode = False
 		self.wrapper_old_info_tip = None
