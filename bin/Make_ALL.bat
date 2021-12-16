@@ -1,5 +1,5 @@
 REM COMPILE EXE
-C:\Users\oktalse\AppData\Local\Programs\Python\Python39\python.exe -m nuitka --standalone --mingw64 ..\pywinauto_recorder.py
+C:\Users\oktalse\AppData\Local\Programs\Python\Python39\python.exe -m nuitka --lto=yes --standalone --mingw64 ..\pywinauto_recorder.py
 
 REM CLEAN pywinauto_recorder.dist
 cd pywinauto_recorder.dist
