@@ -33,7 +33,7 @@ If you want to start somewhere, this would be a good place to start.
 
 When contributing code, then please follow the standard Contribution Guidelines set forth at `contribution-guide.org`_.
 
-.. _Enhancement: https://github.com/beuaaa/pywinauto_recorder/issues?q=is%3Aopen+is%3Aissue+label%3AImprovement
+.. _Enhancement: https://github.com/beuaaa/pywinauto_recorder/issues?q=is%3Aopen+is%3Aissue+label%3AEnhancement
 .. _Good First Issue: https://github.com/beuaaa/pywinauto_recorder/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22
 .. _contribution-guide.org: http://www.contribution-guide.org/#submitting-bugs
 
