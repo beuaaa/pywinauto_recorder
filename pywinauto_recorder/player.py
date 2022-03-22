@@ -14,13 +14,15 @@ import time
 from enum import Enum
 from typing import Optional, Union, NewType
 
-__all__ = ['PlayerSettings', 'MoveMode', 'load_dictionary', 'shortcut', 'full_definition', 'Window', 'Region', 'find',
+__all__ = ['PlayerSettings', 'MoveMode', 'load_dictionary', 'shortcut', 'full_definition', 'UIPath', 'Window', 'Region', 'find',
            'move', 'click', 'left_click', 'right_click', 'double_left_click', 'triple_left_click', 'drag_and_drop',
            'middle_drag_and_drop', 'right_drag_and_drop', 'menu_click', 'mouse_wheel', 'send_keys', 'set_combobox',
            'set_text', 'exists', 'select_file']
 
 UI_Coordinates = NewType('UI_Coordinates', (float, float))
-UI_Element = Union[str, pywinauto.controls.uiawrapper.UIAWrapper, UI_Coordinates]
+UI_Path = str
+PYWINAUTO_Wrapper = pywinauto.controls.uiawrapper.UIAWrapper
+UI_Selector = Union[UI_Path, PYWINAUTO_Wrapper, UI_Coordinates]
 
 
 # TODO special_char_array in core for recorder.py and player.py (check when to call escape & unescape)
@@ -117,7 +119,7 @@ def wait_is_ready_try1(wrapper, timeout=120):
             raise TimeoutError("Time out! ", msg)
 
 
-class Region(object):
+class UIPath(object):
     wait_element_is_ready = wait_is_ready_try1
     common_path = ''
     list_path = []
@@ -130,32 +132,32 @@ class Region(object):
         self.regex_title = regex_title
 
     def __enter__(self):
-        Region.current = self
-        if not Region.list_path:
-            Region.regex_title = self.regex_title
+        UIPath.current = self
+        if not UIPath.list_path:
+            UIPath.regex_title = self.regex_title
         else:
-            self.regex_title = Region.regex_title
+            self.regex_title = UIPath.regex_title
         if self.relative_path:
-            Region.list_path.append(self.relative_path)
-        Region.common_path = path_separator.join(self.list_path)
+            UIPath.list_path.append(self.relative_path)
+        UIPath.common_path = path_separator.join(self.list_path)
         return self
 
     def __exit__(self, type, value, traceback):
         if self.relative_path:
-            Region.list_path = Region.list_path[0:-1]
-        Region.common_path = path_separator.join(self.list_path)
+            UIPath.list_path = UIPath.list_path[0:-1]
+        UIPath.common_path = path_separator.join(self.list_path)
 
     #def __truediv__(self, other_region):
     #    if isinstance(other_region, str):
     #        return Region(self.relative_path + '->' + other_region)
     #    return Region(self.relative_path + '->' + other_region.relative_path)
 
-Window = Region
-
+Window = UIPath
+Region = UIPath
 
 def find(
-        element_path: Optional[UI_Element] = None,
-        timeout: Optional[float] = None) -> UI_Element:
+        element_path: Optional[UI_Selector] = None,
+        timeout: Optional[float] = None) -> PYWINAUTO_Wrapper:
     """
     Finds an element
 
@@ -163,16 +165,16 @@ def find(
     :param timeout: period of time in seconds that will be allowed to find the element
     :return: Pywinauto wrapper of clicked element
     """
-    if not timeout:
+    if timeout is None:
         timeout = PlayerSettings.timeout
 
-    if not Region.click_desktop:
-        Region.click_desktop = pywinauto.Desktop(backend='uia', allow_magic_lookup=False)
-    if Region.common_path:
+    if not UIPath.click_desktop:
+        UIPath.click_desktop = pywinauto.Desktop(backend='uia', allow_magic_lookup=False)
+    if UIPath.common_path:
         if element_path:
-            element_path2 = Region.common_path + path_separator + element_path
+            element_path2 = UIPath.common_path + path_separator + element_path
         else:
-            element_path2 = Region.common_path
+            element_path2 = UIPath.common_path
     else:
         element_path2 = element_path
     entry_list = get_entry_list(element_path2)
@@ -183,12 +185,12 @@ def find(
     while (time.time() - t0) < timeout:
         while (not y_x and not unique_element and not elements) or (y_x and not elements):
             try:
-                if Region.current:
-                    regex_title = Region.current.regex_title
+                if UIPath.current:
+                    regex_title = UIPath.current.regex_title
                 else:
                     regex_title = False
                 unique_element, elements = find_element(
-                    Region.click_desktop, entry_list, window_candidates=[], regex_title=regex_title)
+                    UIPath.click_desktop, entry_list, window_candidates=[], regex_title=regex_title)
                 if (not y_x and not unique_element and not elements) or (y_x and not elements):
                     time.sleep(2.0)
             except Exception:
@@ -205,11 +207,11 @@ def find(
                 if is_int(y_x[0]):
                     unique_element = candidates[int(y_x[0])][int(y_x[1])]
                 else:
-                    ref_entry_list = get_entry_list(Region.common_path) + get_entry_list(y_x[0])
-                    ref_unique_element, _ = find_element(Region.click_desktop, ref_entry_list,
-                                                         window_candidates=[], regex_title=Region.current.regex_title)
+                    ref_entry_list = get_entry_list(UIPath.common_path) + get_entry_list(y_x[0])
+                    ref_unique_element, _ = find_element(UIPath.click_desktop, ref_entry_list,
+                                                         window_candidates=[], regex_title=UIPath.current.regex_title)
                     if not ref_unique_element:
-                        raise Exception("Unique element not found! " + Region.common_path + core.separator + y_x[0])
+                        raise Exception("Unique element not found! " + UIPath.common_path + core.separator + y_x[0])
                     ref_r = ref_unique_element.rectangle()
                     r_y = 0
                     while r_y < nb_y:
@@ -228,10 +230,10 @@ def find(
 
 
 def move(
-        element_path: UI_Element,
-        duration: Optional[float] = 0.5,
+        element_path: UI_Selector,
+        duration: Optional[float] = None,
         mode: Enum = MoveMode.linear,
-        timeout: float = 120) -> UI_Element:
+        timeout: float = 120) -> PYWINAUTO_Wrapper:
     """
     Moves on element
     
@@ -241,7 +243,7 @@ def move(
     :param timeout: period of time in seconds that will be allowed to find the element
     :return: Pywinauto wrapper of clicked element
     """
-    if not duration:
+    if duration is None:
         duration = PlayerSettings.mouse_move_duration
 
     if duration == -1:
@@ -254,9 +256,9 @@ def move(
     x, y = win32api_GetCursorPos()
     if isinstance(element_path, str):
         element_path2 = element_path
-        if Region.common_path:
-            if Region.common_path != element_path[0:len(Region.common_path)]:
-                element_path2 = Region.common_path + path_separator + element_path
+        if UIPath.common_path:
+            if UIPath.common_path != element_path[0:len(UIPath.common_path)]:
+                element_path2 = UIPath.common_path + path_separator + element_path
         entry_list = get_entry_list(element_path2)
         if element_path2 == element_path_old:
             w_r = w_rOLD
@@ -338,12 +340,12 @@ def move(
 
 
 def click(
-        element_path: Optional[UI_Element] = None,
+        element_path: Optional[UI_Selector] = None,
         duration: Optional[float] = None,
         mode: Enum = MoveMode.linear,
         button: str = 'left',
         timeout: float = None,
-        wait_ready: bool = True) -> UI_Element:
+        wait_ready: bool = True) -> PYWINAUTO_Wrapper:
     """
     Clicks on element
     
@@ -355,10 +357,10 @@ def click(
     :param wait_ready: if True waits until the element is ready
     :return: Pywinauto wrapper of clicked element
     """
-    if not duration:
+    if duration is None:
         duration = PlayerSettings.mouse_move_duration
 
-    if not timeout:
+    if timeout is None:
         timeout = PlayerSettings.timeout
 
     if element_path:
@@ -402,11 +404,11 @@ def click(
 
 
 def left_click(
-        element_path: UI_Element,
+        element_path: UI_Selector,
         duration: Optional[float] = None,
         mode: Enum = MoveMode.linear,
         timeout: Optional[float] = None,
-        wait_ready: bool = True) -> UI_Element:
+        wait_ready: bool = True) -> PYWINAUTO_Wrapper:
     """
     Left clicks on element
     
@@ -420,11 +422,11 @@ def left_click(
     return click(element_path, duration=duration, mode=mode, button='left', timeout=timeout, wait_ready=wait_ready)
 
 def right_click(
-        element_path: UI_Element,
+        element_path: UI_Selector,
         duration: Optional[float] = None,
         mode: Enum = MoveMode.linear,
         timeout: Optional[float] = None,
-        wait_ready: bool = True) -> UI_Element:
+        wait_ready: bool = True) -> PYWINAUTO_Wrapper:
     """
     Right clicks on element
     
@@ -439,11 +441,11 @@ def right_click(
 
 
 def double_left_click(
-        element_path: UI_Element,
+        element_path: UI_Selector,
         duration: Optional[float] = None,
         mode: Enum = MoveMode.linear,
         timeout: Optional[float] = None,
-        wait_ready: bool = True) -> UI_Element:
+        wait_ready: bool = True) -> PYWINAUTO_Wrapper:
     """
     Double left clicks on element
     
@@ -458,11 +460,11 @@ def double_left_click(
 
 
 def triple_left_click(
-        element_path: UI_Element,
+        element_path: UI_Selector,
         duration: Optional[float] = None,
         mode: Enum = MoveMode.linear,
         timeout: Optional[float] = None,
-        wait_ready: bool = True) -> UI_Element:
+        wait_ready: bool = True) -> PYWINAUTO_Wrapper:
     """
     Triple left clicks on element
     
@@ -477,11 +479,11 @@ def triple_left_click(
 
 
 def drag_and_drop(
-        element_path1: UI_Element,
-        element_path2: UI_Element,
+        element_path1: UI_Selector,
+        element_path2: UI_Selector,
         duration: Optional[float] = None,
         mode: Enum = MoveMode.linear,
-        timeout: Optional[float] = None) -> UI_Element:
+        timeout: Optional[float] = None) -> PYWINAUTO_Wrapper:
     """
     Drags and drop with left button pressed from element_path1 to element_path2.
     
@@ -500,11 +502,11 @@ def drag_and_drop(
 
 
 def middle_drag_and_drop(
-        element_path1: UI_Element,
-        element_path2: UI_Element,
+        element_path1: UI_Selector,
+        element_path2: UI_Selector,
         duration: Optional[float] = None,
         mode: Enum = MoveMode.linear,
-        timeout: Optional[float] = None) -> UI_Element:
+        timeout: Optional[float] = None) -> PYWINAUTO_Wrapper:
     """
     Drags and drop with middle button pressed from element_path1 to element_path2.
     
@@ -523,11 +525,11 @@ def middle_drag_and_drop(
 
 
 def right_drag_and_drop(
-        element_path1: UI_Element,
-        element_path2: UI_Element,
+        element_path1: UI_Selector,
+        element_path2: UI_Selector,
         duration: Optional[float] = None,
         mode: Enum = MoveMode.linear,
-        timeout: Optional[float] = None) -> UI_Element:
+        timeout: Optional[float] = None) -> PYWINAUTO_Wrapper:
     """
     Drags and drop with right button pressed from element_path1 to element_path2.
     
@@ -546,12 +548,12 @@ def right_drag_and_drop(
 
 
 def menu_click(
-        element_path: UI_Element,
+        element_path: UI_Selector,
         menu_path: str,
         duration: Optional[float] = None,
         mode: Enum = MoveMode.linear,
         menu_type: str = 'QT',
-        timeout: Optional[float] = None) -> UI_Element:
+        timeout: Optional[float] = None) -> PYWINAUTO_Wrapper:
     """
     Clicks on menu item.
     
@@ -577,12 +579,12 @@ def menu_click(
                menu_entry_list[1] + type_separator + 'MenuItem', duration=duration, mode=mode, timeout=timeout)
     w = None
     if menu_type == 'QT':
-        common_path_old = Region.common_path
-        Region.common_path = ''
+        common_path_old = UIPath.common_path
+        UIPath.common_path = ''
         for entry in menu_entry_list[2:]:
             w = left_click(type_separator + 'Menu' + path_separator + entry + type_separator + 'MenuItem',
                            duration=duration, mode=mode, timeout=timeout)
-        Region.common_path = common_path_old
+        UIPath.common_path = common_path_old
     else:
         for i, entry in enumerate(menu_entry_list[2:]):
             w = left_click(element_path +
@@ -645,7 +647,7 @@ def send_keys(
 
 
 def set_combobox(
-        element_path: UI_Element,
+        element_path: UI_Selector,
         value: str,
         duration: Optional[float] = None,
         mode: Enum = MoveMode.linear,
@@ -666,7 +668,7 @@ def set_combobox(
 
 
 def set_text(
-        element_path: UI_Element,
+        element_path: UI_Selector,
         value: str,
         duration: Optional[float] = None,
         mode: Enum = MoveMode.linear,
@@ -689,8 +691,8 @@ def set_text(
 
 
 def exists(
-        element_path: UI_Element,
-        timeout: Optional[float] = None) -> UI_Element:
+        element_path: UI_Selector,
+        timeout: Optional[float] = None) -> PYWINAUTO_Wrapper:
     """
     Tests if en UI_Element exists.
     
@@ -698,6 +700,8 @@ def exists(
     :param timeout: period of time in seconds that will be allowed to find the element
     :return: Pywinauto wrapper of the found element or None
     """
+    if timeout is None:
+        timeout = PlayerSettings.timeout
     try:
         wrapper = find(element_path, timeout=timeout)
         return wrapper
@@ -706,7 +710,7 @@ def exists(
 
 
 def select_file(
-        element_path: UI_Element,
+        element_path: UI_Selector,
         full_path: str,
         force_slow_path_typing: bool = False) -> None:
     """
@@ -722,7 +726,7 @@ def select_file(
     p = pathlib.Path(full_path)
     folder = p.parent
     filename = p.name
-    with Region(element_path, regex_title=True):
+    with UIPath(element_path, regex_title=True):
         wrapper = find()
         wait_is_ready_try1(wrapper)
         left_click(wrapper.descendants(title="All locations", control_type="SplitButton")[0])
