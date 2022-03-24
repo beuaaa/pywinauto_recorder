@@ -1,7 +1,8 @@
 """This module contains functions to replay a sequence of user actions automatically."""
 
 # print('__file__={0:<35} | __name__={1:<20} | __package__={2:<20}'.format(__file__, __name__, str(__package__)))
-from .core import *
+from .core import type_separator, path_separator, get_entry, get_entry_list, find_element, get_sorted_region, \
+    get_wrapper_path, is_int
 import pywinauto
 from win32api import GetCursorPos as win32api_GetCursorPos
 from win32api import GetSystemMetrics as win32api_GetSystemMetrics
@@ -211,7 +212,7 @@ def find(
                     ref_unique_element, _ = find_element(UIPath.click_desktop, ref_entry_list,
                                                          window_candidates=[], regex_title=UIPath.current.regex_title)
                     if not ref_unique_element:
-                        raise Exception("Unique element not found! " + UIPath.common_path + core.separator + y_x[0])
+                        raise Exception("Unique element not found! " + UIPath.common_path + path_separator + y_x[0])
                     ref_r = ref_unique_element.rectangle()
                     r_y = 0
                     while r_y < nb_y:
