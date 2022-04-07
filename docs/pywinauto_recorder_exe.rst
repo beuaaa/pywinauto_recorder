@@ -49,7 +49,7 @@ Icons
 -----
 Some transparent icons are displayed at the top left of the screen:
  - an icon corresponds to Record/Stop mode. Press CTRL+ALT+r to switch.
- - a magnifiying glass icon cooresponds to Display information mode.
+ - a magnifying glass icon corresponds to Display information mode.
  - a bulb icon corresponds to Smart mode. Press CTRL+ALT+S to activate it.
  - another icon displays a green bar at each iteration of the loop. It allows you to see how fast the loop is running.
 
