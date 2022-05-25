@@ -1,0 +1,71 @@
+# -*- coding: utf-8 -*-
+
+import pytest
+from pywinauto_recorder.player import *
+import pywinauto
+import time
+
+
+@pytest.fixture
+def run_app(request):
+	app_name, window_name = request.param
+	app = pywinauto.Application(backend="win32")
+	app.start(app_name)
+	time.sleep(1)
+	app.connect(title=window_name, timeout=10)
+	yield app
+	app.kill(soft=True)
+
+
+################################################################################################
+#                                    Tests using Notepad                                       #
+################################################################################################
+
+@pytest.mark.parametrize('run_app', [("Notepad.exe", "Untitled - Notepad")], indirect=True)
+def test_send_keys(run_app):
+	"""
+	Opens Notepad, clicks on the text editor, and sends the keys "This is a error" followed
+	by 5 backspaces, "test.", and an enter.
+	"""
+	with UIPath("Untitled - Notepad||Window"):
+		edit = left_click("Text Editor||Edit%(0,0)")
+		send_keys("This is a error{BACKSPACE}{BACKSPACE}{BACKSPACE}{BACKSPACE}{BACKSPACE}test.{ENTER}")
+	result = edit.get_value()
+	assert result == 'This is a test.\r\n'
+
+
+@pytest.mark.parametrize('run_app', [("Notepad.exe", "Untitled - Notepad")], indirect=True)
+def test_drag_and_drop(run_app):
+	"""
+	It opens the font dialog of Notepad, scrolls to the bottom of the font size list using
+	a drag and drop, click on the last item in the list box,
+	and then asserts that the selected item is the last one.
+	"""
+	with UIPath("Untitled - Notepad||Window"):
+		menu_click("", "Format->Font...", menu_type='NPP')
+	with UIPath("Untitled - Notepad||Window->Font||Window"):
+		size_list_box = find("Size:||ComboBox->Size:||List")
+		with UIPath("Size:||ComboBox->Size:||List"):
+			drag_and_drop("Vertical||ScrollBar->Position||Thumb", "Vertical||ScrollBar->Line down||Button")
+			left_click("Vertical||ScrollBar->Line down||Button%(-200,0)")  # select the last item in the list
+		assert size_list_box.get_selection()[0].name == size_list_box.children_texts()[-1]
+
+
+@pytest.mark.parametrize('run_app', [("Notepad.exe", "Untitled - Notepad")], indirect=True)
+def test_wheel(run_app):
+	"""
+	It opens the font dialog of Notepad, scrolls to the bottom of the font size list using
+	the mouse wheel, click on the last item in the list box,
+	and then asserts that the selected item is the last one.
+	"""
+	with UIPath("Untitled - Notepad||Window"):
+		menu_click("", "Format->Font...", menu_type='NPP')
+	with UIPath("Untitled - Notepad||Window->Font||Window"):
+		size_list_box = find("Size:||ComboBox->Size:||List")
+		with UIPath("Size:||ComboBox->Size:||List"):
+			left_click("Vertical||ScrollBar->Position||Thumb")
+			mouse_wheel(-10)
+			left_click("Vertical||ScrollBar->Line down||Button%(-200,0)")  # select the last item in the list
+		assert size_list_box.get_selection()[0].name == size_list_box.children_texts()[-1]
+
+

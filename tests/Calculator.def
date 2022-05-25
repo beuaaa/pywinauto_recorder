@@ -10,7 +10,7 @@ Calculator||Window->Calculator||Window->||Group
 		Seven||Button
 		Eight||Button
 		Nine||Button
-	Standard operators
+	Standard operators||Group
 		Divide by||Button
 		Multiply by||Button
 		Minus||Button
