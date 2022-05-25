@@ -36,6 +36,10 @@ setup(
     version=get_version("pywinauto_recorder/__init__.py"),
     packages=['pywinauto_recorder'],
     url='https://github.com/beuaaa/pywinauto_recorder',
+    project_urls={
+        'Documentation': 'https://pywinauto-recorder.readthedocs.io',
+        'Source': 'https://github.com/beuaaa/pywinauto_recorder',
+    },
     license='MIT',
     author='david pratmarty',
     author_email='david.pratmarty@gmail.com',
