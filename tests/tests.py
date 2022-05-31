@@ -8,9 +8,7 @@ from pywinauto_recorder.core import get_entry_list, get_entry, match_entry_list
 ################################################################################################
 
 def test_get_entry_list():
-	"""
-	Tests get_entry_list(element_path).
-	"""
+	""" Tests get_entry_list(element_path). """
 	element_path = "D:\\Name||Window->||Pane->Property||Group->"
 	element_path = element_path + "Label:||Text#[Name||Window->||Pane->Property||Group->Label:||Text,0]%(0,0)"
 	entry_list = get_entry_list(element_path)
@@ -21,9 +19,7 @@ def test_get_entry_list():
 
 
 def test_get_entry_list_with_asterisk():
-	"""
-	Tests get_entry_list(element_path) having element_path with some asterisks.
-	"""
+	""" Tests get_entry_list(element_path) having element_path with some asterisks. """
 	element_path = "Name||Window->*->||Group->Property||%(0,0)"
 	entry_list2 = get_entry_list(element_path)
 	assert entry_list2[1] == '*'
@@ -32,9 +28,7 @@ def test_get_entry_list_with_asterisk():
 
 
 def test_get_entry_elements():
-	"""
-	Tests get_entry(entry).
-	"""
+	""" Tests get_entry(entry)."""
 	str_name_with_colon = 'Name:'
 	str_name_without_colon = 'Name'
 	str_y_x_with_colon = 'y_name:||y_type'
@@ -68,9 +62,7 @@ def test_get_entry_elements():
 
 
 def test_match_entry_list():
-	"""
-	Tests if the entry_list matches the template_list.
-	"""
+	""" Tests if the entry_list matches the template_list. """
 	template_list = get_entry_list("wName||Window->*->Tab1||Tab->A||Group->B||Group->*->Login||Button")
 	entry_path_set = [
 		("wName||Window->Tab1||Tab->A||Group->B||Group->Login||Button", True),
