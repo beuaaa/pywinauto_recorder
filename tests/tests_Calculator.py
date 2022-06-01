@@ -9,6 +9,7 @@ from pywinauto_recorder.core import Strategy
 import pywinauto
 import time
 import win32api
+import win32gui
 
 
 @pytest.fixture
@@ -79,12 +80,9 @@ def test_asterisk(run_app):
 @pytest.mark.parametrize('run_app', [("calc.exe", "Calculator")], indirect=True)
 def test_clicks(run_app):
 	""" Tests the ability to record all clicks. """
-	import win32gui
 	hwnd = win32gui.FindWindow(None, 'Calculator')
 	win32gui.MoveWindow(hwnd, 0, 100, 400, 400, True)
-	
 	start_time = time.time()
-	
 	recorder = Recorder()
 	recorder.start_recording()
 	
