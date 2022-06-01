@@ -2,9 +2,10 @@
 
 import pytest
 import os
-from pywinauto_recorder.player import *
+from pywinauto_recorder.player import UIPath, load_dictionary, shortcut, \
+	find, move, left_click, double_left_click, triple_left_click
 from pywinauto_recorder.recorder import Recorder
-from pywinauto_recorder.core import *
+from pywinauto_recorder.core import Strategy
 import pywinauto
 import time
 import win32api
@@ -40,7 +41,7 @@ def wait_recorder_ready(recorder, path_end, sleep=0.5):
 @pytest.mark.parametrize('run_app', [("calc.exe", "Calculator")], indirect=True)
 def test_dictionary(run_app):
 	"""
-	It opens the calculator, clicks 1, +, 2, and =, and then checks that the result is 3
+	It opens the calculator, clicks 1, +, 2, and =, and then checks that the result is 3.
 	"""
 	load_dictionary("Calculator.key", "Calculator.def")
 	with UIPath(shortcut("Calculator")):
@@ -60,17 +61,24 @@ def test_dictionary(run_app):
 @pytest.mark.parametrize('run_app', [("calc.exe", "Calculator")], indirect=True)
 def test_asterisk(run_app):
 	"""
-	Click the '1' button, then the '2' button, then the '=' button
+	It clicks the "1" button, then the "+" button, then the "2" button, then the "=" button.
+	Then is does it again, but this time it searches within all the windows with UIPath("*").
 	"""
 	with UIPath("Calculator||Window"):
 		left_click("*->One||Button")
+		left_click("*->Plus||Button")
+		left_click("*->Two||Button")
+		left_click("*->Equals||Button")
+	with UIPath("*"):
+		left_click("*->One||Button")
+		left_click("*->Plus||Button")
 		left_click("*->Two||Button")
 		left_click("*->Equals||Button")
 
 
 @pytest.mark.parametrize('run_app', [("calc.exe", "Calculator")], indirect=True)
 def test_clicks(run_app):
-	""" Tests the ability to record all clicks """
+	""" Tests the ability to record all clicks. """
 	import win32gui
 	hwnd = win32gui.FindWindow(None, 'Calculator')
 	win32gui.MoveWindow(hwnd, 0, 100, 400, 400, True)
@@ -80,7 +88,7 @@ def test_clicks(run_app):
 	recorder = Recorder()
 	recorder.start_recording()
 	
-	with Region("Calculator||Window->Calculator||Window->||Group->Number pad||Group"):
+	with UIPath("Calculator||Window->Calculator||Window->||Group->Number pad||Group"):
 		move("Zero||Button", duration=0)
 		move("One||Button", duration=0)
 		wait_recorder_ready(recorder, "One||Button")
@@ -103,7 +111,7 @@ def test_clicks(run_app):
 		wait_recorder_ready(recorder, "Six||Button")
 		triple_left_click("Six||Button")
 		triple_left_click("Six||Button")
-	with Region("Calculator||Window->Calculator||Window"):
+	with UIPath("Calculator||Window->Calculator||Window"):
 		move("Close Calculator||Button", duration=0)
 		wait_recorder_ready(recorder, "Close Calculator||Button")
 		left_click("Close Calculator||Button")
@@ -135,14 +143,14 @@ def test_clicks(run_app):
 
 @pytest.mark.parametrize('run_app', [("calc.exe", "Calculator")], indirect=True)
 def test_recorder_performance(run_app):
-	""" Tests the performance to find a unique path """
+	""" Tests the performance to find a unique path. """
 	recorder = Recorder()
 	time.sleep(1)  # wait for the recorder to start
 	str_num = ["Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"]
-	with Region("Calculator||Window->Calculator||Window->||Group->Number pad||Group"):
+	with UIPath("Calculator||Window->Calculator||Window->||Group->Number pad||Group"):
 		move("Zero||Button", duration=0)
 	start_time = time.time()
-	with Region("Calculator||Window->Calculator||Window->||Group->Number pad||Group"):
+	with UIPath("Calculator||Window->Calculator||Window->||Group->Number pad||Group"):
 		for _ in range(9):
 			for num in str_num:
 				move(num+"||Button", duration=0)
