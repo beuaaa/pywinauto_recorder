@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import pytest
-from pywinauto_recorder.player import *
+from pywinauto_recorder.player import UIPath, find, send_keys, left_click, set_text, move, select_file
 from pywinauto_recorder.recorder import Recorder
 import pyperclip
 import random
@@ -10,6 +10,7 @@ import win32con
 from PIL import Image
 import pywinauto
 import time
+import os
 
 
 @pytest.fixture
@@ -66,7 +67,7 @@ def test_mouse_move(run_app):
 		left_click("*->||ToolBar->Size||SplitButton")
 		with UIPath("||Pane->Size||Window->Size||List->||Custom->||Group"):
 			left_click("3px||ListItem")
-		send_keys("{VK_LWIN down}""{VK_UP}""{VK_LWIN up}")
+		send_keys("{VK_LWIN down}{VK_UP}{VK_LWIN up}")
 		wrapper = move("||Pane->Using Line tool on Canvas||Pane")
 	
 	time.sleep(1)
@@ -82,7 +83,7 @@ def test_mouse_move(run_app):
 		x, y = win32api.GetCursorPos()
 		assert (x0, y0) == (x, y)
 		
-		send_keys("{VK_CONTROL down}""{VK_SHIFT down}""f""{VK_SHIFT up}""{VK_CONTROL up}", vk_packet=False)
+		send_keys("{VK_CONTROL down}{VK_SHIFT down}f{VK_SHIFT up}{VK_CONTROL up}", vk_packet=False)
 		time.sleep(0.5)
 		code = pyperclip.paste()
 		words = code.split("%(")
@@ -129,11 +130,11 @@ def test_mouse_move(run_app):
 	# Now the lines are overed in white using the previously recorded drag and drops
 	compiled_code = compile(data, '<string>', 'exec')
 	eval(compiled_code)
-	#os.remove(recorded_file)
-	send_keys("{VK_CONTROL down}""s""{VK_CONTROL up}")
+	os.remove(recorded_file)
+	send_keys("{VK_CONTROL down}s{VK_CONTROL up}")
 	recorded_image = str(recorded_file).replace('.py', '.png')
 	select_file("Untitled - Paint||Window->Save As||Window", recorded_image)
 	time.sleep(2)
 	percentage = percentage_white_pixels(recorded_image)
-	#os.remove(recorded_image)
+	os.remove(recorded_image)
 	assert percentage == 100, "All the pixels should be white"
