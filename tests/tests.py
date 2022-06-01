@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 from pywinauto_recorder.core import get_entry_list, get_entry, match_entry_list
 
 

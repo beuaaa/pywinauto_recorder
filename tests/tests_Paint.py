@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 import pytest
 from pywinauto_recorder.player import UIPath, find, send_keys, left_click, set_text, move, select_file
 from pywinauto_recorder.recorder import Recorder
@@ -8,20 +6,9 @@ import random
 import win32api
 import win32con
 from PIL import Image
-import pywinauto
 import time
 import os
 
-
-@pytest.fixture
-def run_app(request):
-	app_name, window_name = request.param
-	app = pywinauto.Application(backend="win32")
-	app.start(app_name)
-	time.sleep(1)
-	app.connect(title=window_name, timeout=10)
-	yield app
-	app.kill(soft=True)
 
 ################################################################################################
 #                                   Tests using Windows 10 Paint                               #
