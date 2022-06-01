@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import pytest
-from pywinauto_recorder.player import *
+from pywinauto_recorder.player import UIPath, find, send_keys, left_click, menu_click, drag_and_drop, mouse_wheel
 import pywinauto
 import time
 
@@ -67,5 +67,3 @@ def test_wheel(run_app):
 			mouse_wheel(-10)
 			left_click("Vertical||ScrollBar->Line down||Button%(-200,0)")  # select the last item in the list
 		assert size_list_box.get_selection()[0].name == size_list_box.children_texts()[-1]
-
-
