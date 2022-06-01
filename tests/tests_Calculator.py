@@ -157,5 +157,3 @@ def test_recorder_performance(run_app):
 	duration = time.time() - start_time
 	recorder.quit()
 	assert duration < 35, "The duration of the loop is " + str(duration) + " s. It must be lower than 35 s"
-
-
