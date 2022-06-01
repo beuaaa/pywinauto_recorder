@@ -1,26 +1,12 @@
-# -*- coding: utf-8 -*-
-
 import pytest
 import os
 from pywinauto_recorder.player import UIPath, load_dictionary, shortcut, \
 	find, move, left_click, double_left_click, triple_left_click
 from pywinauto_recorder.recorder import Recorder
 from pywinauto_recorder.core import Strategy
-import pywinauto
 import time
 import win32api
 import win32gui
-
-
-@pytest.fixture
-def run_app(request):
-	app_name, window_name = request.param
-	app = pywinauto.Application(backend="win32")
-	app.start(app_name)
-	time.sleep(1)
-	app.connect(title=window_name, timeout=10)
-	yield app
-	app.kill(soft=True)
 
 
 def wait_recorder_ready(recorder, path_end, sleep=0.5):
