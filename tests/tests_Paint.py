@@ -18,7 +18,6 @@ import os
 def percentage_white_pixels(recorded_image):
 	"""
 	It opens the image, counts the number of white pixels, and returns the percentage of white pixels
-	
 	:param recorded_image: the path to the image you want to analyze
 	:return: The percentage of white pixels in the image.
 	"""

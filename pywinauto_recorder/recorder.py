@@ -14,9 +14,9 @@ import mouse
 from collections import namedtuple
 import pyperclip
 import codecs
-from .core import *
-
-__all__ = ['Recorder', 'overlay_add_mode_icon', 'overlay_add_progress_icon']
+from .core import path_separator, type_separator, Strategy, is_int, \
+                    get_wrapper_path, get_entry_list, get_entry, match_entry_list, get_sorted_region, \
+                    find_element, read_config_file
 
 ElementEvent = namedtuple('ElementEvent', ['strategy', 'rectangle', 'path'])
 SendKeysEvent = namedtuple('SendKeysEvent', ['line'])
@@ -60,9 +60,9 @@ def compute_dx_dy(x, y, rectangle):
 	return (dx, dy)
 
 
-def write_in_file(events, relative_coordinate_mode=False, menu_click=False):
+def write_in_file(events, relative_coordinate_mode=False):
 	from pathlib import Path
-	home_dir = Path.home() / Path('Pywinauto recorder')
+	home_dir = Path.home() / 'Pywinauto recorder'
 	home_dir.mkdir(parents=True, exist_ok=True)
 	record_file_name = home_dir / Path('recorded ' + time.asctime().replace(':', '_') + '.py')
 	print('Recording in file: ' + str(record_file_name.absolute()))
@@ -83,11 +83,11 @@ def write_in_file(events, relative_coordinate_mode=False, menu_click=False):
 					e_i_window = entry_list[0]
 					if e_i_window != common_window:
 						common_window = e_i_window
-						script += '\nwith Window(u"' + escape_special_char(common_window) + '"):\n'
+						script += '\nwith UIPath(u"' + escape_special_char(common_window) + '"):\n'
 					e_i_region = path_separator.join(entry_list[1:])
 					if e_i_region != common_region and e_i_region:
 						common_region = e_i_region
-						script += '\twith Region(u"' + escape_special_char(common_region) + '"):\n'
+						script += '\twith UIPath(u"' + escape_special_char(common_region) + '"):\n'
 					else:
 						common_region = ''
 		if type(e_i) in [SendKeysEvent, MouseWheelEvent, DragAndDropEvent, ClickEvent, FindEvent, MenuEvent]:
@@ -610,7 +610,7 @@ class Recorder(Thread):
 						previous_wrapper_path2 = wrapper_path2
 						
 						entry_list2 = get_entry_list(wrapper_path2)
-						unique_candidate2, _ = find_element(self.desktop, entry_list2, window_candidates=[])
+						unique_candidate2, _ = find_element(entry_list2)
 						
 						if unique_candidate2 is not None:
 							r = wrapper2_rectangle
@@ -655,53 +655,59 @@ class Recorder(Thread):
 				if type(self.event_list[-1]) == mouse.MoveEvent:
 					self.event_list = self.event_list[:-1]
 			self.event_list.append(mouse_event)
-
+			
+	def __start_stop_recording_by_key(self):
+		if self.mode != "Record":
+			self.started_recording_with_keyboard = True
+			self.start_recording()
+		else:
+			self.stop_recording()
+	
+	def __start_stop_displaying_info_by_key(self):
+		if self.mode == "Info":
+			self.mode = "Stop"
+		else:
+			self.mode = "Info"
+			
+	def __display_found_elemenet_by_key(self):
+		if self.last_element_event:
+			self._copy_count = 2
+			x, y = win32api.GetCursorPos()
+			l_e_e = self.last_element_event
+			dx, dy = compute_dx_dy(x, y, l_e_e.rectangle)
+			str_dx, str_dy = "{:.2f}".format(round(dx * 100, 2)), "{:.2f}".format(round(dy * 100, 2))
+			i = l_e_e.path.find(path_separator)
+			window_title = l_e_e.path[0:i]
+			# element_path = l_e_e.path[i+len(path_separator):]
+			p = get_relative_path(window_title, l_e_e.path)
+			code = 'with UIPath(u"' + escape_special_char(window_title) + '"):\n'
+			code += '\twrapper = find(u"' + escape_special_char(p)
+			if self.relative_coordinate_mode and eval(str_dx) != 0 and eval(str_dy) != 0:
+				code += '%(' + str_dx + ',' + str_dy + ')'
+			code += '")\n'
+			code += '\twrapper.draw_outline()\n'
+			pyperclip.copy(code)
+			if self.event_list:
+				self.event_list.append(FindEvent(path=l_e_e.path, dx=dx, dy=dy, time=time.time()))
+				
 	def __key_on(self, e):
+		key_to_scan_codes = keyboard.key_to_scan_codes
 		if (
-				e.name == 'r' and e.event_type == 'up'
-				and keyboard.key_to_scan_codes("alt")[0] in keyboard._pressed_events
-				and keyboard.key_to_scan_codes("ctrl")[0] in keyboard._pressed_events):
-			if self.mode != "Record":
-				self.started_recording_with_keyboard = True
-				self.start_recording()
-			else:
-				self.stop_recording()
+				(e.name, e.event_type) == ('r', 'up') and
+				set([key_to_scan_codes("alt")[0], key_to_scan_codes("ctrl")[0]]).issubset(keyboard._pressed_events)):
+			self.__start_stop_recording_by_key()
 		elif (
-				(e.name == 's') and (e.event_type == 'up')
-				and keyboard.key_to_scan_codes("alt")[0] in keyboard._pressed_events
-				and keyboard.key_to_scan_codes("ctrl")[0] in keyboard._pressed_events):
+				(e.name, e.event_type) == ('s', 'up') and
+				set([key_to_scan_codes("alt")[0], key_to_scan_codes("ctrl")[0]]).issubset(keyboard._pressed_events)):
 			self.smart_mode = not self.smart_mode
 		elif (
-				(e.name == 'F') and (e.event_type == 'up')
-				and keyboard.key_to_scan_codes("shift")[0] in keyboard._pressed_events
-				and keyboard.key_to_scan_codes("ctrl")[0] in keyboard._pressed_events):
-			if self.last_element_event:
-				self._copy_count = 2
-				x, y = win32api.GetCursorPos()
-				l_e_e = self.last_element_event
-				dx, dy = compute_dx_dy(x, y, l_e_e.rectangle)
-				str_dx, str_dy = "{:.2f}".format(round(dx * 100, 2)), "{:.2f}".format(round(dy * 100, 2))
-				i = l_e_e.path.find(path_separator)
-				window_title = l_e_e.path[0:i]
-				# element_path = l_e_e.path[i+len(path_separator):]
-				p = get_relative_path(window_title, l_e_e.path)
-				code = 'with Window(u"' + escape_special_char(window_title) + '"):\n'
-				code += '\twrapper = find(u"' + escape_special_char(p)
-				if self.relative_coordinate_mode and eval(str_dx) != 0 and eval(str_dy) != 0:
-					code += '%(' + str_dx + ',' + str_dy + ')'
-				code += '")\n'
-				code += '\twrapper.draw_outline()\n'
-				pyperclip.copy(code)
-				if self.event_list:
-					self.event_list.append(FindEvent(path=l_e_e.path, dx=dx, dy=dy, time=time.time()))
+				(e.name, e.event_type) == ('F', 'up') and
+				set([key_to_scan_codes("shift")[0], key_to_scan_codes("ctrl")[0]]).issubset(keyboard._pressed_events)):
+			self.__display_found_elemenet_by_key()
 		elif (
-				(e.name == 'D') and (e.event_type == 'up')
-				and keyboard.key_to_scan_codes("shift")[0] in keyboard._pressed_events
-				and keyboard.key_to_scan_codes("ctrl")[0] in keyboard._pressed_events):
-			if self.mode == "Info":
-				self.mode = "Stop"
-			else:
-				self.mode = "Info"
+				(e.name, e.event_type) == ('D', 'up') and
+				set([key_to_scan_codes("shift")[0], key_to_scan_codes("ctrl")[0]]).issubset(keyboard._pressed_events)):
+			self.__start_stop_displaying_info_by_key()
 		elif self.mode == "Record":
 			self.event_list.append(e)
 
@@ -764,7 +770,8 @@ class Recorder(Thread):
 			geometry=oaam.Shape.rectangle, thickness=0
 		)
 		self.info_overlay.add(
-			geometry=oaam.Shape.rectangle, x=info_left, y=info_top - 2 + tooltip_height, width=tooltip_width, height=tooltip2_height,
+			geometry=oaam.Shape.rectangle, x=info_left, y=info_top - 2 + tooltip_height,
+			width=tooltip_width, height=tooltip2_height,
 			thickness=1, color=(0, 0, 0), brush=oaam.Brush.solid, brush_color=(180, 254, 255))
 		self.info_overlay.add(
 			x=info_left + 5, y=info_top + tooltip_height, width=tooltip_width-7,
@@ -848,7 +855,8 @@ class Recorder(Thread):
 			loop_duration = time.time() - self._loop_t0
 		self.info_overlay.refresh()
 
-	# Ne fonctionne pas car un rectangle pere n'englobe pas forcement un rectangle fils (par exemple un TreeItem)
+	# Ne fonctionne pas dans tous les cas car un rectangle pere n'englobe pas forcement un rectangle fils
+	# (par exemple un TreeItem) Mais peut être utilisé en utime recour
 	'''
 	def my_from_point(self, x, y, wrapper=None):
 		def get_children_of_children_whith_empty_rectangle(wrapper_children):
@@ -939,7 +947,7 @@ class Recorder(Thread):
 					i_strategy = 0
 					previous_wrapper_path = wrapper_path
 					entry_list = get_entry_list(wrapper_path)
-					unique_candidate, elements = find_element(self.desktop, entry_list, window_candidates=[])
+					unique_candidate, elements = find_element(entry_list)
 				#if wrapper_path == previous_wrapper_path and unique_wrapper_path:
 				#	strategy = Strategy.unique_path_again
 				# else:
@@ -951,7 +959,7 @@ class Recorder(Thread):
 				wrapper_rectangle = wrapper.rectangle()
 				
 				'''
-				# TODO: cette strategie n'est utique que pour palier à self.desktop.from_point(*cursor_pos) qui ne fn pas
+				# TODO: cette strategie n'est utile que pour palier à self.desktop.from_point(*cursor_pos) qui ne fn pas
 				# dans tous les cas (par exemple CMD.exe). L'autre solution est de reimplementer from_point
 				if strategy == Strategy.unique_path_again and unique_candidate and not strategy_unique_path_again_done:
 					x_new, y_new = win32api.GetCursorPos()
@@ -986,7 +994,8 @@ class Recorder(Thread):
 					strategy_unique_path_again_done = True
 				'''
 				
-				if strategy in [Strategy.unique_path, Strategy.unique_path_again]:
+				#if strategy in [Strategy.unique_path, Strategy.unique_path_again]:
+				if strategy in [Strategy.unique_path]:
 					x_new, y_new = win32api.GetCursorPos()
 					if not ((wrapper_rectangle.left < x_new < wrapper_rectangle.right) and (
 							wrapper_rectangle.top < y_new < wrapper_rectangle.bottom)):
@@ -1067,10 +1076,12 @@ class Recorder(Thread):
 					self._copy_count = self._copy_count - 1
 				
 				self.main_overlay.refresh()
-				if self.mode == "Info":
+				if self.mode == "Info" and (unique_candidate or elements) :
 					self.__display_info_tip(*cursor_pos, wrapper)
 				else:
-					time.sleep(0.005)  # main_overlay.clear_all() doit attendre la fin de main_overlay.refresh()
+					self.info_overlay.clear_all()
+					self.info_overlay.refresh()
+					time.sleep(0.1)  # main_overlay.clear_all() doit attendre la fin de main_overlay.refresh()
 			except Exception as e:
 				exc_type, exc_value, exc_traceback = sys.exc_info()
 				print(repr(traceback.format_exception(exc_type, exc_value, exc_traceback)))
@@ -1156,3 +1167,5 @@ class Recorder(Thread):
 		self.mode = 'Quit'
 		self.join()
 		print("Quit")
+
+read_config_file()
