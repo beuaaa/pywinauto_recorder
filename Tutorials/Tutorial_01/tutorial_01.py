@@ -38,7 +38,7 @@ if __name__ == '__main__':
 	############################################################
 	# Start google chrome 'GitHub - beuaaa/pywinauto_recorder' #
 	############################################################
-	chrome_dir = r'"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"'
+	chrome_dir = r'"C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe"'
 	chrome = pywinauto.Application(backend='uia')
 	chrome.start(chrome_dir + ' --force-renderer-accessibility --start-maximized --guest ')
 	move((0, 0))
@@ -184,7 +184,7 @@ if __name__ == '__main__':
 	# Press 1+2= and close Calculator #
 	###################################
 	with Window(u"Calculator||Window"):
-		with Region(u"Calculator||Window->||Group"):
+		with UIPath(u"Calculator||Window->||Group"):
 			move(u"Number pad||Group->One||Button%(13.45,21.92)")
 			time.sleep(2.0)
 			brian.say("One")
@@ -205,7 +205,7 @@ if __name__ == '__main__':
 			brian.say("Equals Three")
 			left_click(u"Standard operators||Group->Equals||Button")
 
-		with Region(u"Calculator||Window"):
+		with UIPath(u"Calculator||Window"):
 			move(u"Close Calculator||Button%(0.00,17.50)")
 			brian.say("Finally, I close the calculator")
 			time.sleep(1.5)
@@ -221,10 +221,10 @@ if __name__ == '__main__':
 	#send_keys("{VK_LWIN}")
 	time.sleep(1.5)
 	with Window(u"Taskbar||Pane"):
-		with Region(u"||Pane"):
+		with UIPath(u"||Pane"):
 			left_click(u"Notification Chevron||Button")
 	with Window(u"Notification Overflow||Pane"):
-		with Region(u"Overflow Notification Area||ToolBar"):
+		with UIPath(u"Overflow Notification Area||ToolBar"):
 			time.sleep(0.5)
 			right_click(u"Pywinauto recorder||Button")
 			#time.sleep(0.5)
@@ -243,10 +243,10 @@ if __name__ == '__main__':
 	#send_keys("{VK_LWIN}")
 	time.sleep(1.5)
 	with Window(u"Taskbar||Pane"):
-		with Region(u"||Pane"):
+		with UIPath(u"||Pane"):
 			left_click(u"Notification Chevron||Button")
 	with Window(u"Notification Overflow||Pane"):
-		with Region(u"Overflow Notification Area||ToolBar"):
+		with UIPath(u"Overflow Notification Area||ToolBar"):
 			time.sleep(0.5)
 			right_click(u"Pywinauto recorder||Button")
 			#time.sleep(0.5)
@@ -275,7 +275,7 @@ if __name__ == '__main__':
 	brian.say("Let's open the file that was just created to see what it looks like.")
 	right_click(drag_and_drop_start)
 	with Window(u"Context||Menu"):
-		with Region():
+		with UIPath():
 			left_click(u"Edit with Notepad++||MenuItem%(-64.22,28.58)")
 	time.sleep(0.5)
 	send_keys("{VK_LWIN down}""{VK_UP}""{VK_LWIN up}")
@@ -313,10 +313,10 @@ if __name__ == '__main__':
 	send_keys("{VK_LWIN}")
 	time.sleep(1.5)
 	with Window("Taskbar||Pane"):
-		with Region("||Pane"):
+		with UIPath("||Pane"):
 			left_click("Notification Chevron||Button")
 	with Window("Notification Overflow||Pane"):
-		with Region("Overflow Notification Area||ToolBar"):
+		with UIPath("Overflow Notification Area||ToolBar"):
 			right_click("Pywinauto recorder||Button")
 			time.sleep(0.5)
 			click(button='right')
