@@ -1,10 +1,10 @@
 pywinauto~=0.6.8
-overlay_arrows_and_more
+overlay_arrows_and_more==0.5.0
 keyboard~=0.13.2
 mouse~=0.7.1
-pyperclip~=1.7.0
-setuptools~=40.4.3
-pytest~=7.0.1
-pywin32~=227
-Pillow~=8.0.1
+pyperclip==1.8.2
+setuptools==62.3.3
+pytest==7.1.2
+pywin32==304
+Pillow==9.1.1
 enum34~=1.1.10
