@@ -26,4 +26,4 @@ Detailed API documentation
    :template: custom-module-template.rst
 
    pywinauto_recorder.player
-   recorder
+   pywinauto_recorder.recorder.Recorder
