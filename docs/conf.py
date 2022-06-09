@@ -14,8 +14,8 @@ autodoc_mock_imports = ["pywinauto", "win32api", "win32gui", "win32con"]
 # import pywinauto_recorder.recorder
 
 autosummary_generate = True
-
 templates_path = ['_templates']
+exclude_patterns = ['_build', '_templates']
 
 source_suffix = '.rst'
 
