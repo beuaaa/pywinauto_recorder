@@ -14,6 +14,7 @@ autodoc_mock_imports = ["pywinauto", "win32api", "win32gui", "win32con", "thread
 
 autosummary_generate = True
 autosummary_imported_members = True
+autosummary_ignore_module_all = False
 templates_path = ['_templates']
 exclude_patterns = ['_build', '_templates']
 
