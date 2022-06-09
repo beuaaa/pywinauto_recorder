@@ -24,6 +24,7 @@ Detailed API documentation
 .. autosummary::
    :toctree: autosummary
    :template: custom-module-template.rst
+   :recursive:
 
    pywinauto_recorder.player
    pywinauto_recorder.recorder.Recorder
