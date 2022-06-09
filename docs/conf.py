@@ -9,9 +9,8 @@ sys.path.insert(0, os.path.abspath('../pywinauto_recorder'))
 
 extensions = ['sphinx.ext.autodoc', 'sphinx.ext.autosummary', 'sphinx_autodoc_typehints']
 
-autodoc_mock_imports = ["pywinauto", "win32api", "win32gui", "win32con"]
-# import pywinauto_recorder.player
-# import pywinauto_recorder.recorder
+autodoc_mock_imports = ["pywinauto", "win32api", "win32gui", "win32con", "threading", "overlay_arrows_and_more",
+                        "keyboard", "mouse", "collections", "pyperclip", "codecs"]
 
 autosummary_generate = True
 templates_path = ['_templates']
