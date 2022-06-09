@@ -899,6 +899,9 @@ class Recorder(Thread):
 	'''
 	
 	def run(self):
+		"""
+		The function is called in a loop, and it tries to find the unique element under the mouse cursor.
+		"""
 		import comtypes.client
 		print("COMPTYPES CACHE FOLDER:", comtypes.client._code_cache._find_gen_dir())
 		
@@ -1098,34 +1101,73 @@ class Recorder(Thread):
 
 	@property
 	def process_menu_click_mode(self):
+		"""
+		If True, the process menu events are recorded else they are ignored.
+	
+		:return: The state of the process menu click mode.
+		"""
 		return self._process_menu_click_mode
 	
 	@process_menu_click_mode.setter
 	def process_menu_click_mode(self, value):
+		"""
+		It sets the state of the process menu click mode.
+		
+		:param value: If the value is True, the process menu events are recorded else they are ignored.
+		"""
 		self._process_menu_click_mode = value
 
 	@property
 	def relative_coordinate_mode(self):
+		"""
+		If True, the relative coordinates are recorded else they are ignored.
+
+		:return: The state of the relative coordinates mode.
+		"""
 		return self._relative_coordinate_mode
 	
 	@relative_coordinate_mode.setter
 	def relative_coordinate_mode(self, value):
+		"""
+		It sets the state of the relative coordinates mode.
+
+		:param value: If the value is True, the relative coordinates are recorded else they are ignored.
+		"""
 		self._relative_coordinate_mode = value
 
 	@property
 	def smart_mode(self):
+		"""
+		If True, the smart mode is activated.
+		:return: The state of the smart mode.
+		"""
 		return self._smart_mode
 	
 	@smart_mode.setter
 	def smart_mode(self, value):
+		"""
+		It sets the state of the smart mode.
+
+		:param value: If the value is True, the smart mode is activated else it is not activated.
+		"""
 		self._smart_mode = value
 
 	@property
 	def mode(self):
+		"""
+    It returns the mode of the recorder: "Record", "Play", "Info", "Stop", "Quit"
+			
+		:return: The mode of the recorder.
+		"""
 		return self._mode
 	
 	@mode.setter
 	def mode(self, value):
+		"""
+		It sets the mode of the recorder: "Record", "Play", "Info", "Stop", "Quit"
+		
+		:param value: The mode of the recorder.
+		"""
 		self._mode = value
 
 	def start_recording(self):
