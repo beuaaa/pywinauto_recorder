@@ -26,4 +26,4 @@ Detailed API documentation
    :template: custom-module-template.rst
    :recursive:
 
-   pywinauto_recorder.recorder
+   pywinauto_recorder.player
