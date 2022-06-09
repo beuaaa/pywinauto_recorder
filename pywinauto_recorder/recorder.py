@@ -1128,6 +1128,11 @@ class Recorder(Thread):
 		self._mode = value
 
 	def start_recording(self):
+		"""
+		Start recording:
+		It adds a mouse move event to the event list, displays the record icon to the main overlay,
+		clears and refreshes the main and info overlays, and then sets the mode to "Record".
+		"""
 		x, y = win32api.GetCursorPos()
 		self.event_list = [mouse.MoveEvent(x, y, time.time())]
 		overlay_add_mode_icon(self.main_overlay, IconSet.hicon_record, 10, 10)
@@ -1138,6 +1143,12 @@ class Recorder(Thread):
 		self.mode = "Record"
 
 	def stop_recording(self):
+		"""
+		Stop recording:
+		It cleans the event list, displays the stop icon to the main overlay,
+		clears and refreshes the main and info overlays, writes the Python script, and then sets the mode to "Stop".
+		:return: The name of the file that was created.
+		"""
 		if self.mode == "Record" and len(self.event_list) > 2:
 			events = list(self.event_list)
 			self.event_list = []
@@ -1157,9 +1168,16 @@ class Recorder(Thread):
 		return None
 
 	def get_last_element_event(self):
+		"""
+		It returns the last element of the event.
+		:return: The last element event.
+		"""
 		return self.last_element_event
 
 	def quit(self):
+		"""
+		The function clears the main and info overlays, sets the mode to 'Quit', and then joins the thread.
+		"""
 		self.info_overlay.clear_all()
 		self.main_overlay.clear_all()
 		self.main_overlay.refresh()
