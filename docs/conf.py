@@ -13,6 +13,7 @@ autodoc_mock_imports = ["pywinauto", "win32api", "win32gui", "win32con", "thread
                         "keyboard", "mouse", "collections", "pyperclip", "codecs"]
 
 autosummary_generate = True
+autosummary_imported_members = True
 templates_path = ['_templates']
 exclude_patterns = ['_build', '_templates']
 
