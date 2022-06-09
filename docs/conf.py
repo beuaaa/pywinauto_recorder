@@ -11,6 +11,7 @@ extensions = ['sphinx.ext.autodoc', 'sphinx.ext.autosummary', 'sphinx_autodoc_ty
 
 autodoc_mock_imports = ["pywinauto", "win32api", "win32gui", "win32con"]
 # import pywinauto_recorder.player
+# import pywinauto_recorder.recorder
 
 autosummary_generate = True
 

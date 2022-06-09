@@ -28,6 +28,7 @@ MenuEvent = namedtuple('MenuEvent', ['path', 'menu_path', 'menu_type'])
 
 
 class IconSet:
+	""" It loads the icons from the Icons folder and stores them in the class."""
 	if "__compiled__" in globals():
 		path_icons = os.path.dirname(os.path.realpath(__file__)) + r'\..'
 	else:
