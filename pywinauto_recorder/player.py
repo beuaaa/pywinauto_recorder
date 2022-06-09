@@ -24,7 +24,7 @@ UI_Selector = Union[UI_Path, PYWINAUTO_Wrapper, UI_Coordinates]
 
 
 class PywinautoRecorderException(Exception):
-	"""Base class for other exceptions"""
+	"""Base class for other exceptions."""
 	pass
 
 
@@ -48,11 +48,13 @@ def unescape_special_char(string):
 
 
 class PlayerSettings:
+	"""The player settings class contains the mouse move duration and timeout."""
 	mouse_move_duration = 0.5
 	timeout = 10
 
 
 class MoveMode(Enum):
+	"""The MoveMode class is an enumeration of the different ways that the mouse can move"""
 	linear = 0
 	y_first = 1
 	x_first = 2
