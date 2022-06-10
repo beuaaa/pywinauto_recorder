@@ -386,10 +386,12 @@ def click(
 	:return: Pywinauto wrapper of clicked element
 	
 	:Example:
-		.. code-block:: python
-
-	with UIPath(u"Calculator||Window"):
+		with UIPath(u"Calculator||Window"):
 		click(u"*->Equals||Button")
+		
+	.. code-block:: python
+		with UIPath(u"Calculator||Window"):
+			click(u"*->Equals||Button")
 	"""
 	if duration is None:
 		duration = PlayerSettings.mouse_move_duration
