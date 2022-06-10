@@ -376,8 +376,10 @@ def click(
 	Clicks on element
 	
 	.. code-block:: python
-		:caption: Click on element
-		:emphasize-lines: 1,1
+		:caption: Example of code using the 'Click' function::
+		:emphasize-lines: 4,4
+		
+		from pywinauto_recorder.player import click
 		
 		with UIPath(u"Calculator||Window"):
 			click(u"*->Equals||Button")
