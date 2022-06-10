@@ -375,6 +375,13 @@ def click(
 	"""
 	Clicks on element
 	
+	.. code-block:: python
+		:caption: Click on element
+		:emphasize-lines: 1,1
+		
+		with UIPath(u"Calculator||Window"):
+			click(u"*->Equals||Button")
+	
 	:param element_path: element path
 	:param duration: duration in seconds of the mouse move
 		(if duration is -1 the mouse cursor doesn't move, it just sends WM_CLICK window message,
@@ -384,14 +391,6 @@ def click(
 	:param timeout: period of time in seconds that will be allowed to find the element
 	:param wait_ready: if True waits until the element is ready
 	:return: Pywinauto wrapper of clicked element
-	
-	:Example:
-		with UIPath(u"Calculator||Window"):
-		click(u"*->Equals||Button")
-		
-	.. code-block:: python
-		with UIPath(u"Calculator||Window"):
-			click(u"*->Equals||Button")
 	"""
 	if duration is None:
 		duration = PlayerSettings.mouse_move_duration
