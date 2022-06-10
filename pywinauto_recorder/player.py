@@ -373,13 +373,13 @@ def click(
 		timeout: float = None,
 		wait_ready: bool = True) -> PYWINAUTO_Wrapper:
 	"""
-	Clicks on element
+	Clicks on element.
 	
 	.. code-block:: python
 		:caption: Example of code using the 'Click' function::
 		:emphasize-lines: 4,4
 		
-		from pywinauto_recorder.player import click
+		from pywinauto_recorder.player import UIPath, click
 		
 		with UIPath(u"Calculator||Window"):
 			click(u"*->Equals||Button")
