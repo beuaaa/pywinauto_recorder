@@ -184,7 +184,9 @@ class UIPath(object):
 			with UIPath("*->Number pad||Group"):
 				click("One||Button")
 				click("Two||Button")
-				
+
+	Methods:
+	
 	Methods
 	-------
 	get_full_path(element_path: Optional[UI_Path] = None) -> UI_Path

@@ -1,2 +1,2 @@
-Sphinx~=3.5
+Sphinx~=5.0.1
 sphinx_autodoc_typehints
