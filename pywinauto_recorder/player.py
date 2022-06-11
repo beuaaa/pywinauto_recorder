@@ -15,6 +15,7 @@ from win32con import IDC_WAIT, MOUSEEVENTF_MOVE, MOUSEEVENTF_ABSOLUTE, MOUSEEVEN
 	WHEEL_DELTA
 from .core import type_separator, path_separator, get_entry, get_entry_list, find_element, get_sorted_region, \
 	get_wrapper_path, is_int
+from functools import partial, update_wrapper
 
 
 UI_Coordinates = NewType('UI_Coordinates', (float, float))
@@ -501,9 +502,6 @@ def click(
 		return None
 
 
-from functools import partial, update_wrapper
-
-
 def wrapped_partial(func, *args, **kwargs):
 	partial_func = partial(func, *args, **kwargs)
 	update_wrapper(partial_func, func)
@@ -513,72 +511,31 @@ def wrapped_partial(func, *args, **kwargs):
 left_click = wrapped_partial(click, button=ButtonLocation.left)
 left_click.__doc__ = """
 'left_click' is a partial function derived from the general function 'click'.
-The parameter 'button' is set to 'ButtonLocation.left'.
+- The parameter 'button' is set to 'ButtonLocation.left'.
 """ + left_click.__doc__
 
 
-def right_click(
-		element_path: UI_Selector,
-		duration: Optional[float] = None,
-		mode: Enum = MoveMode.linear,
-		timeout: Optional[float] = None,
-		wait_ready: bool = True) -> PYWINAUTO_Wrapper:
-	"""
-	Right clicks on element
-	
-	:param element_path: element path
-	:param duration: duration in seconds of the mouse move (it doesn't take into account the time it takes to find)
-		(if duration is -1 the mouse cursor doesn't move, it just sends WM_CLICK window message,
-		useful for minimized or non-active window).
-	:param mode: move mouse mode: MoveMode.linear, MoveMode.x_first, MoveMode.y_first
-	:param timeout: period of time in seconds that will be allowed to find the element
-	:param wait_ready: if True waits until the element is ready
-	:return: Pywinauto wrapper of clicked element
-	"""
-	return click(element_path, duration=duration, mode=mode, button=ButtonLocation.right, timeout=timeout, wait_ready=wait_ready)
+right_click = wrapped_partial(click, button=ButtonLocation.right)
+right_click.__doc__ = """
+'right_click' is a partial function derived from the general function 'click'.
+- The parameter 'button' is set to 'ButtonLocation.right'.
+""" + right_click.__doc__
 
 
-def double_left_click(
-		element_path: UI_Selector,
-		duration: Optional[float] = None,
-		mode: Enum = MoveMode.linear,
-		timeout: Optional[float] = None,
-		wait_ready: bool = True) -> PYWINAUTO_Wrapper:
-	"""
-	Double left clicks on element
-	
-	:param element_path: element path
-	:param duration: duration in seconds of the mouse move (it doesn't take into account the time it takes to find)
-		(if duration is -1 the mouse cursor doesn't move, it just sends WM_CLICK window message,
-		useful for minimized or non-active window).
-	:param mode: move mouse mode: MoveMode.linear, MoveMode.x_first, MoveMode.y_first
-	:param timeout: period of time in seconds that will be allowed to find the element
-	:param wait_ready: if True waits until the element is ready
-	:return: Pywinauto wrapper of clicked element
-	"""
-	return click(element_path, duration=duration, mode=mode, button=ButtonLocation.left, click_count=2,
-	             timeout=timeout, wait_ready=wait_ready)
+double_left_click = wrapped_partial(click, button=ButtonLocation.left, click_count=2)
+double_left_click.__doc__ = """
+'double_left_click' is a partial function derived from the general function 'click'.
+- The parameter 'button' is set to 'ButtonLocation.left'.
+- The parameter 'click_count' is set to 2.
+""" + double_left_click.__doc__
 
 
-def triple_left_click(
-		element_path: UI_Selector,
-		duration: Optional[float] = None,
-		mode: Enum = MoveMode.linear,
-		timeout: Optional[float] = None,
-		wait_ready: bool = True) -> PYWINAUTO_Wrapper:
-	"""
-	Triple left clicks on element
-	
-	:param element_path: element path
-	:param duration: duration in seconds of the mouse move (it doesn't take into account the time it takes to find)
-		(if duration is -1 the mouse cursor doesn't move, it just sends WM_CLICK window message,
-		useful for minimized or non-active window).
-	:param mode: move mouse mode: MoveMode.linear, MoveMode.x_first, MoveMode.y_first
-	:param timeout: period of time in seconds that will be allowed to find the element
-	:param wait_ready: if True waits until the element is ready
-	:return: Pywinauto wrapper of clicked element
-	"""
-	return click(element_path, duration=duration, mode=mode, button=ButtonLocation.left, click_count=3, timeout=timeout, wait_ready=wait_ready)
+triple_left_click = wrapped_partial(click, button=ButtonLocation.left, click_count=2)
+triple_left_click.__doc__ = """
+'triple_left_click' is a partial function derived from the general function 'click'.
+- The parameter 'button' is set to 'ButtonLocation.left'.
+- The parameter 'click_count' is set to 3.
+""" + triple_left_click.__doc__
 
 
 def drag_and_drop(
