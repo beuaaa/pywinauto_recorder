@@ -455,8 +455,9 @@ def click(
 
 
 from functools import partial
-# left_click is a partial function of the click function.
+
 left_click = partial(click, button=ButtonLocation.left)
+left_click.__doc__ = """left_click is a partial function of the click function."""
 
 
 def right_click(
