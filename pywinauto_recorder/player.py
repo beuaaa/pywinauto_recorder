@@ -455,28 +455,9 @@ def click(
 
 
 from functools import partial
+# left_click is a partial function of the click function.
 left_click = partial(click, button=ButtonLocation.left)
-'''
-def left_click(
-		element_path: UI_Selector,
-		duration: Optional[float] = None,
-		mode: Enum = MoveMode.linear,
-		timeout: Optional[float] = None,
-		wait_ready: bool = True) -> PYWINAUTO_Wrapper:
-	"""
-	Left clicks on element
 
-	:param element_path: element path
-	:param duration: duration in seconds of the mouse move (it doesn't take into account the time it takes to find)
-		(if duration is -1 the mouse cursor doesn't move, it just sends WM_CLICK window message,
-		useful for minimized or non-active window).
-	:param mode: move mouse mode: MoveMode.linear, MoveMode.x_first, MoveMode.y_first
-	:param timeout: period of time in seconds that will be allowed to find the element
-	:param wait_ready: if True waits until the element is ready
-	:return: Pywinauto wrapper of clicked element
-	"""
-	return click(element_path, duration=duration, mode=mode, button=ButtonLocation.left, timeout=timeout, wait_ready=wait_ready)
-'''
 
 def right_click(
 		element_path: UI_Selector,
