@@ -33,16 +33,15 @@ class FailedSearch(PywinautoRecorderException):
 	pass
 
 
-__all__ = ['PlayerSettings', 'MoveMode', 'load_dictionary', 'shortcut', 'full_definition', 'UIPath', 'Window', 'Region',
-           'find', 'move', 'click', 'left_click', 'right_click', 'double_left_click', 'triple_left_click',
-           'drag_and_drop', 'middle_drag_and_drop', 'right_drag_and_drop', 'menu_click', 'mouse_wheel', 'send_keys',
-           'set_combobox', 'set_text', 'exists', 'select_file']
+__all__ = ['PlayerSettings', 'MoveMode', 'ButtonLocation', 'load_dictionary', 'shortcut', 'full_definition', 'UIPath',
+           'Window', 'Region', 'find', 'move', 'click', 'left_click', 'right_click', 'double_left_click',
+           'triple_left_click', 'drag_and_drop', 'middle_drag_and_drop', 'right_drag_and_drop', 'menu_click',
+           'mouse_wheel', 'send_keys', 'set_combobox', 'set_text', 'exists', 'select_file']
 
 
 # TODO special_char_array in core for recorder.py and player.py (check when to call escape & unescape)
 def unescape_special_char(string):
 	for r in (("\\\\", "\\"), ("\\t", "\t"), ("\\n", "\n"), ("\\r", "\r"), ("\\v", "\v"), ("\\f", "\f"), ('\\"', '"')):
-		#for r in (("\\", "\\\\"), ("\t", "\\t"), ("\n", "\\n"), ("\r", "\\r"), ("\v", "\\v"), ("\f", "\\f"), ('"', '\\"')):
 		string = string.replace(*r)
 	return string
 
@@ -58,6 +57,13 @@ class MoveMode(Enum):
 	linear = 0
 	y_first = 1
 	x_first = 2
+
+
+class ButtonLocation(Enum):
+	"""The ButtonLocation class is an enumeration of the different locations of the mouse buttons"""
+	left = 0
+	middle = 1
+	right = 2
 
 
 _dictionary = {}
@@ -152,8 +158,10 @@ class UIPath(object):
 		"""
 		if element_path is None:
 			return path_separator.join(UIPath._path_list)
-		else:
+		elif UIPath._path_list:
 			return path_separator.join(UIPath._path_list) + path_separator + element_path
+		else:
+			return element_path
 	
 	def __init__(self, relative_path=None, regex_title=False):
 		self.relative_path = relative_path
@@ -258,6 +266,37 @@ def find(
 	return unique_element
 
 
+def __move(x, y, xd, yd, duration):
+	"""
+	It moves the mouse from (x, y) to (xd, yd) in a straight line, with a duration of `duration` seconds.
+	
+	:param x: The x-coordinate of the mouse cursor before the move
+	:param y: The y-coordinate of the mouse cursor before the move
+	:param xd: The x-coordinate of the mouse cursor after the move
+	:param yd: The y-coordinate of the mouse cursor after the move
+	:param duration: The time it takes to move the mouse from (x, y) to (xd, yd)
+	"""
+	x_max = win32api_GetSystemMetrics(0) - 1
+	y_max = win32api_GetSystemMetrics(1) - 1
+	samples = max(abs(xd - x), abs(yd - y))
+	dt = duration / samples
+	step_x = (xd - x) / samples
+	step_y = (yd - y) / samples
+	t0 = time.time()
+	for i in range(int(samples)):
+		x, y = x+step_x, y+step_y
+		t1 = time.time()
+		if t1-t0 > i*dt:
+			continue
+		time.sleep(dt)
+		nx = int(x * 65535 / x_max)
+		ny = int(y * 65535 / y_max)
+		win32api_mouse_event(MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE, nx, ny)
+	nx = round(xd * 65535 / x_max)
+	ny = round(yd * 65535 / y_max)
+	win32api_mouse_event(MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE, nx, ny)
+
+
 def move(
 		element_path: UI_Selector,
 		duration: Optional[float] = None,
@@ -325,38 +364,15 @@ def move(
 	else:
 		(xd, yd) = element_path
 		unique_element = None
-	x_max = win32api_GetSystemMetrics(0) - 1
-	y_max = win32api_GetSystemMetrics(1) - 1
 	if (x, y) != (xd, yd) and duration > 0:
-		dt = 0.01
-		samples = duration/dt
-		step_x = (xd-x)/samples
-		step_y = (yd-y)/samples
-		if mode == MoveMode.x_first:
-			for _ in range(int(samples)):
-				x = x+step_x
-				time.sleep(0.01)
-				nx = int(x * 65535 / x_max)
-				ny = int(y * 65535 / y_max)
-				win32api_mouse_event(MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE, nx, ny)
-			step_x = 0
-		if mode == MoveMode.y_first:
-			for _ in range(int(samples)):
-				y = y+step_y
-				time.sleep(0.01)
-				nx = int(x * 65535 / x_max)
-				ny = int(y * 65535 / y_max)
-				win32api_mouse_event(MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE, nx, ny)
-			step_y = 0
-		for _ in range(int(samples)):
-			x, y = x+step_x, y+step_y
-			time.sleep(0.01)
-			nx = int(x * 65535 / x_max)
-			ny = int(y * 65535 / y_max)
-			win32api_mouse_event(MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE, nx, ny)
-	nx = round(xd * 65535 / x_max)
-	ny = round(yd * 65535 / y_max)
-	win32api_mouse_event(MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE, nx, ny)
+		if mode == MoveMode.linear:
+			__move(x, y, xd, yd, duration)
+		elif mode == MoveMode.x_first:
+			__move(x, y, xd, y, duration/2)
+			__move(xd, y, xd, yd, duration/2)
+		elif mode == MoveMode.y_first:
+			__move(x, y, x, yd, duration/2)
+			__move(x, yd, xd, yd, duration/2)
 	if unique_element is None:
 		return None
 	unique_element_old = unique_element
@@ -368,28 +384,30 @@ def move(
 def click(
 		element_path: Optional[UI_Selector] = None,
 		duration: Optional[float] = None,
-		mode: Enum = MoveMode.linear,
-		button: str = 'left',
+		mode: MoveMode = MoveMode.linear,
+		button: ButtonLocation = ButtonLocation.left,
+		click_count: int = 1,
 		timeout: float = None,
 		wait_ready: bool = True) -> PYWINAUTO_Wrapper:
 	"""
 	Clicks on element.
 	
 	.. code-block:: python
-		:caption: Example of code using the 'Click' function::
+		:caption: Example of code using the 'click' function::
 		:emphasize-lines: 4,4
 		
-		from pywinauto_recorder.player import UIPath, click
+		from pywinauto_recorder.player import UIPath, click, MoveMode
 		
-		with UIPath(u"Calculator||Window"):
-			click(u"*->Equals||Button")
+		with UIPath("Calculator||Window"):
+			click("*->One||Button", mode=MoveMode.x_first, duration=4)
 	
 	:param element_path: element path
-	:param duration: duration in seconds of the mouse move
+	:param duration: duration in seconds of the mouse move (it doesn't take into account the time it takes to find)
 		(if duration is -1 the mouse cursor doesn't move, it just sends WM_CLICK window message,
 		useful for minimized or non-active window).
-	:param mode: move mouse mode
-	:param button: mouse button: 'left','double_left', 'triple_left', 'right'
+	:param mode: move mouse mode: MoveMode.linear, MoveMode.x_first, MoveMode.y_first
+	:param button: mouse button:  ButtonLocation.left, ButtonLocation.middle, ButtonLocation.right
+	:param click_count: number of clicks
 	:param timeout: period of time in seconds that will be allowed to find the element
 	:param wait_ready: if True waits until the element is ready
 	:return: Pywinauto wrapper of clicked element
@@ -415,31 +433,30 @@ def click(
 				wait_is_ready_try1(wrapper, timeout=timeout)
 			else:
 				wrapper = None
-	if button == 'left' or button == 'double_left' or button == 'triple_left':
-		win32api_mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0)
+	if button == ButtonLocation.left:
+		event_down = MOUSEEVENTF_LEFTDOWN
+		event_up = MOUSEEVENTF_LEFTUP
+	elif button == ButtonLocation.middle:
+		event_down = MOUSEEVENTF_MIDDLEDOWN
+		event_up = MOUSEEVENTF_MIDDLEUP
+	elif button == ButtonLocation.right:
+		event_down = MOUSEEVENTF_RIGHTDOWN
+		event_up = MOUSEEVENTF_RIGHTUP
+	for _ in range(click_count):
+		wrapper.click_input()
+		win32api_mouse_event(event_down, 0, 0)
 		time.sleep(.01)
-		win32api_mouse_event(MOUSEEVENTF_LEFTUP, 0, 0)
+		win32api_mouse_event(event_up, 0, 0)
 		time.sleep(.1)
-	if button == 'double_left' or button == 'triple_left':
-		win32api_mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0)
-		time.sleep(.01)
-		win32api_mouse_event(MOUSEEVENTF_LEFTUP, 0, 0)
-		time.sleep(.1)
-	if button == 'triple_left':
-		win32api_mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0)
-		time.sleep(.01)
-		win32api_mouse_event(MOUSEEVENTF_LEFTUP, 0, 0)
-	if button == 'right':
-		win32api_mouse_event(MOUSEEVENTF_RIGHTDOWN, 0, 0)
-		time.sleep(.01)
-		win32api_mouse_event(MOUSEEVENTF_RIGHTUP, 0, 0)
-		time.sleep(.01)
 	if element_path:
 		return wrapper
 	else:
 		return None
 
 
+from functools import partial
+left_click = partial(click, button=ButtonLocation.left)
+'''
 def left_click(
 		element_path: UI_Selector,
 		duration: Optional[float] = None,
@@ -448,16 +465,18 @@ def left_click(
 		wait_ready: bool = True) -> PYWINAUTO_Wrapper:
 	"""
 	Left clicks on element
-	
+
 	:param element_path: element path
-	:param duration: duration in seconds of the mouse move (if duration is -1 the mouse cursor doesn't move)
-	:param mode: move mouse mode
+	:param duration: duration in seconds of the mouse move (it doesn't take into account the time it takes to find)
+		(if duration is -1 the mouse cursor doesn't move, it just sends WM_CLICK window message,
+		useful for minimized or non-active window).
+	:param mode: move mouse mode: MoveMode.linear, MoveMode.x_first, MoveMode.y_first
 	:param timeout: period of time in seconds that will be allowed to find the element
 	:param wait_ready: if True waits until the element is ready
 	:return: Pywinauto wrapper of clicked element
 	"""
-	return click(element_path, duration=duration, mode=mode, button='left', timeout=timeout, wait_ready=wait_ready)
-
+	return click(element_path, duration=duration, mode=mode, button=ButtonLocation.left, timeout=timeout, wait_ready=wait_ready)
+'''
 
 def right_click(
 		element_path: UI_Selector,
@@ -469,13 +488,15 @@ def right_click(
 	Right clicks on element
 	
 	:param element_path: element path
-	:param duration: duration in seconds of the mouse move (if duration is -1 the mouse cursor doesn't move)
-	:param mode: move mouse mode
+	:param duration: duration in seconds of the mouse move (it doesn't take into account the time it takes to find)
+		(if duration is -1 the mouse cursor doesn't move, it just sends WM_CLICK window message,
+		useful for minimized or non-active window).
+	:param mode: move mouse mode: MoveMode.linear, MoveMode.x_first, MoveMode.y_first
 	:param timeout: period of time in seconds that will be allowed to find the element
 	:param wait_ready: if True waits until the element is ready
 	:return: Pywinauto wrapper of clicked element
 	"""
-	return click(element_path, duration=duration, mode=mode, button='right', timeout=timeout, wait_ready=wait_ready)
+	return click(element_path, duration=duration, mode=mode, button=ButtonLocation.right, timeout=timeout, wait_ready=wait_ready)
 
 
 def double_left_click(
@@ -488,13 +509,16 @@ def double_left_click(
 	Double left clicks on element
 	
 	:param element_path: element path
-	:param duration: duration in seconds of the mouse move (if duration is -1 the mouse cursor doesn't move)
-	:param mode: move mouse mode
+	:param duration: duration in seconds of the mouse move (it doesn't take into account the time it takes to find)
+		(if duration is -1 the mouse cursor doesn't move, it just sends WM_CLICK window message,
+		useful for minimized or non-active window).
+	:param mode: move mouse mode: MoveMode.linear, MoveMode.x_first, MoveMode.y_first
 	:param timeout: period of time in seconds that will be allowed to find the element
 	:param wait_ready: if True waits until the element is ready
 	:return: Pywinauto wrapper of clicked element
 	"""
-	return click(element_path, duration=duration, mode=mode, button='double_left', timeout=timeout, wait_ready=wait_ready)
+	return click(element_path, duration=duration, mode=mode, button=ButtonLocation.left, click_count=2,
+	             timeout=timeout, wait_ready=wait_ready)
 
 
 def triple_left_click(
@@ -507,13 +531,15 @@ def triple_left_click(
 	Triple left clicks on element
 	
 	:param element_path: element path
-	:param duration: duration in seconds of the mouse move (if duration is -1 the mouse cursor doesn't move)
-	:param mode: move mouse mode
+	:param duration: duration in seconds of the mouse move (it doesn't take into account the time it takes to find)
+		(if duration is -1 the mouse cursor doesn't move, it just sends WM_CLICK window message,
+		useful for minimized or non-active window).
+	:param mode: move mouse mode: MoveMode.linear, MoveMode.x_first, MoveMode.y_first
 	:param timeout: period of time in seconds that will be allowed to find the element
 	:param wait_ready: if True waits until the element is ready
 	:return: Pywinauto wrapper of clicked element
 	"""
-	return click(element_path, duration=duration, mode=mode, button='triple_left', timeout=timeout, wait_ready=wait_ready)
+	return click(element_path, duration=duration, mode=mode, button=ButtonLocation.left, click_count=3, timeout=timeout, wait_ready=wait_ready)
 
 
 def drag_and_drop(
@@ -527,8 +553,10 @@ def drag_and_drop(
 	
 	:param element_path1: element path
 	:param element_path2: element path
-	:param duration: duration in seconds of the mouse move (if duration is -1 the mouse cursor doesn't move)
-	:param mode: move mouse mode
+	:param duration: duration in seconds of the mouse move (it doesn't take into account the time it takes to find)
+		(if duration is -1 the mouse cursor doesn't move, it just sends WM_CLICK window message,
+		useful for minimized or non-active window).
+	:param mode: move mouse mode: MoveMode.linear, MoveMode.x_first, MoveMode.y_first
 	:param timeout: period of time in seconds that will be allowed to find the element
 	:return: Pywinauto wrapper with element_path2
 	"""
@@ -550,8 +578,10 @@ def middle_drag_and_drop(
 	
 	:param element_path1: element path
 	:param element_path2: element path
-	:param duration: duration in seconds of the mouse move (if duration is -1 the mouse cursor doesn't move)
-	:param mode: move mouse mode
+	:param duration: duration in seconds of the mouse move (it doesn't take into account the time it takes to find)
+		(if duration is -1 the mouse cursor doesn't move, it just sends WM_CLICK window message,
+		useful for minimized or non-active window).
+	:param mode: move mouse mode: MoveMode.linear, MoveMode.x_first, MoveMode.y_first
 	:param timeout: period of time in seconds that will be allowed to find the element
 	:return: Pywinauto wrapper with element_path2
 	"""
@@ -573,8 +603,10 @@ def right_drag_and_drop(
 	
 	:param element_path1: element path
 	:param element_path2: element path
-	:param duration: duration in seconds of the mouse move (if duration is -1 the mouse cursor doesn't move)
-	:param mode: move mouse mode
+	:param duration: duration in seconds of the mouse move (it doesn't take into account the time it takes to find)
+		(if duration is -1 the mouse cursor doesn't move, it just sends WM_CLICK window message,
+		useful for minimized or non-active window).
+	:param mode: move mouse mode: MoveMode.linear, MoveMode.x_first, MoveMode.y_first
 	:param timeout: period of time in seconds that will be allowed to find the element
 	:return: Pywinauto wrapper with element_path2
 	"""
@@ -597,8 +629,10 @@ def menu_click(
 	
 	:param element_path: element path
 	:param menu_path: menu path
-	:param duration: duration in seconds of the mouse move (if duration is -1 the mouse cursor doesn't move)
-	:param mode: move mouse mode
+	:param duration: duration in seconds of the mouse move (it doesn't take into account the time it takes to find)
+		(if duration is -1 the mouse cursor doesn't move, it just sends WM_CLICK window message,
+		useful for minimized or non-active window).
+	:param mode: move mouse mode: MoveMode.linear, MoveMode.x_first, MoveMode.y_first
 	:param menu_type: menu type ('QT', 'NPP')
 	:param timeout: period of time in seconds that will be allowed to find the element
 	:return: Pywinauto wrapper of the clicked item
@@ -696,8 +730,10 @@ def set_combobox(
 	
 	:param element_path: element path
 	:param value: value of the combobox
-	:param duration: duration in seconds of the mouse move (if duration is -1 the mouse cursor doesn't move)
-	:param mode: move mouse mode
+	:param duration: duration in seconds of the mouse move (it doesn't take into account the time it takes to find)
+		(if duration is -1 the mouse cursor doesn't move, it just sends WM_CLICK window message,
+		useful for minimized or non-active window).
+	:param mode: move mouse mode: MoveMode.linear, MoveMode.x_first, MoveMode.y_first
 	:param timeout: period of time in seconds that will be allowed to find the element
 	"""
 	left_click(element_path, duration=duration, mode=mode, timeout=timeout, wait_ready=wait_ready)
@@ -717,8 +753,10 @@ def set_text(
 	
 	:param element_path: element path
 	:param value: value of the combobox
-	:param duration: duration in seconds of the mouse move (if duration is -1 the mouse cursor doesn't move)
-	:param mode: move mouse mode
+	:param duration: duration in seconds of the mouse move (it doesn't take into account the time it takes to find)
+		(if duration is -1 the mouse cursor doesn't move, it just sends WM_CLICK window message,
+		useful for minimized or non-active window).
+	:param mode: move mouse mode: MoveMode.linear, MoveMode.x_first, MoveMode.y_first
 	:param timeout: period of time in seconds that will be allowed to find the element
 	:param pause: pause in seconds between each typed key
 	"""
