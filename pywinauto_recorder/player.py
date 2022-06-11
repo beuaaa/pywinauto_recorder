@@ -501,10 +501,17 @@ def click(
 		return None
 
 
-from functools import partial
+from functools import partial, update_wrapper
 
-left_click = partial(click, button=ButtonLocation.left)
-left_click.__doc__ = """left_click is a partial function of the click function."""
+
+def wrapped_partial(func, *args, **kwargs):
+	partial_func = partial(func, *args, **kwargs)
+	update_wrapper(partial_func, func)
+	return partial_func
+
+
+left_click = wrapped_partial(click, button=ButtonLocation.left)
+# left_click.__doc__ = """left_click is a partial function of the click function."""
 
 
 def right_click(
