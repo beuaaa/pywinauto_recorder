@@ -511,30 +511,38 @@ def wrapped_partial(func, *args, **kwargs):
 left_click = wrapped_partial(click, button=ButtonLocation.left)
 left_click.__doc__ = """
 'left_click' is a partial function derived from the general function 'click'.
+
     - The parameter 'button' is set to 'ButtonLocation.left'.
+    
 """ + left_click.__doc__
 
 
 right_click = wrapped_partial(click, button=ButtonLocation.right)
 right_click.__doc__ = """
 'right_click' is a partial function derived from the general function 'click'.
+
     - The parameter 'button' is set to 'ButtonLocation.right'.
+    
 """ + right_click.__doc__
 
 
 double_left_click = wrapped_partial(click, button=ButtonLocation.left, click_count=2)
 double_left_click.__doc__ = """
 'double_left_click' is a partial function derived from the general function 'click'.
+
     - The parameter 'button' is set to 'ButtonLocation.left'.
     - The parameter 'click_count' is set to 2.
+    
 """ + double_left_click.__doc__
 
 
 triple_left_click = wrapped_partial(click, button=ButtonLocation.left, click_count=2)
 triple_left_click.__doc__ = """
 'triple_left_click' is a partial function derived from the general function 'click'.
+
     - The parameter 'button' is set to 'ButtonLocation.left'.
     - The parameter 'click_count' is set to 3.
+    
 """ + triple_left_click.__doc__
 
 
