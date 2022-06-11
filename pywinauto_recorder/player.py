@@ -511,7 +511,10 @@ def wrapped_partial(func, *args, **kwargs):
 
 
 left_click = wrapped_partial(click, button=ButtonLocation.left)
-# left_click.__doc__ = """left_click is a partial function of the click function."""
+left_click.__doc__ = """
+'left_click' is a partial function derived from the general function 'click'.
+The parameter 'button' is set to 'ButtonLocation.left'.
+""" + left_click.__doc__
 
 
 def right_click(
