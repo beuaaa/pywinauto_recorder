@@ -142,11 +142,6 @@ def wait_is_ready_try1(wrapper, timeout=120):
 			raise TimeoutError("Time out! ", msg)
 
 
-with UIPath(u"Calculator||Window"):
-	wrapper = find(u"Calculator||Window->||Group->Number pad||Group->One||Button")
-	wrapper.draw_outline()
-
-
 class UIPath(object):
 	"""
 	UIPath is used to keep track of the current path in the UI tree.
