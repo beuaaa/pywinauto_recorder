@@ -144,7 +144,7 @@ def wait_is_ready_try1(wrapper, timeout=120):
 
 class UIPath(object):
 	"""
-	UIPath is used to keep track of the current path in the UI tree.
+	UIPath is a context manager used to keep track of the current path in the UI tree.
 	
 	.. code-block:: python
 		:caption: Example of code not using a 'UIPath' object::
@@ -176,7 +176,7 @@ class UIPath(object):
 	
 	.. code-block:: python
 		:caption: Example of code using nested 'UIPath' objects::
-		:emphasize-lines: 3,3
+		:emphasize-lines: 3,4
 		
 		from pywinauto_recorder.player import UIPath, click
 		
@@ -184,6 +184,11 @@ class UIPath(object):
 			with UIPath("*->Number pad||Group"):
 				click("One||Button")
 				click("Two||Button")
+				
+	Methods
+	-------
+	get_full_path(element_path: Optional[UI_Path] = None) -> UI_Path
+	    Returns the full path of the element.
 	"""
 	_path_list = []
 	_regex_list = []
