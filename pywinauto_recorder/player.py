@@ -148,16 +148,17 @@ class UIPath(object):
 	
 	.. code-block:: python
 		:caption: Example of code not using a 'UIPath' object::
+		:emphasize-lines: 3,4
 		
 		from pywinauto_recorder.player import click
 		
 		click("Calculator||Window->*->Number pad||Group->One||Button")
 		click("Calculator||Window->*->Number pad||Group->Two||Button")
 		
-	The code above will allow to click on two buttons. In each line the whole path is repeated.
+	The code above clicks on two buttons. On each line that corresponds to a click operation, the whole path is repeated.
 	A UIPath object will allow to factorize a common path where several operations will be performed.
 	
-	The following code does the same as the previous example::
+	The following code does the same as the previous example:
 	
 	.. code-block:: python
 		:caption: Example of code using a 'UIPath' object::
@@ -171,7 +172,7 @@ class UIPath(object):
 	
 	UIPath objects can be nested.
 	
-	The following code does the same as the previous example::
+	The following code does the same as the previous example:
 	
 	.. code-block:: python
 		:caption: Example of code using nested 'UIPath' objects::
