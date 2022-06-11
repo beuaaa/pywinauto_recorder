@@ -142,8 +142,53 @@ def wait_is_ready_try1(wrapper, timeout=120):
 			raise TimeoutError("Time out! ", msg)
 
 
-# > The class is used to keep track of the current path in the UI tree
+with UIPath(u"Calculator||Window"):
+	wrapper = find(u"Calculator||Window->||Group->Number pad||Group->One||Button")
+	wrapper.draw_outline()
+
+
 class UIPath(object):
+	"""
+	UIPath is used to keep track of the current path in the UI tree.
+	
+	.. code-block:: python
+		:caption: Example of code not using a 'UIPath' object::
+		
+		from pywinauto_recorder.player import click
+		
+		click("Calculator||Window->*->Number pad||Group->One||Button")
+		click("Calculator||Window->*->Number pad||Group->Two||Button")
+		
+	The code above will allow to click on two buttons. In each line the whole path is repeated.
+	A UIPath object will allow to factorize a common path where several operations will be performed.
+	
+	The following code does the same as the previous example::
+	
+	.. code-block:: python
+		:caption: Example of code using a 'UIPath' object::
+		:emphasize-lines: 3,3
+		
+		from pywinauto_recorder.player import UIPath, click
+		
+		with UIPath("Calculator||Window"):
+			click("*->Number pad||Group->One||Button")
+			click("*->Number pad||Group->Two||Button")
+	
+	UIPath objects can be nested.
+	
+	The following code does the same as the previous example::
+	
+	.. code-block:: python
+		:caption: Example of code using nested 'UIPath' objects::
+		:emphasize-lines: 3,3
+		
+		from pywinauto_recorder.player import UIPath, click
+		
+		with UIPath("Calculator||Window"):
+			with UIPath("*->Number pad||Group"):
+				click("One||Button")
+				click("Two||Button")
+	"""
 	_path_list = []
 	_regex_list = []
 	
@@ -394,12 +439,11 @@ def click(
 	
 	.. code-block:: python
 		:caption: Example of code using the 'click' function::
-		:emphasize-lines: 4,4
+		:emphasize-lines: 3,3
 		
-		from pywinauto_recorder.player import UIPath, click, MoveMode
+		from pywinauto_recorder.player import click, MoveMode
 		
-		with UIPath("Calculator||Window"):
-			click("*->One||Button", mode=MoveMode.x_first, duration=4)
+		click("Calculator||Window->*->One||Button", mode=MoveMode.x_first, duration=4)
 	
 	:param element_path: element path
 	:param duration: duration in seconds of the mouse move (it doesn't take into account the time it takes to find)
