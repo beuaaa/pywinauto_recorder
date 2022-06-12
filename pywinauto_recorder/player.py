@@ -798,15 +798,15 @@ def select_file(
 	Selects a file in an already opened file dialog.
 	
 	.. code-block:: python
-		:caption: Example of code not using a 'select_file'::
+		:caption: Example of code using 'select_file'::
 		:emphasize-lines: 3,3
 		
 		from pywinauto_recorder.player import select_file
 		
-		select_file("Document - WordPad||Window->Open||Window",r"Documents\file.txt")
+		select_file("Document - WordPad||Window->Open||Window", "Documents/file.txt")
 	
 	To make this code work, you must first launch 'Worpad' and click on 'File->Open'.
- 
+
 	:param window_path: window path of the file dialog (e.g. "Untitled - Paint||Window->Save As||Window"
 	:param full_path: the full path of the file to select
 	:param force_slow_path_typing: if True it will type the path even if the current path of the dialog box is the same
@@ -825,6 +825,7 @@ def select_file(
 	if force_slow_path_typing or pathlib.Path(pyperclip.paste()) != folder:
 		send_keys(str(folder))
 	send_keys("{ENTER}")
-	double_left_click(u"*->File name:||ComboBox->File name:||Edit")
-	send_keys(filename + "{ENTER}")
+	with UIPath(window_path):
+		double_left_click("*->File name:||ComboBox->File name:||Edit")
+		send_keys(filename + "{ENTER}")
 
