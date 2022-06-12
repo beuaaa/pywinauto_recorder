@@ -17,10 +17,9 @@ autosummary_generate = True
 autosummary_ignore_module_all = False
 templates_path = ['_templates']
 exclude_patterns = ['_build', '_templates']
-
 source_suffix = '.rst'
-
 master_doc = 'index'
+html_theme = 'sphinx_rtd_theme'
 
 
 # General information about the project.

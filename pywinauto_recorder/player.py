@@ -805,7 +805,7 @@ def select_file(
 		
 		select_file("Document - WordPad||Window->Open||Window", "Documents/file.txt")
 	
-	To make this code work, you must first launch 'Worpad' and click on 'File->Open'.
+	To make this code work, you must first launch 'WordPad' and click on 'File->Open'.
 
 	:param window_path: window path of the file dialog (e.g. "Untitled - Paint||Window->Save As||Window"
 	:param full_path: the full path of the file to select
