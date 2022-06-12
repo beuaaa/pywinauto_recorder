@@ -355,7 +355,9 @@ def move(
 	Moves on element
 	
 	:param element_path: element path
-	:param duration: duration in seconds of the mouse move (if duration is -1 the mouse cursor doesn't move)
+	:param duration: duration in seconds of the mouse move (it doesn't take into account the time it takes to find)
+		(if duration is -1 the mouse cursor doesn't move, it just sends WM_CLICK window message,
+		useful for minimized or non-active window).
 	:param mode: move mouse mode
 	:param timeout: period of time in seconds that will be allowed to find the element
 	:return: Pywinauto wrapper of clicked element
@@ -491,7 +493,6 @@ def click(
 		event_down = MOUSEEVENTF_RIGHTDOWN
 		event_up = MOUSEEVENTF_RIGHTUP
 	for _ in range(click_count):
-		wrapper.click_input()
 		win32api_mouse_event(event_down, 0, 0)
 		time.sleep(.01)
 		win32api_mouse_event(event_up, 0, 0)
@@ -796,6 +797,16 @@ def select_file(
 	"""
 	Selects a file in an already opened file dialog.
 	
+	.. code-block:: python
+		:caption: Example of code not using a 'select_file'::
+		:emphasize-lines: 3,3
+		
+		from pywinauto_recorder.player import select_file
+		
+		select_file("Document - WordPad||Window->Open||Window",r"Documents\file.txt")
+	
+	To make this code work, you must first launch 'Worpad' and click on 'File->Open'.
+ 
 	:param window_path: window path of the file dialog (e.g. "Untitled - Paint||Window->Save As||Window"
 	:param full_path: the full path of the file to select
 	:param force_slow_path_typing: if True it will type the path even if the current path of the dialog box is the same
@@ -807,14 +818,13 @@ def select_file(
 	folder = p.parent
 	filename = p.name
 	with UIPath(window_path):
-		wrapper = find()
-		wait_is_ready_try1(wrapper)
-		left_click(wrapper.descendants(title="All locations", control_type="SplitButton")[0])
-		if not force_slow_path_typing:
-			send_keys("{VK_CONTROL down}c{VK_CONTROL up}")
-		if force_slow_path_typing or pathlib.Path(pyperclip.paste()) != folder:
-			send_keys(str(folder))
-		send_keys("{ENTER}")
-		double_left_click(u"*->File name:||ComboBox->File name:||Edit")
-		send_keys(filename + "{ENTER}")
+		find().set_focus()
+		click("*->All locations||SplitButton")
+	if not force_slow_path_typing:
+		send_keys("{VK_CONTROL down}c{VK_CONTROL up}")
+	if force_slow_path_typing or pathlib.Path(pyperclip.paste()) != folder:
+		send_keys(str(folder))
+	send_keys("{ENTER}")
+	double_left_click(u"*->File name:||ComboBox->File name:||Edit")
+	send_keys(filename + "{ENTER}")
 
