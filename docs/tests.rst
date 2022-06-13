@@ -1,7 +1,7 @@
 Pywinauto recorder tests
 ========================
 
-The tests are good exemples of how to use the player API.
+The tests are good examples of how to use the player API.
 The tests are grouped by application:
 
 - `Calculator <https://github.com/beuaaa/pywinauto_recorder/blob/master/tests/tests_Calculator.py>`_
