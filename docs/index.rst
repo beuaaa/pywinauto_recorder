@@ -2,6 +2,8 @@
 
 .. include:: pywinauto_recorder_exe.rst
 
+.. include:: tests.rst
+
 .. include:: api.rst
 
 .. include:: contribute.rst
