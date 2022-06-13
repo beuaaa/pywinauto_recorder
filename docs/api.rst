@@ -28,3 +28,6 @@ Detailed API documentation
 
    pywinauto_recorder.player
    pywinauto_recorder.recorder
+
+.. autoclass:: pywinauto_recorder.recorder.Recorder
+    :members:
