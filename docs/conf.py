@@ -7,7 +7,11 @@ sys.path.insert(0, os.path.abspath('..'))
 sys.path.insert(0, os.path.abspath('../pywinauto_recorder'))
 
 
-extensions = ['sphinx.ext.autodoc', 'sphinx.ext.autosummary', 'sphinx_autodoc_typehints']
+extensions = ['sphinx.ext.autodoc',
+              'sphinx.ext.autosummary',
+              'sphinx_autodoc_typehints',
+              'sphinx.ext.viewcode'
+              ]
 
 autodoc_mock_imports = ["pywinauto", "win32api", "win32gui", "win32con", "threading", "overlay_arrows_and_more",
                         "keyboard", "mouse", "collections", "pyperclip", "codecs"]
