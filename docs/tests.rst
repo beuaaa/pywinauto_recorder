@@ -3,23 +3,8 @@ Pywinauto recorder tests
 
 Organization
 ------------
-The tests are grouped by applications: Calculator, Notepad, Paint.
+The tests are grouped by application: Calculator, Notepad, Paint.
 
-Functions
----------
+.. literalinclude:: https://raw.githubusercontent.com/beuaaa/pywinauto_recorder/master/tests/tests_Paint.py
+   :language: python
 
-Detailed API documentation
-
-.. toctree::
-   :maxdepth: 2
-   :caption: Contents:
-
-.. autosummary::
-   :toctree: autosummary
-   :template: custom-module-template.rst
-   :recursive:
-
-   tests.tests
-   tests.tests_Notepad
-   tests.tests_Calculator
-   tests.tests_Paint
