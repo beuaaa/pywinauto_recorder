@@ -27,4 +27,4 @@ Detailed API documentation
    :recursive:
 
    pywinauto_recorder.player
-   pywinauto_recorder.recorder.Recorder
+   pywinauto_recorder.recorder
