@@ -511,39 +511,39 @@ def wrapped_partial(func, *args, **kwargs):
 
 left_click = wrapped_partial(click, button=ButtonLocation.left)
 left_click.__doc__ = """
-'left_click' is a partial function derived from the general function 'click'.
+'left_click' is a partial function derived from the 'click' general function.
 
-    - The parameter 'button' is set to 'ButtonLocation.left'.
-    
+	- The parameter 'button' is set to 'ButtonLocation.left'.
+
 """ + left_click.__doc__
 
 
 right_click = wrapped_partial(click, button=ButtonLocation.right)
 right_click.__doc__ = """
-'right_click' is a partial function derived from the general function 'click'.
+'right_click' is a partial function derived from the 'click' general function.
 
-    - The parameter 'button' is set to 'ButtonLocation.right'.
-    
+	- The parameter 'button' is set to 'ButtonLocation.right'.
+
 """ + right_click.__doc__
 
 
 double_left_click = wrapped_partial(click, button=ButtonLocation.left, click_count=2)
 double_left_click.__doc__ = """
-'double_left_click' is a partial function derived from the general function 'click'.
+'double_left_click' is a partial function derived from the 'click' general function.
 
-    - The parameter 'button' is set to 'ButtonLocation.left'.
-    - The parameter 'click_count' is set to 2.
-    
+	- The parameter 'button' is set to 'ButtonLocation.left'.
+	- The parameter 'click_count' is set to 2.
+
 """ + double_left_click.__doc__
 
 
 triple_left_click = wrapped_partial(click, button=ButtonLocation.left, click_count=2)
 triple_left_click.__doc__ = """
-'triple_left_click' is a partial function derived from the general function 'click'.
+'triple_left_click' is a partial function derived from the 'click' general function.
 
-    - The parameter 'button' is set to 'ButtonLocation.left'.
-    - The parameter 'click_count' is set to 3.
-    
+	- The parameter 'button' is set to 'ButtonLocation.left'.
+	- The parameter 'click_count' is set to 3.
+
 """ + triple_left_click.__doc__
 
 
@@ -552,6 +552,7 @@ def drag_and_drop(
 		element_path2: UI_Selector,
 		duration: Optional[float] = None,
 		mode: Enum = MoveMode.linear,
+		button: ButtonLocation = ButtonLocation.left,
 		timeout: Optional[float] = None) -> PYWINAUTO_Wrapper:
 	"""
 	Drags and drop with left button pressed from element_path1 to element_path2.
@@ -562,64 +563,42 @@ def drag_and_drop(
 		(if duration is -1 the mouse cursor doesn't move, it just sends WM_CLICK window message,
 		useful for minimized or non-active window).
 	:param mode: move mouse mode: MoveMode.linear, MoveMode.x_first, MoveMode.y_first
+	:param button: mouse button:  ButtonLocation.left, ButtonLocation.middle, ButtonLocation.right
 	:param timeout: period of time in seconds that will be allowed to find the element
 	:return: Pywinauto wrapper with element_path2
 	"""
 	move(element_path1, duration=duration, mode=mode, timeout=timeout)
-	win32api_mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0)
+	if button == ButtonLocation.left:
+		event_down = MOUSEEVENTF_LEFTDOWN
+		event_up = MOUSEEVENTF_LEFTUP
+	elif button == ButtonLocation.middle:
+		event_down = MOUSEEVENTF_MIDDLEDOWN
+		event_up = MOUSEEVENTF_MIDDLEUP
+	elif button == ButtonLocation.right:
+		event_down = MOUSEEVENTF_RIGHTDOWN
+		event_up = MOUSEEVENTF_RIGHTUP
+	win32api_mouse_event(event_down, 0, 0)
 	unique_element = move(element_path2, duration=duration, timeout=timeout)
-	win32api_mouse_event(MOUSEEVENTF_LEFTUP, 0, 0)
+	win32api_mouse_event(event_up, 0, 0)
 	return unique_element
 
 
-def middle_drag_and_drop(
-		element_path1: UI_Selector,
-		element_path2: UI_Selector,
-		duration: Optional[float] = None,
-		mode: Enum = MoveMode.linear,
-		timeout: Optional[float] = None) -> PYWINAUTO_Wrapper:
-	"""
-	Drags and drop with middle button pressed from element_path1 to element_path2.
-	
-	:param element_path1: element path
-	:param element_path2: element path
-	:param duration: duration in seconds of the mouse move (it doesn't take into account the time it takes to find)
-		(if duration is -1 the mouse cursor doesn't move, it just sends WM_CLICK window message,
-		useful for minimized or non-active window).
-	:param mode: move mouse mode: MoveMode.linear, MoveMode.x_first, MoveMode.y_first
-	:param timeout: period of time in seconds that will be allowed to find the element
-	:return: Pywinauto wrapper with element_path2
-	"""
-	move(element_path1, duration=duration, mode=mode, timeout=timeout)
-	win32api_mouse_event(MOUSEEVENTF_MIDDLEDOWN, 0, 0)
-	unique_element = move(element_path2, duration=duration, mode=mode, timeout=timeout)
-	win32api_mouse_event(MOUSEEVENTF_MIDDLEUP, 0, 0)
-	return unique_element
+middle_drag_and_drop = wrapped_partial(click, button=ButtonLocation.middle)
+middle_drag_and_drop.__doc__ = """
+'middle_drag_and_drop' is a partial function derived from the 'drag_and_drop' general function.
+
+	- The parameter 'button' is set to 'ButtonLocation.middle'.
+
+""" + middle_drag_and_drop.__doc__
 
 
-def right_drag_and_drop(
-		element_path1: UI_Selector,
-		element_path2: UI_Selector,
-		duration: Optional[float] = None,
-		mode: Enum = MoveMode.linear,
-		timeout: Optional[float] = None) -> PYWINAUTO_Wrapper:
-	"""
-	Drags and drop with right button pressed from element_path1 to element_path2.
-	
-	:param element_path1: element path
-	:param element_path2: element path
-	:param duration: duration in seconds of the mouse move (it doesn't take into account the time it takes to find)
-		(if duration is -1 the mouse cursor doesn't move, it just sends WM_CLICK window message,
-		useful for minimized or non-active window).
-	:param mode: move mouse mode: MoveMode.linear, MoveMode.x_first, MoveMode.y_first
-	:param timeout: period of time in seconds that will be allowed to find the element
-	:return: Pywinauto wrapper with element_path2
-	"""
-	move(element_path1, duration=duration, mode=mode, timeout=timeout)
-	win32api_mouse_event(MOUSEEVENTF_RIGHTDOWN, 0, 0)
-	unique_element = move(element_path2, duration=duration, mode=mode, timeout=timeout)
-	win32api_mouse_event(MOUSEEVENTF_RIGHTUP, 0, 0)
-	return unique_element
+right_drag_and_drop = wrapped_partial(click, button=ButtonLocation.right)
+right_drag_and_drop.__doc__ = """
+'right_drag_and_drop' is a partial function derived from the 'drag_and_drop' general function.
+
+	- The parameter 'button' is set to 'ButtonLocation.right'.
+
+""" + right_drag_and_drop.__doc__
 
 
 def menu_click(
