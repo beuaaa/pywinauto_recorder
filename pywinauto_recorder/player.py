@@ -191,7 +191,7 @@ class UIPath(object):
 	Methods
 	-------
 	get_full_path(element_path: Optional[UI_Path] = None) -> UI_Path
-	    Returns the full path of the element.
+		Returns the full path of the element.
 	"""
 	_path_list = []
 	_regex_list = []
