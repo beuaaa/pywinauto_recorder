@@ -517,7 +517,7 @@ def wrapped_partial(func, *args, **kwargs):
 left_click = wrapped_partial(click, button=ButtonLocation.left)
 right_click = wrapped_partial(click, button=ButtonLocation.right)
 double_left_click = wrapped_partial(click, button=ButtonLocation.left, click_count=2)
-triple_left_click = wrapped_partial(click, button=ButtonLocation.left, click_count=2)
+triple_left_click = wrapped_partial(click, button=ButtonLocation.left, click_count=3)
 
 
 def drag_and_drop(
