@@ -506,45 +506,18 @@ def click(
 def wrapped_partial(func, *args, **kwargs):
 	partial_func = partial(func, *args, **kwargs)
 	update_wrapper(partial_func, func)
+	partial_func.__doc__ = "This function is a partial function derived from the '" + func.__name__ + "' general function."
+	partial_func.__doc__ += "\nThe parameters of the function are set with the following values:"
+	for key in kwargs.keys():
+		partial_func.__doc__ += "\n    - " + key + "=" + kwargs['button']
+	partial_func.__doc__ +=  "\n" + func.__doc__
 	return partial_func
 
 
 left_click = wrapped_partial(click, button=ButtonLocation.left)
-left_click.__doc__ = """
-'left_click' is a partial function derived from the 'click' general function.
-
-	- The parameter 'button' is set to 'ButtonLocation.left'.
-
-""" + left_click.__doc__
-
-
 right_click = wrapped_partial(click, button=ButtonLocation.right)
-right_click.__doc__ = """
-'right_click' is a partial function derived from the 'click' general function.
-
-	- The parameter 'button' is set to 'ButtonLocation.right'.
-
-""" + right_click.__doc__
-
-
 double_left_click = wrapped_partial(click, button=ButtonLocation.left, click_count=2)
-double_left_click.__doc__ = """
-'double_left_click' is a partial function derived from the 'click' general function.
-
-	- The parameter 'button' is set to 'ButtonLocation.left'.
-	- The parameter 'click_count' is set to 2.
-
-""" + double_left_click.__doc__
-
-
 triple_left_click = wrapped_partial(click, button=ButtonLocation.left, click_count=2)
-triple_left_click.__doc__ = """
-'triple_left_click' is a partial function derived from the 'click' general function.
-
-	- The parameter 'button' is set to 'ButtonLocation.left'.
-	- The parameter 'click_count' is set to 3.
-
-""" + triple_left_click.__doc__
 
 
 def drag_and_drop(
@@ -583,22 +556,9 @@ def drag_and_drop(
 	return unique_element
 
 
+left_drag_and_drop = wrapped_partial(click, button=ButtonLocation.left)
 middle_drag_and_drop = wrapped_partial(click, button=ButtonLocation.middle)
-middle_drag_and_drop.__doc__ = """
-'middle_drag_and_drop' is a partial function derived from the 'drag_and_drop' general function.
-
-	- The parameter 'button' is set to 'ButtonLocation.middle'.
-
-""" + middle_drag_and_drop.__doc__
-
-
 right_drag_and_drop = wrapped_partial(click, button=ButtonLocation.right)
-right_drag_and_drop.__doc__ = """
-'right_drag_and_drop' is a partial function derived from the 'drag_and_drop' general function.
-
-	- The parameter 'button' is set to 'ButtonLocation.right'.
-
-""" + right_drag_and_drop.__doc__
 
 
 def menu_click(
