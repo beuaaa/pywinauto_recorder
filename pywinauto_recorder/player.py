@@ -510,7 +510,7 @@ def wrapped_partial(func, *args, **kwargs):
 	partial_func.__doc__ += "\nThe parameters of the function are set with the following values:"
 	for key in kwargs.keys():
 		partial_func.__doc__ += "\n    - " + str(key) + "=" + str(kwargs[key])
-	partial_func.__doc__ += "\n" + func.__doc__
+	partial_func.__doc__ += "\n\n" + func.__doc__
 	return partial_func
 
 
