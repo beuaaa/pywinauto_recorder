@@ -120,7 +120,10 @@ def write_in_file(events, relative_coordinate_mode=False):
 				if common_path:
 					p = get_relative_path(common_path, p)
 				str_c = ['', '', 'double_', 'triple_']
-				script += str_c[e_i.click_count] + e_i.button + '_click(u"' + escape_special_char(p)
+				if e_i.count == 1 and e_i.button == 'left':
+					script += 'click(u"' + escape_special_char(p)
+				else:
+					script += str_c[e_i.click_count] + e_i.button + '_click(u"' + escape_special_char(p)
 				if relative_coordinate_mode and eval(dx) != 0 and eval(dy) != 0:
 					script += '%(' + dx + ',' + dy + ')'
 				script += '")\n'
