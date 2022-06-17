@@ -169,11 +169,9 @@ def match_entry(entry, template):
 	template_name, template_type, _, _ = get_entry(template)
 	entry_name, entry_type, _, _ = get_entry(entry)
 	if is_regex_entry(template):
-		return (re.match(template_name, entry_name) or not entry_name) \
-		       and (template_type == entry_type or not entry_type)
+		return re.match(template_name, entry_name) and (template_type == entry_type or not template_type)
 	else:
-		return (template_name == entry_name or not entry_name) \
-		       and (template_type == entry_type or not entry_type)
+		return template_name == entry_name and (template_type == entry_type or not template_type)
 
 
 def match_entry_sequence(i_e, entry_list, sequence_list):
