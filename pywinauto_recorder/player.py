@@ -322,7 +322,7 @@ def find_all(
 	Finds all elements matching element_path.
 
 	.. code-block:: python
-		:caption: Example of code using the 'click' function::
+		:caption: Example of code using the 'find_all' function::
 		:emphasize-lines: 3,3
 		
 		from pywinauto_recorder.player import UIPath, find, find_all
