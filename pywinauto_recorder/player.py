@@ -35,7 +35,7 @@ class FailedSearch(PywinautoRecorderException):
 
 
 __all__ = ['PlayerSettings', 'MoveMode', 'ButtonLocation', 'load_dictionary', 'shortcut', 'full_definition', 'UIPath',
-           'Window', 'Region', 'find', 'move', 'click', 'left_click', 'right_click', 'double_left_click',
+           'Window', 'Region', 'find', 'find_all', 'move', 'click', 'left_click', 'right_click', 'double_left_click',
            'triple_left_click', 'drag_and_drop', 'middle_drag_and_drop', 'right_drag_and_drop', 'menu_click',
            'mouse_wheel', 'send_keys', 'set_combobox', 'set_text', 'exists', 'select_file']
 
@@ -237,11 +237,11 @@ def find(
 		regex: bool=False,
 		timeout: Optional[float] = None) -> PYWINAUTO_Wrapper:
 	"""
-	Finds an element
+	Finds the element matching element_path.
 
 	:param element_path: element path
 	:param timeout: period of time in seconds that will be allowed to find the element
-	:return: Pywinauto wrapper of clicked element
+	:return: Pywinauto wrapper of found element
 	"""
 	if regex:
 		deprecated_msg = """
@@ -313,6 +313,61 @@ def find(
 			raise FailedSearch("There are " + str(len(elements)) + " elements that match the path '" + full_element_path + "'")
 		raise FailedSearch("Unique element not found using path '", full_element_path + "'")
 	return unique_element
+
+
+def find_all(
+		element_path: Optional[UI_Selector] = None,
+		timeout: Optional[float] = None) -> PYWINAUTO_Wrapper:
+	"""
+	Finds all elements matching element_path.
+
+	.. code-block:: python
+		:caption: Example of code using the 'click' function::
+		:emphasize-lines: 3,3
+		
+		from pywinauto_recorder.player import UIPath, find, find_all
+		with UIPath("RegEx: .* Google Chrome$||Pane"):
+			wrapper_tab_list = find_all("*->RegEx: .*||TabItem")
+			for wrapper_tab in wrapper_tab_list:
+				wrapper_tab.click_input()
+				wrapper_url = find("*->Address and search bar||Edit")
+				print(wrapper_url.get_value())
+		
+	The code above will click on all tabs of Google Chrome and print the URL of each tab.
+	
+	:param element_path: element path
+	:param timeout: period of time in seconds that will be allowed to find the element
+	:return: Pywinauto wrapper list of found elements
+	"""
+	if timeout is None:
+		timeout = PlayerSettings.timeout
+	
+	full_element_path = UIPath.get_full_path(element_path)
+	entry_list = get_entry_list(full_element_path)
+	_, _, y_x, _ = get_entry(entry_list[-1])
+	if y_x:
+		return find(element_path, timeout=timeout)
+	unique_element = None
+	elements = None
+	t0 = time.time()
+	while (time.time() - t0) < timeout:
+		try:
+			unique_element, elements = find_element(entry_list)
+			if unique_element or elements:
+				break
+			if not unique_element and not elements:
+				time.sleep(2.0)
+		except Exception:
+			pass
+		if (time.time() - t0) > timeout:
+			msg = "No element found with the UIPath '" + full_element_path + "' after " + str(timeout) + " s of searching."
+			raise FailedSearch(msg)
+		time.sleep(0.1)
+
+	if unique_element:
+		return [unique_element]
+	else:
+		return elements
 
 
 def __move(x, y, xd, yd, duration):
@@ -441,7 +496,7 @@ def click(
 		timeout: float = None,
 		wait_ready: bool = True) -> PYWINAUTO_Wrapper:
 	"""
-	Clicks on element.
+	Clicks on found element.
 	
 	.. code-block:: python
 		:caption: Example of code using the 'click' function::
