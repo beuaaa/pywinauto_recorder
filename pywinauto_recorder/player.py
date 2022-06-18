@@ -239,6 +239,16 @@ def find(
 	"""
 	Finds the element matching element_path.
 
+	.. code-block:: python
+		:caption: Example of code using the 'find' function::
+		:emphasize-lines: 3,3
+		
+		from pywinauto_recorder.player import UIPath, find
+		with UIPath("RegEx: .* Google Chrome$||Pane"):
+			find().set_focus()  # Set focus to the Google Chrome window.
+	
+	The code above will set focus to the Google Chrome window.
+	
 	:param element_path: element path
 	:param timeout: period of time in seconds that will be allowed to find the element
 	:return: Pywinauto wrapper of found element
@@ -262,7 +272,10 @@ def find(
 	if timeout is None:
 		timeout = PlayerSettings.timeout
 	
-	full_element_path = UIPath.get_full_path(element_path)
+	if element_path is None or type(element_path) is str:
+		full_element_path = UIPath.get_full_path(element_path)
+	else:
+		full_element_path = get_wrapper_path(element_path)
 	entry_list = get_entry_list(full_element_path)
 	_, _, y_x, _ = get_entry(entry_list[-1])
 	unique_element = None
@@ -323,11 +336,12 @@ def find_all(
 
 	.. code-block:: python
 		:caption: Example of code using the 'find_all' function::
-		:emphasize-lines: 3,3
+		:emphasize-lines: 4,4
 		
 		from pywinauto_recorder.player import UIPath, find, find_all
 		with UIPath("RegEx: .* Google Chrome$||Pane"):
-			wrapper_tab_list = find_all("*->RegEx: .*||TabItem")
+			find().set_focus()
+			wrapper_tab_list = find_all("*->RegEx: .*||TabItem") # Find all tabs.
 			for wrapper_tab in wrapper_tab_list:
 				wrapper_tab.click_input()
 				wrapper_url = find("*->Address and search bar||Edit")
@@ -342,7 +356,10 @@ def find_all(
 	if timeout is None:
 		timeout = PlayerSettings.timeout
 	
-	full_element_path = UIPath.get_full_path(element_path)
+	if element_path is None or type(element_path) is str:
+		full_element_path = UIPath.get_full_path(element_path)
+	else:
+		full_element_path = get_wrapper_path(element_path)
 	entry_list = get_entry_list(full_element_path)
 	_, _, y_x, _ = get_entry(entry_list[-1])
 	if y_x:
@@ -370,7 +387,7 @@ def find_all(
 		return elements
 
 
-def __move(x, y, xd, yd, duration):
+def __move(x, y, xd, yd, duration=1, refresh_rate=25):
 	"""
 	It moves the mouse from (x, y) to (xd, yd) in a straight line, with a duration of `duration` seconds.
 	
@@ -378,12 +395,13 @@ def __move(x, y, xd, yd, duration):
 	:param y: The y-coordinate of the mouse cursor before the move
 	:param xd: The x-coordinate of the mouse cursor after the move
 	:param yd: The y-coordinate of the mouse cursor after the move
-	:param duration: The time it takes to move the mouse from (x, y) to (xd, yd)
+	:param duration: The time (in seconds) it takes to move the mouse from (x, y) to (xd, yd)
+	:param refresh_rate: 25 Hz is the default refresh rate of the mouse move
 	"""
 	x_max = win32api_GetSystemMetrics(0) - 1
 	y_max = win32api_GetSystemMetrics(1) - 1
-	samples = max(abs(xd - x), abs(yd - y))
-	dt = duration / samples
+	samples = duration * refresh_rate
+	dt = 1 / refresh_rate
 	step_x = (xd - x) / samples
 	step_y = (yd - y) / samples
 	t0 = time.time()
