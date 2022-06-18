@@ -247,7 +247,8 @@ def find(
 		with UIPath("RegEx: .* Google Chrome$||Pane"):
 			find().set_focus()  # Set focus to the Google Chrome window.
 	
-	The code above will set focus to the Google Chrome window.
+	The code above will set focus to the Google Chrome window. The 'find' function is used to find the window.
+	It will work only if the window is not minimized.
 	
 	:param element_path: element path
 	:param timeout: period of time in seconds that will be allowed to find the element
@@ -348,6 +349,9 @@ def find_all(
 				print(wrapper_url.get_value())
 		
 	The code above will click on all tabs of Google Chrome and print the URL of each tab.
+	It will work only if the Google Chrome window is not minimized.
+	The 'find_all' function is used to find all tabs.
+	
 	
 	:param element_path: element path
 	:param timeout: period of time in seconds that will be allowed to find the element
