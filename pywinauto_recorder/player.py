@@ -633,9 +633,9 @@ def drag_and_drop(
 	return unique_element
 
 
-left_drag_and_drop = wrapped_partial(click, button=ButtonLocation.left)
-middle_drag_and_drop = wrapped_partial(click, button=ButtonLocation.middle)
-right_drag_and_drop = wrapped_partial(click, button=ButtonLocation.right)
+left_drag_and_drop = wrapped_partial(drag_and_drop, button=ButtonLocation.left)
+middle_drag_and_drop = wrapped_partial(drag_and_drop, button=ButtonLocation.middle)
+right_drag_and_drop = wrapped_partial(drag_and_drop, button=ButtonLocation.right)
 
 
 def menu_click(
