@@ -29,6 +29,9 @@ rmdir numpy /s /q
 rmdir PIL /s /q
 rmdir win32com /s /q
 
+REM Copy additional_dll\*.dll in pywinauto_recorder.dist
+xcopy /y ..\..\pywinauto_recorder\additional_dll\*.dll .
+
 
 REM Copy Icons\*.ico in pywinauto_recorder.dist
 MKDIR  Icons
