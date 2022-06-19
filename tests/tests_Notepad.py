@@ -23,7 +23,7 @@ def test_send_keys(run_app):
 def test_drag_and_drop(run_app):
 	"""
 	It opens the font dialog of Notepad, scrolls to the bottom of the font size list using
-	a drag and drop, click on the last item in the list box,
+	a drag and drop, clicks on the last item in the list box,
 	and then asserts that the selected item is the last one.
 	"""
 	with UIPath("Untitled - Notepad||Window"):
@@ -40,7 +40,7 @@ def test_drag_and_drop(run_app):
 def test_wheel(run_app):
 	"""
 	It opens the font dialog of Notepad, scrolls to the bottom of the font size list using
-	the mouse wheel, click on the last item in the list box,
+	the mouse wheel, clicks on the last item in the list box,
 	and then asserts that the selected item is the last one.
 	"""
 	with UIPath("Untitled - Notepad||Window"):

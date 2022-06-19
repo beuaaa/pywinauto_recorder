@@ -5,7 +5,6 @@ import sys
 
 sys.path.insert(0, os.path.abspath('..'))
 sys.path.insert(0, os.path.abspath('../pywinauto_recorder'))
-sys.path.insert(0, os.path.abspath('../test'))
 
 
 extensions = ['sphinx.ext.autodoc',
