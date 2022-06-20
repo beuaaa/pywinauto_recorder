@@ -273,7 +273,7 @@ def find(
 	if timeout is None:
 		timeout = PlayerSettings.timeout
 	
-	if element_path is None or type(element_path) is str:
+	if element_path is None or isinstance(element_path, str):
 		full_element_path = UIPath.get_full_path(element_path)
 	else:
 		full_element_path = get_wrapper_path(element_path)
@@ -404,20 +404,21 @@ def __move(x, y, xd, yd, duration=1, refresh_rate=25):
 	"""
 	x_max = win32api_GetSystemMetrics(0) - 1
 	y_max = win32api_GetSystemMetrics(1) - 1
-	samples = duration * refresh_rate
-	dt = 1 / refresh_rate
-	step_x = (xd - x) / samples
-	step_y = (yd - y) / samples
-	t0 = time.time()
-	for i in range(int(samples)):
-		x, y = x+step_x, y+step_y
-		t1 = time.time()
-		if t1-t0 > i*dt:
-			continue
-		time.sleep(dt)
-		nx = int(x * 65535 / x_max)
-		ny = int(y * 65535 / y_max)
-		win32api_mouse_event(MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE, nx, ny)
+	if duration > 0:
+		samples = duration * refresh_rate
+		dt = 1 / refresh_rate
+		step_x = (xd - x) / samples
+		step_y = (yd - y) / samples
+		t0 = time.time()
+		for i in range(int(samples)):
+			x, y = x+step_x, y+step_y
+			t1 = time.time()
+			if t1-t0 > i*dt:
+				continue
+			time.sleep(dt)
+			nx = int(x * 65535 / x_max)
+			ny = int(y * 65535 / y_max)
+			win32api_mouse_event(MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE, nx, ny)
 	nx = round(xd * 65535 / x_max)
 	ny = round(yd * 65535 / y_max)
 	win32api_mouse_event(MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE, nx, ny)
@@ -432,9 +433,8 @@ def move(
 	Moves on element
 	
 	:param element_path: element path
-	:param duration: duration in seconds of the mouse move (it doesn't take into account the time it takes to find)
-		(if duration is -1 the mouse cursor doesn't move, it just sends WM_CLICK window message,
-		useful for minimized or non-active window).
+	:param duration: duration in seconds of the mouse move (it doesn't take into account the time it takes to find),
+		if duration is -1 the mouse cursor doesn't move.
 	:param mode: move mouse mode
 	:param timeout: period of time in seconds that will be allowed to find the element
 	:return: Pywinauto wrapper of clicked element
@@ -492,7 +492,7 @@ def move(
 	else:
 		(xd, yd) = element_path
 		unique_element = None
-	if (x, y) != (xd, yd) and duration > 0:
+	if (x, y) != (xd, yd):
 		if mode == MoveMode.linear:
 			__move(x, y, xd, yd, duration)
 		elif mode == MoveMode.x_first:
