@@ -131,8 +131,7 @@ def test_recorder_performance(run_app):
 	recorder = Recorder()
 	time.sleep(1)  # wait for the recorder to start
 	str_num = ["Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"]
-	with UIPath("Calculator||Window->Calculator||Window->||Group->Number pad||Group"):
-		move("Zero||Button", duration=0)
+	move("Calculator||Window->*->Zero||Button", duration=0)
 	start_time = time.time()
 	with UIPath("Calculator||Window->Calculator||Window->||Group->Number pad||Group"):
 		for _ in range(9):
