@@ -44,10 +44,10 @@ def test_mouse_move(run_app):
 		left_click("*->Image||ToolBar->Resize||Button")
 		with UIPath("Resize and Skew||Window"):
 			left_click("Pixels||RadioButton")
-			set_text("Resize Horizontal||Edit", "1900")
+			set_text("Resize Horizontal||Edit", "1900")  # Resize the image to 1900 pixels wide
 		left_click("*->Shapes||ToolBar->*->Line||ListItem")
 		left_click("*->||ToolBar->Size||SplitButton")
-		left_click("*->Size||Window->*->3px||ListItem")
+		left_click("*->Size||Window->*->3px||ListItem")  # The thickness is set to 3px
 		wrapper = move("*->Using Line tool on Canvas||Pane")
 	
 	time.sleep(1)
@@ -83,17 +83,13 @@ def test_mouse_move(run_app):
 	recorded_file = recorder.stop_recording()
 	recorder.quit()
 	
-	# The thickness is set to 3px
 	with UIPath("Untitled - Paint||Window"):
 		left_click("*->Tools||ToolBar->Pencil||Button")
 		left_click("*->Shapes||ToolBar->*->Line||ListItem")
 		left_click("*->||ToolBar->Size||SplitButton")
-		left_click("*->Size||Window->*->3px||ListItem")
-
-	# The white color is selected
-	with UIPath("Untitled - Paint||Window"):
-		left_click("*->RegEx: Colo(u)?rs||ToolBar->||Group%(-95,0)")
-		
+		left_click("*->Size||Window->*->3px||ListItem")  # The thickness is set to 3px
+		left_click("*->RegEx: Colo(u)?rs||ToolBar->||Group%(-95,0)")  # The white color is selected
+	
 	# The recorded file is patched to remove all that is not needed
 	data = ""
 	with open(recorded_file) as text_file:
