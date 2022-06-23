@@ -802,7 +802,7 @@ def exists(
 	try:
 		wrapper = find(element_path, timeout=timeout)
 		return wrapper
-	except TimeoutError:
+	except FailedSearch:
 		return None
 
 
