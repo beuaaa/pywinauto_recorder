@@ -1,0 +1,16 @@
+1
+15:12:48,773 --> 15:12:53,848
+The generated file is in 'Pywinauto Recorder' folder under your home folder.
+
+2
+15:13:16,462 --> 15:13:18,024
+Thanks for watching!
+
+3
+15:13:18,517 --> 15:13:23,329
+In the next tutorial, you will see how to make a robust recorded script.
+
+4
+15:13:23,822 --> 15:13:25,309
+See you soon!
+

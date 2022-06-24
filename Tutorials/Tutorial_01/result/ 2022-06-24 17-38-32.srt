@@ -1,0 +1,184 @@
+1
+15:38:34,886 --> 15:38:38,773
+Hi, let me introduce you to 'Pywinauto recorder'.
+
+2
+15:38:39,453 --> 15:38:43,640
+Go to pywinauto-recorder dot read the docs dot io
+
+3
+15:38:48,774 --> 15:38:51,836
+"Pywinauto recorder" is a great tool!
+
+4
+15:38:52,266 --> 15:38:56,516
+It can record user actions and saves them in a Python script.
+
+5
+15:38:56,946 --> 15:39:02,646
+Then the saved Python script can be run to replay the user actions previously recorded.
+
+6
+15:39:03,413 --> 15:39:13,550
+"Pywinauto recorder" is a unique "record-replay" tool in the open source field because it generates reliable scripts without hard-coded coordinates thanks to Pywinauto.
+
+7
+15:39:14,030 --> 15:39:21,418
+Pywinauto is a library that uses accessibility technologies allowing you to automate almost any type of GUI.
+
+8
+15:39:21,898 --> 15:39:29,223
+The functions of the generated Python script return Pywinauto wrappers so it can be enhanced with Pywinauto methods.
+
+9
+15:39:29,993 --> 15:39:31,555
+Let's get started!
+
+10
+15:39:31,985 --> 15:39:37,598
+Download Pywinauto recorder installer for 64-bit Windows on this web page
+
+11
+15:39:38,328 --> 15:39:40,603
+Click on this download button.
+
+12
+15:39:41,449 --> 15:39:44,336
+Run Pywinauto recorder installer.
+
+13
+15:40:07,825 --> 15:40:11,825
+When you run Pywinauto Recorder it starts with this window.
+
+14
+15:40:12,255 --> 15:40:14,530
+It contains useful information.
+
+15
+15:40:15,060 --> 15:40:20,322
+All actions can be triggered by a keyboard shortcut or by clicking in the tray menu.
+
+16
+15:40:20,802 --> 15:40:24,190
+This window is closed my moving the mouse outside.
+
+17
+15:40:25,278 --> 15:40:27,915
+Now It is running in inspection mode.
+
+18
+15:40:28,333 --> 15:40:39,320
+In this mode represented by the magnifying glass icon displayed in the top left corner of the screen, Pywinauto Recorder colors green the UI element it can identify under the mouse cursor.
+
+19
+15:40:40,102 --> 15:40:50,239
+The mouse cursor can be moved around the installer and Pywinauto recorder shows UI element information in real time based on what UI element the cursor is hovering over.
+
+20
+15:40:56,913 --> 15:41:06,588
+For instance this progress bar is interesting because Pywinauto recorder informs you that you can use a Pywinauto method to retrieve the progress percentage.
+
+21
+15:41:19,419 --> 15:41:23,419
+To start recording my next actions I press 'alt' 'control' 'r'.
+
+22
+15:41:25,743 --> 15:41:27,230
+Now it's recording!
+
+23
+15:41:28,881 --> 15:41:32,456
+Then I'm going to start calculator to do a little addition.
+
+24
+15:41:41,771 --> 15:41:42,396
+One
+
+25
+15:41:44,095 --> 15:41:44,657
+Plus
+
+26
+15:41:46,408 --> 15:41:47,120
+Two
+
+27
+15:41:48,706 --> 15:41:50,143
+Equals Three
+
+28
+15:41:50,986 --> 15:41:53,673
+Finally, I close the calculator
+
+29
+15:41:54,362 --> 15:41:57,487
+I press 'alt' 'control' 'r' to stop recording.
+
+30
+15:41:58,324 --> 15:42:01,449
+And click on Start playing in the tray menu.
+
+31
+15:42:07,447 --> 15:42:09,009
+Now it's replaying.
+
+32
+15:42:32,234 --> 15:42:37,309
+The generated file is in 'Pywinauto Recorder' folder under your home folder.
+
+33
+15:42:52,249 --> 15:42:56,286
+Let's open the file that was just created to see what it looks like.
+
+34
+15:43:01,748 --> 15:43:05,323
+You can see that it is an easy to read Python script.
+
+35
+15:43:06,094 --> 15:43:09,156
+The functions return Pywinauto wrappers.
+
+36
+15:43:09,441 --> 15:43:13,028
+I'm going to call draw outline on some of these wrappers
+
+37
+15:43:13,696 --> 15:43:18,508
+The first draw outline will display a red rectangle around the One button.
+
+38
+15:43:22,382 --> 15:43:26,744
+The second one will display a green rectangle around the Plus button.
+
+39
+15:43:31,283 --> 15:43:35,720
+And the third one will display a blue rectangle around the Two button.
+
+40
+15:43:37,779 --> 15:43:39,266
+Let's replay it!
+
+41
+15:43:54,317 --> 15:43:57,204
+Now Pywinauto recorder is replaying.
+
+42
+15:43:57,684 --> 15:44:01,872
+You can see the Replay icon in the top left corner of the screen.
+
+43
+15:44:02,302 --> 15:44:09,927
+The actions we recorded in the Python script have been replayed and the three draw outline functions we've just added have been called.
+
+44
+15:44:10,596 --> 15:44:12,158
+Thanks for watching!
+
+45
+15:44:12,651 --> 15:44:17,463
+In the next tutorial, you will see how to make a robust recorded script.
+
+46
+15:44:17,956 --> 15:44:19,443
+See you soon!
+
