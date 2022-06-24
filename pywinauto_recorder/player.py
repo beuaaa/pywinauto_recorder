@@ -205,7 +205,7 @@ class UIPath(object):
 		:type element_path: Optional[UI_Path]
 		:return: The full path of the element.
 		"""
-		if element_path is None:
+		if element_path is None or element_path == "":
 			return path_separator.join(UIPath._path_list)
 		elif UIPath._path_list:
 			return path_separator.join(UIPath._path_list) + path_separator + element_path
