@@ -1,5 +1,5 @@
 import pytest
-from pywinauto_recorder.player import UIPath, find, send_keys, left_click, set_text, move, select_file
+from pywinauto_recorder.player import UIPath, find, send_keys, click, menu_click, set_text, move, select_file
 from pywinauto_recorder.recorder import Recorder
 import pyperclip
 import random
@@ -11,9 +11,8 @@ import os
 
 
 ################################################################################################
-#                                   Tests using Windows 10 Paint                               #
+#                                   Tests using Windows 11 Paint                               #
 ################################################################################################
-
 
 def percentage_white_pixels(recorded_image):
 	"""
@@ -33,21 +32,23 @@ def percentage_white_pixels(recorded_image):
 	return p_white_pixels
 
 
-@pytest.mark.parametrize('run_app', [("mspaint.exe", "Untitled - Paint")], indirect=True)
-def test_mouse_move(run_app):
+@pytest.mark.parametrize('start_kill_app', ["mspaint"], indirect=True)
+def test_recorder_mouse_move(start_kill_app):
 	"""
 	Tests the accuracy of the relative coordinates of an element.
 	It records a series of drag-and-drops to draw lines and then plays them back to overlay the lines in white.
 	"""
 	with UIPath("Untitled - Paint||Window"):
 		find().set_focus()
-		left_click("*->Image||ToolBar->Resize||Button")
-		with UIPath("Resize and Skew||Window"):
-			left_click("Pixels||RadioButton")
-			set_text("Resize Horizontal||Edit", "1900")  # Resize the image to 1900 pixels wide
-		left_click("*->Shapes||ToolBar->*->Line||ListItem")
-		left_click("*->||ToolBar->Size||SplitButton")
-		left_click("*->Size||Window->*->3px||ListItem")  # The thickness is set to 3px
+		find().maximize()
+		click("*->Resize||Button")
+		with UIPath("Resize and Skew||Window->*"):
+			click("Pixels||RadioButton")
+			set_text("Horizontal||Edit#[0,0]", "1900")  # Resize the image to 1900 pixels wide
+			click("OK||Button")
+		click("*->Line||Button")
+		click("*->Size||Group->Size||Button")
+		menu_click("3px")  # The thickness is set to 3px
 		wrapper = move("*->Using Line tool on Canvas||Pane")
 	
 	time.sleep(1)
@@ -82,20 +83,16 @@ def test_mouse_move(run_app):
 
 	recorded_file = recorder.stop_recording()
 	recorder.quit()
-	
-	with UIPath("Untitled - Paint||Window"):
-		left_click("*->Tools||ToolBar->Pencil||Button")
-		left_click("*->Shapes||ToolBar->*->Line||ListItem")
-		left_click("*->||ToolBar->Size||SplitButton")
-		left_click("*->Size||Window->*->3px||ListItem")  # The thickness is set to 3px
-		left_click("*->RegEx: Colo(u)?rs||ToolBar->||Group%(-95,0)")  # The white color is selected
-	
+
 	# The recorded file is patched to remove all that is not needed
 	data = ""
 	with open(recorded_file) as text_file:
 		for line in text_file:
 			if not (("send_keys" in line) or ("wrapper" in line)):
-				data += line
+				if "drag_and_drop" in line:
+					data += line.replace("drag_and_drop", "right_drag_and_drop")
+				else:
+					data += line
 	print(data)
 	
 	# Now the lines are overed in white using the previously recorded drag and drops
