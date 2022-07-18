@@ -6,29 +6,25 @@
 # comtypes.client.gen_dir = None
 # import pywinauto
 
-import ctypes
-from ctypes import wintypes
-from ctypes import windll
+from ctypes import wintypes, windll, Structure, POINTER, pointer, WinError
 import argparse
 import overlay_arrows_and_more as oaam
 from os.path import isfile as os_path_isfile
 from sys import exit as sys_exit
 from pathlib import Path
 import os
-import sys
-import win32api
 import win32con
 import win32gui_struct
 import win32gui
 import win32ui
 import pyperclip
-from pywinauto_recorder.recorder import IconSet
+from pywinauto_recorder.recorder import Recorder, IconSet, overlay_add_mode_icon, overlay_add_progress_icon
+from win32api import GetSystemMetrics, GetCursorPos
 import time
-import traceback
 
 
 def get_AC_line_satus():
-	class SYSTEM_POWER_STATUS(ctypes.Structure):
+	class SYSTEM_POWER_STATUS(Structure):
 		_fields_ = [
 			('ACLineStatus', wintypes.BYTE),
 			('BatteryFlag', wintypes.BYTE),
@@ -37,13 +33,13 @@ def get_AC_line_satus():
 			('BatteryLifeTime', wintypes.DWORD),
 			('BatteryFullLifeTime', wintypes.DWORD),
 		]
-	SYSTEM_POWER_STATUS_P = ctypes.POINTER(SYSTEM_POWER_STATUS)
-	GetSystemPowerStatus = ctypes.windll.kernel32.GetSystemPowerStatus
+	SYSTEM_POWER_STATUS_P = POINTER(SYSTEM_POWER_STATUS)
+	GetSystemPowerStatus = windll.kernel32.GetSystemPowerStatus
 	GetSystemPowerStatus.argtypes = [SYSTEM_POWER_STATUS_P]
 	GetSystemPowerStatus.restype = wintypes.BOOL
 	status = SYSTEM_POWER_STATUS()
-	if not GetSystemPowerStatus(ctypes.pointer(status)):
-		raise ctypes.WinError()
+	if not GetSystemPowerStatus(pointer(status)):
+		raise WinError()
 
 	return status.ACLineStatus == 1
 
@@ -150,7 +146,6 @@ class SysTrayIcon(object):
 	def show_menu(self):
 		self.menu = win32gui.CreatePopupMenu()
 		self.create_menu(self.menu, self.menu_options)
-		# win32gui.SetMenuDefaultItem(menu, 1000, 0)
 		pos = win32gui.GetCursorPos()
 		win32gui.SetForegroundWindow(self.hwnd)
 		win32gui.TrackPopupMenu(self.menu, win32con.TPM_LEFTALIGN, pos[0], pos[1], 0, self.hwnd, None)
@@ -210,8 +205,8 @@ class SysTrayIcon(object):
 
 	def prep_menu_icon(self, icon):
 		# First load the icon.
-		ico_x = win32api.GetSystemMetrics(win32con.SM_CXSMICON)
-		ico_y = win32api.GetSystemMetrics(win32con.SM_CYSMICON)
+		ico_x = GetSystemMetrics(win32con.SM_CXSMICON)
+		ico_y = GetSystemMetrics(win32con.SM_CYSMICON)
 		hIcon = win32gui.LoadImage(0, icon, win32con.IMAGE_ICON, ico_x, ico_y, win32con.LR_LOADFROMFILE)
 		hwndDC = win32gui.GetWindowDC(self.hwnd)
 		dc = win32ui.CreateDCFromHandle(hwndDC)
@@ -324,7 +319,7 @@ def display_splash_screen():
 	splash_background.refresh()
 	
 	mouse_was_splash_screen = False
-	x, y = win32api.GetCursorPos()
+	x, y = GetCursorPos()
 	if (splash_left < x < splash_right) and (splash_top < y < splash_bottom):
 		mouse_was_splash_screen = True
 		message_to_continue = 'To continue: move the mouse cursor out of this window'
@@ -360,7 +355,6 @@ def display_splash_screen():
 		overlay_add_mode_icon(splash_foreground, IconSet.hicon_power, int(splash_right - (52 + 50)), splash_top + line_height * 14.7)
 		overlay_add_mode_icon(splash_foreground, IconSet.hicon_play, splash_left + 50, int(splash_top + line_height * 19.3))
 		
-		
 		splash_foreground.refresh()
 		time.sleep(0.4)
 		if n % 2 == 0:
@@ -368,7 +362,7 @@ def display_splash_screen():
 		else:
 			text_lines[23] = ''
 		continue_after_splash_screen = False
-		x, y = win32api.GetCursorPos()
+		x, y = GetCursorPos()
 		if (splash_left < x < splash_right) and (splash_top < y < splash_bottom):
 			if mouse_was_splash_screen:
 				continue_after_splash_screen = True
@@ -382,43 +376,9 @@ def display_splash_screen():
 	splash_background.refresh()
 
 
-def replay(str_code, filename=''):
-	if recorder:
-		recorder.mode = "Play"
-	else:
-		main_overlay = oaam.Overlay(transparency=0.5)
-		overlay_add_mode_icon(main_overlay, IconSet.hicon_play, 10, 10)
-	try:
-		script_dir = os.path.abspath(os.path.dirname(filename))
-		os.chdir(os.path.abspath(script_dir))
-		sys.path.append(script_dir)
-		compiled_code = compile(str_code, filename, 'exec')
-		exec(compiled_code)
-	except Exception as e:
-		windll.user32.ShowWindow(windll.kernel32.GetConsoleWindow(), 3)
-		exc_type, exc_value, exc_traceback = sys.exc_info()
-		output = traceback.format_exception(exc_type, exc_value, exc_traceback)
-		i_line = d_line = 0
-		full_traceback = False
-		if not full_traceback:
-			for line in output:
-				i_line += 1
-				if "pywinauto_recorder.py" in line:
-					d_line = i_line
-					
-		for line in output[d_line:]:
-			print(line, file=sys.stderr, end='')
-		input("Press Enter to continue...")
-	if recorder:
-		recorder.mode = "Stop"
-	else:
-		main_overlay.clear_all()
-		main_overlay.refresh()
-
-
 if __name__ == '__main__':
 	if not get_AC_line_satus():
-		ctypes.windll.user32.MessageBoxW(0, "Not plugging your laptop in the AC Power can dramatically slow down Pywinauto Recorder.",
+		windll.user32.MessageBoxW(0, "Not plugging your laptop in the AC Power can dramatically slow down Pywinauto Recorder.",
 		                                 "AC line status is off!", win32con.MB_OK | win32con.MB_ICONEXCLAMATION)
 		
 	windll.user32.ShowWindow(windll.kernel32.GetConsoleWindow(), 6)
@@ -428,29 +388,18 @@ if __name__ == '__main__':
 	parser.add_argument(
 		"--no_splash_screen", help="Does not display the splash screen", action='store_true')
 	args = parser.parse_args()
+	recorder = Recorder()
 	if args.filename:
-		from pywinauto_recorder.recorder import overlay_add_mode_icon
-		from pywinauto_recorder.recorder import overlay_add_progress_icon
-		import traceback
-		import codecs
-		
-		recorder = None
+		from pywinauto_recorder.player import *
 		if os_path_isfile(args.filename):
-			with codecs.open(args.filename, "r", encoding='utf-8') as python_file:
-				data = python_file.read()
 			print("Replaying: " + args.filename)
-			replay(data, args.filename)
+			recorder.playback(filename=args.filename)
 		else:
 			print("Error: file '" + args.filename + "' not found.")
 			input("Press Enter to continue...")
 		print("Exit")
 	else:
-		from pywinauto_recorder.player import *
-		from pywinauto_recorder.recorder import *
-		from win32api import GetSystemMetrics
-		
 		display_splash_screen()
-		recorder = Recorder()
 		if "__compiled__" in globals():
 			path_icons = Path(__file__).parent.absolute() / Path("Icons")
 		else:
@@ -472,43 +421,43 @@ if __name__ == '__main__':
 		icon_favourite = str(path_icons / Path("favourite.ico"))
 		hover_text = "Pywinauto recorder"
 		
-		def action_record(sysTrayIcon):
+		def action_record(sys_tray_icon):
 			if recorder.mode == 'Record':
 				recorder.stop_recording()
 			else:
 				recorder.start_recording()
 
-		def action_replay(sysTrayIcon):
+		def action_replay(sys_tray_icon):
 			if recorder.mode != "Play":
-				replay(pyperclip.paste())
+				recorder.playback(pyperclip.paste())
 
-		def action_display_element_info(sysTrayIcon):
+		def action_display_element_info(sys_tray_icon):
 			if recorder.mode == "Stop":
 				recorder.mode = "Info"
 			else:
 				recorder.mode = "Stop"
 
-		def action_smart_mode(sysTrayIcon):
+		def action_smart_mode(sys_tray_icon):
 			recorder.smart_mode = not recorder.smart_mode
 
-		def action_relative_coordinates(sysTrayIcon):
+		def action_relative_coordinates(sys_tray_icon):
 			recorder.relative_coordinate_mode = not recorder.relative_coordinate_mode
 
-		def action_process_menu_click(sysTrayIcon):
+		def action_process_menu_click(sys_tray_icon):
 			recorder.process_menu_click_mode = not recorder.process_menu_click_mode
 
-		def action_open_explorer(sysTrayIcon):
+		def action_open_explorer(sys_tray_icon):
 			pywinauto_recorder_path = Path.home() / Path("Pywinauto recorder")
 			os.system('explorer "' + str(pywinauto_recorder_path) + '"')
 
-		def action_display_help(sysTrayIcon):
+		def action_display_help(sys_tray_icon):
 			recorder.mode = "Stop"
 			display_splash_screen()
 
-		def action_display_web_site(sysTrayIcon):
+		def action_display_web_site(sys_tray_icon):
 			os.system('rundll32 url.dll,FileProtocolHandler "https://pywinauto-recorder.readthedocs.io"')
 			
-		def hello(sysTrayIcon):
+		def hello(sys_tray_icon):
 			print("Menu 2")
 
 
@@ -529,7 +478,7 @@ if __name__ == '__main__':
 			                ['Web site', icon_favourite, action_display_web_site], ]]
 		                ]
 		
-		def bye(sysTrayIcon):
+		def bye(sys_tray_icon):
 			print("bye---->")
 			recorder.quit()
 			while recorder.is_alive():

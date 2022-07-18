@@ -17,6 +17,7 @@ import codecs
 from .core import path_separator, type_separator, Strategy, is_int, \
                     get_wrapper_path, get_entry_list, get_entry, match_entry_list, get_sorted_region, \
                     find_element, read_config_file
+from .player import playback
 
 ElementEvent = namedtuple('ElementEvent', ['strategy', 'rectangle', 'path'])
 SendKeysEvent = namedtuple('SendKeysEvent', ['line'])
@@ -24,7 +25,7 @@ MouseWheelEvent = namedtuple('MouseWheelEvent', ['delta'])
 DragAndDropEvent = namedtuple('DragAndDropEvent', ['path', 'dx1', 'dy1', 'path2', 'dx2', 'dy2'])
 ClickEvent = namedtuple('ClickEvent', ['button', 'click_count', 'path', 'dx', 'dy', 'time'])
 FindEvent = namedtuple('FindEvent', ['path', 'dx', 'dy', 'time'])
-MenuEvent = namedtuple('MenuEvent', ['path', 'menu_path', 'menu_type'])
+MenuEvent = namedtuple('MenuEvent', ['path', 'menu_path'])
 
 
 class IconSet:
@@ -120,8 +121,11 @@ def write_in_file(events, relative_coordinate_mode=False):
 				if common_path:
 					p = get_relative_path(common_path, p)
 				str_c = ['', '', 'double_', 'triple_']
-				if e_i.count == 1 and e_i.button == 'left':
-					script += 'click(u"' + escape_special_char(p)
+				if e_i.button == 'left':
+					if e_i.count == 1:
+						script += 'click(u"' + escape_special_char(p)
+					else:
+						script += str_c[e_i.click_count]  + 'click(u"' + escape_special_char(p)
 				else:
 					script += str_c[e_i.click_count] + e_i.button + '_click(u"' + escape_special_char(p)
 				if relative_coordinate_mode and eval(dx) != 0 and eval(dy) != 0:
@@ -137,15 +141,8 @@ def write_in_file(events, relative_coordinate_mode=False):
 					script += '%(' + dx + ',' + dy + ')'
 				script += '")\n'
 			elif type(e_i) is MenuEvent:
-				p, m_p = e_i.path, e_i.menu_path
-				if common_path:
-					p = get_relative_path(common_path, p)
-				script += 'menu_click(u"' + escape_special_char(p) + '", r"' + escape_special_char(m_p) + '"'
-				if e_i.menu_type == 'NPP':
-					script += ', menu_type="NPP")\n'
-				else:
-					script += ')\n'
-		i = i + 1
+				script += 'menu_click(u"' + escape_special_char(e_i.menu_path) + '")\n'
+		i += 1
 	with codecs.open(record_file_name, "w", encoding=sys.getdefaultencoding()) as f:
 		f.write(script)
 	pyperclip.copy(script)
@@ -338,7 +335,8 @@ def find_common_path(current_path, next_path):
 		else:
 			current_entry_list = current_entry_list[:-1]
 	next_entry_list = get_entry_list(next_path)
-	next_entry_list = next_entry_list[:-1]
+	if len(next_entry_list)>1:
+		next_entry_list = next_entry_list[:-1]
 	n = 0
 	try:
 		while current_entry_list[n] == next_entry_list[n]:
@@ -371,34 +369,28 @@ def find_new_common_path_in_next_user_events(events, i):
 def process_menu_select_events(events, i):
 	i0 = i
 	i_processed_events = []
-	menu_bar_path = None
 	menu_path = []
-	menu_type = 'QT'
 	while i0 >= 0:
 		if type(events[i0]) is ClickEvent:
 			entry_list = get_entry_list(events[i0].path)
-			str_name, str_type, _, _ = get_entry(entry_list[-1])
-			if str_type == 'MenuItem':
-				str_name_root, str_type_root, _, _ = get_entry(entry_list[0])
-				if str_name_root == 'Context' and str_type_root == 'Menu':
-					break
+			matching = [s for s in entry_list if "||MenuItem" in s]
+			if matching:
+				str_name, _, _, _ = get_entry(matching[0])
 				menu_path.append(str_name)
-				str_name, str_type, _, _ = get_entry(entry_list[-2])
-				if str_type == 'MenuBar':
-					if str_name:
-						menu_type = 'NPP'
-					# menu_path.append(str_name)
-					menu_bar_path = path_separator.join(entry_list[0:-2])
-					menu_path = path_separator.join(reversed(menu_path))
+				i_processed_events.append(i0)
+				if [s for s in entry_list if "||MenuBar" in s]:
 					break
-				else:
-					i_processed_events.append(i0)
-		i0 = i0 - 1
-	if menu_bar_path:
-		events[i0] = MenuEvent(path=menu_bar_path, menu_path=menu_path, menu_type=menu_type)
+			else:
+				break
+		i0 -= 1
+	if menu_path:
+		menu_path = path_separator.join(reversed(menu_path))
+		i_menu_bar = i_processed_events.pop()
+		menu_bar_path = get_entry_list(events[i_menu_bar].path)[0]
+		events[i_menu_bar] = MenuEvent(path=menu_bar_path, menu_path=menu_path)
 		for i_p_e in sorted(i_processed_events, reverse=True):
 			del events[i_p_e]
-			i = i - 1
+			i -= 1
 	return i
 
 
@@ -574,7 +566,7 @@ class Recorder(Thread):
 		self.daemon = True
 		self.event_list = []
 		self._copy_count = 0
-		self._mode = "Info"
+		self._mode = "Initializing"
 		self._process_menu_click_mode = False
 		self._smart_mode = False
 		self._relative_coordinate_mode = False
@@ -691,7 +683,7 @@ class Recorder(Thread):
 			code += '")\n'
 			code += '\twrapper.draw_outline()\n'
 			pyperclip.copy(code)
-			if self.event_list:
+			if self.event_list and self.mode == "Record":
 				self.event_list.append(FindEvent(path=l_e_e.path, dx=dx, dy=dy, time=time.time()))
 				
 	def __key_on(self, e):
@@ -928,6 +920,7 @@ class Recorder(Thread):
 		unique_wrapper_path = None
 		strategies = [Strategy.unique_path, Strategy.array_2D, Strategy.array_1D]
 		i_strategy = 0
+		self.mode = "Info"
 		#strategy_unique_path_again_done = False
 		while self.mode != "Quit":
 			i = i + 1
@@ -1045,26 +1038,26 @@ class Recorder(Thread):
 				# <----- ***
 				if unique_wrapper_path is not None:
 					self.last_element_event = ElementEvent(strategy, wrapper.rectangle(), unique_wrapper_path)
-					if self.event_list and unique_wrapper_path is not None:
+					if self.event_list and self.mode == "Record":
 						self.event_list.append(self.last_element_event)
 				nb_icons = 0
 				if self.mode == "Record":
 					overlay_add_mode_icon(self.main_overlay, IconSet.hicon_record, 10, 10)
 					nb_icons += 1
-				elif self.mode == "Play":
-					while self.mode == "Play":
-						self.info_overlay.clear_all()
-						self.main_overlay.clear_all()
-						overlay_add_mode_icon(self.main_overlay, IconSet.hicon_play, 10, 10)
-						self.info_overlay.refresh()
-						self.main_overlay.refresh()
-						time.sleep(1.0)
 				elif self.mode == "Stop":
 					while self.mode == "Stop":
 						self.info_overlay.clear_all()
 						self.main_overlay.clear_all()
 						overlay_add_mode_icon(self.main_overlay, IconSet.hicon_stop, 10, 10)
 						time.sleep(0.1)
+						self.info_overlay.refresh()
+						self.main_overlay.refresh()
+						time.sleep(1.0)
+				elif self.mode == "Play":
+					while self.mode == "Play":
+						self.info_overlay.clear_all()
+						self.main_overlay.clear_all()
+						overlay_add_mode_icon(self.main_overlay, IconSet.hicon_play, 10, 10)
 						self.info_overlay.refresh()
 						self.main_overlay.refresh()
 						time.sleep(1.0)
@@ -1179,6 +1172,7 @@ class Recorder(Thread):
 		It adds a mouse move event to the event list, displays the record icon to the main overlay,
 		clears and refreshes the main and info overlays, and then sets the mode to "Record".
 		"""
+		time.sleep(0.6)  # wait the recorder to be fully ready
 		x, y = win32api.GetCursorPos()
 		self.event_list = [mouse.MoveEvent(x, y, time.time())]
 		overlay_add_mode_icon(self.main_overlay, IconSet.hicon_record, 10, 10)
@@ -1199,6 +1193,7 @@ class Recorder(Thread):
 			events = list(self.event_list)
 			self.event_list = []
 			self.mode = "Stop"
+			time.sleep(0.6)  # wait the recorder to be fully ready
 			if self.started_recording_with_keyboard:
 				clean_events(events, remove_first_up=True)
 			else:
@@ -1208,7 +1203,7 @@ class Recorder(Thread):
 			clean_events(events)
 			return write_in_file(events, relative_coordinate_mode=self.relative_coordinate_mode)
 		self.main_overlay.clear_all()
-		overlay_add_pause_icon(self.main_overlay, 10, 10)
+		overlay_add_mode_icon(self.main_overlay, IconSet.hicon_stop,  10, 10)
 		self.main_overlay.refresh()
 		self.mode = "Stop"
 		return None
@@ -1219,7 +1214,19 @@ class Recorder(Thread):
 		:return: The last element event.
 		"""
 		return self.last_element_event
-
+	
+	def playback(self, str_code='', filename=''):
+		"""
+		This function plays back a string of code or a Python file.
+		
+		:param str_code: The code to be played back
+		:param filename: The name of the file coresponding to the code to be played back
+		"""
+		self.mode = "Play"
+		self.main_overlay.refresh()
+		playback(str_code, filename)
+		self.mode = "Stop"
+	
 	def quit(self):
 		"""
 		The function clears the main and info overlays, sets the mode to 'Quit', and then joins the thread.

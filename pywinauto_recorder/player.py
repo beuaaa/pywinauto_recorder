@@ -35,9 +35,10 @@ class FailedSearch(PywinautoRecorderException):
 
 
 __all__ = ['PlayerSettings', 'MoveMode', 'ButtonLocation', 'load_dictionary', 'shortcut', 'full_definition', 'UIPath',
-           'Window', 'Region', 'find', 'find_all', 'move', 'click', 'left_click', 'right_click', 'double_left_click',
-           'triple_left_click', 'drag_and_drop', 'middle_drag_and_drop', 'right_drag_and_drop', 'menu_click',
-           'mouse_wheel', 'send_keys', 'set_combobox', 'set_text', 'exists', 'select_file']
+           'Window', 'Region', 'find', 'find_all', 'move', 'click', 'left_click', 'right_click',
+           'double_left_click', 'triple_left_click', 'double_click', 'triple_click',
+           'drag_and_drop', 'middle_drag_and_drop', 'right_drag_and_drop', 'menu_click',
+           'mouse_wheel', 'send_keys', 'set_combobox', 'set_text', 'exists', 'select_file', 'playback']
 
 
 # TODO special_char_array in core for recorder.py and player.py (check when to call escape & unescape)
@@ -194,7 +195,7 @@ class UIPath(object):
 		Returns the full path of the element.
 	"""
 	_path_list = []
-	_regex_list = []
+	_regex_list = []  # UIPath._regex_list must be removed
 	
 	@staticmethod
 	def get_full_path(element_path: Optional[UI_Path] = None) -> UI_Path:
@@ -214,18 +215,18 @@ class UIPath(object):
 	
 	def __init__(self, relative_path=None, regex_title=False):
 		self.relative_path = relative_path
-		self.regex_title = regex_title
+		self.regex_title = regex_title  # UIPath._regex_list must be removed
 	
 	def __enter__(self):
 		if self.relative_path:
 			UIPath._path_list.append(self.relative_path)
-			UIPath._regex_list.append(self.regex_title)
+			UIPath._regex_list.append(self.regex_title)  # UIPath._regex_list must be removed
 		return self
 	
 	def __exit__(self, type, value, traceback):
 		if self.relative_path:
 			UIPath._path_list = UIPath._path_list[0:-1]
-			UIPath._regex_list = UIPath._regex_list[0:-1]
+			UIPath._regex_list = UIPath._regex_list[0:-1]  # UIPath._regex_list must be removed
 
 
 Window = UIPath
@@ -324,7 +325,10 @@ def find(
 	if not unique_element:
 		full_element_path = UIPath.get_full_path(element_path)
 		if elements:
-			raise FailedSearch("There are " + str(len(elements)) + " elements that match the path '" + full_element_path + "'")
+			message = "There are " + str(len(elements)) + " elements that match the path '" + full_element_path + "':"
+			for e in elements:
+				message += "\n" + get_wrapper_path(e)
+			raise FailedSearch(message)
 		raise FailedSearch("Unique element not found using path '", full_element_path + "'")
 	return unique_element
 
@@ -594,7 +598,9 @@ def wrapped_partial(func, *args, **kwargs):
 left_click = wrapped_partial(click, button=ButtonLocation.left)
 right_click = wrapped_partial(click, button=ButtonLocation.right)
 double_left_click = wrapped_partial(click, button=ButtonLocation.left, click_count=2)
+double_click = wrapped_partial(click, button=ButtonLocation.left, click_count=2)
 triple_left_click = wrapped_partial(click, button=ButtonLocation.left, click_count=3)
+triple_click = wrapped_partial(click, button=ButtonLocation.left, click_count=3)
 
 
 def drag_and_drop(
@@ -605,17 +611,17 @@ def drag_and_drop(
 		button: ButtonLocation = ButtonLocation.left,
 		timeout: Optional[float] = None) -> PYWINAUTO_Wrapper:
 	"""
-	Drags and drop with left button pressed from element_path1 to element_path2.
+	Drags and drops from element_path1 to element_path2.
 	
-	:param element_path1: element path
-	:param element_path2: element path
+	:param element_path1: source element path
+	:param element_path2: destination element path
 	:param duration: duration in seconds of the mouse move (it doesn't take into account the time it takes to find)
 		(if duration is -1 the mouse cursor doesn't move, it just sends WM_CLICK window message,
 		useful for minimized or non-active window).
 	:param mode: move mouse mode: MoveMode.linear, MoveMode.x_first, MoveMode.y_first
 	:param button: mouse button:  ButtonLocation.left, ButtonLocation.middle, ButtonLocation.right
 	:param timeout: period of time in seconds that will be allowed to find the element
-	:return: Pywinauto wrapper with element_path2
+	:return: Pywinauto wrapper found with element_path2
 	"""
 	move(element_path1, duration=duration, mode=mode, timeout=timeout)
 	if button == ButtonLocation.left:
@@ -639,55 +645,59 @@ right_drag_and_drop = wrapped_partial(drag_and_drop, button=ButtonLocation.right
 
 
 def menu_click(
-		element_path: UI_Selector,
 		menu_path: str,
 		duration: Optional[float] = None,
-		mode: Enum = MoveMode.linear,
-		menu_type: str = 'QT',
 		timeout: Optional[float] = None) -> PYWINAUTO_Wrapper:
 	"""
-	Clicks on menu item.
+	Clicks on the menu items.
 	
-	:param element_path: element path
-	:param menu_path: menu path
+	.. code-block:: python
+		:caption: Example of code using the 'menu_click' function to automate 'Notepad++'::
+		:emphasize-lines: 5,5
+		
+		from pywinauto_recorder.player import UIPath, find, click, menu_click
+	
+		with UIPath("RegEx: .* - Notepad\+\+$||Window"):
+			find().set_focus()
+			menu_click("Language->P->Python")
+		
+	.. code-block:: python
+		:caption: Example of code using the 'menu_click' function to automate 'WordPad'::
+		:emphasize-lines: 6,6
+		
+		from pywinauto_recorder.player import UIPath, find, click, menu_click
+		
+		with UIPath("Document - WordPad||Window"):
+			find().set_focus()
+			click("*->File tab||Button")
+			menu_click("New")
+			
+	In the above code, the 'File tab' element that opens the menu is not of type 'MenuItem',
+	so it is not possible to call 'menu_click("File tab->New")'.
+	In this case the menu must be opened with 'click("*->File tab||Button")' before calling the 'menu_click' function.
+	
+	:param menu_path: menu item path
 	:param duration: duration in seconds of the mouse move (it doesn't take into account the time it takes to find)
 		(if duration is -1 the mouse cursor doesn't move, it just sends WM_CLICK window message,
 		useful for minimized or non-active window).
-	:param mode: move mouse mode: MoveMode.linear, MoveMode.x_first, MoveMode.y_first
-	:param menu_type: menu type ('QT', 'NPP')
 	:param timeout: period of time in seconds that will be allowed to find the element
 	:return: Pywinauto wrapper of the clicked item
 	"""
 	menu_entry_list = menu_path.split(path_separator)
-	if menu_type == 'QT':
-		menu_entry_list = [''] + menu_entry_list
-	else:
-		menu_entry_list = ['Application'] + menu_entry_list
-	if element_path:
-		element_path2 = element_path + path_separator
-	else:
-		element_path2 = ''
-	left_click(element_path2 +
-	           menu_entry_list[0] + type_separator + 'MenuBar' + path_separator +
-	           menu_entry_list[1] + type_separator + 'MenuItem', duration=duration, mode=mode, timeout=timeout)
-	w = None
-	if menu_type == 'QT':
-		path_list_old, regex_list_old = UIPath.path_list, UIPath.regex_list
-		UIPath.path_list, UIPath.regex_list = [], []
-		for entry in menu_entry_list[2:]:
-			w = left_click(type_separator + 'Menu' + path_separator + entry + type_separator + 'MenuItem',
-			               duration=duration, mode=mode, timeout=timeout)
-		UIPath.path_list, UIPath.regex_list = path_list_old, regex_list_old
-	else:
-		for i, entry in enumerate(menu_entry_list[2:]):
-			w = left_click(element_path +
-			               menu_entry_list[i - 2] + type_separator + 'Menu' + path_separator +
-			               unescape_special_char(entry) + type_separator + 'MenuItem',
-			               duration=duration, mode=mode, timeout=timeout)
+	for menu_entry in menu_entry_list:
+		w = find('*' + path_separator + menu_entry + type_separator + 'MenuItem', timeout=timeout)
+		x, y = win32api_GetCursorPos()
+		r = w.parent().rectangle()
+		x_min = min(abs(r.left - x), abs(r.right - x))
+		y_min = min(abs(r.top - y), abs(r.bottom - y))
+		if x_min < y_min:
+			click(w, mode=MoveMode.x_first, duration=duration)
+		else:
+			click(w, mode=MoveMode.y_first, duration=duration)
 	return w
 
 
-def mouse_wheel(steps: int, pause: float = 0) -> None:
+def mouse_wheel(steps: int, pause: float = 0.05) -> None:
 	"""
 	Turns the mouse wheel up or down.
 	
@@ -757,7 +767,7 @@ def set_combobox(
 	:param mode: move mouse mode: MoveMode.linear, MoveMode.x_first, MoveMode.y_first
 	:param timeout: period of time in seconds that will be allowed to find the element
 	"""
-	left_click(element_path, duration=duration, mode=mode, timeout=timeout, wait_ready=wait_ready)
+	click(element_path, duration=duration, mode=mode, timeout=timeout, wait_ready=wait_ready)
 	time.sleep(0.9)
 	send_keys(value + "{ENTER}")
 
@@ -845,3 +855,41 @@ def select_file(
 		double_left_click("*->File name:||ComboBox->File name:||Edit")
 		send_keys(filename + "{ENTER}")
 
+
+def playback(str_code='', filename=''):
+	"""
+	This function plays back a string of code or a Python file.
+
+	:param str_code: The code to be played back
+	:param filename: The name of the file corresponding to the Python code to be played back
+	"""
+	from ctypes import windll
+	import traceback
+	import os
+	import sys
+	import codecs
+	
+	if str_code == '' and os.path.isfile(filename):
+		with codecs.open(filename, "r", encoding='utf-8') as python_file:
+			str_code = python_file.read()
+	try:
+		script_dir = os.path.abspath(os.path.dirname(filename))
+		os.chdir(os.path.abspath(script_dir))
+		sys.path.append(script_dir)
+		compiled_code = compile(str_code, filename, 'exec')
+		exec(compiled_code)
+	except Exception as e:
+		windll.user32.ShowWindow(windll.kernel32.GetConsoleWindow(), 3)
+		exc_type, exc_value, exc_traceback = sys.exc_info()
+		output = traceback.format_exception(exc_type, exc_value, exc_traceback)
+		i_line = d_line = 0
+		full_traceback = False
+		if not full_traceback:
+			for line in output:
+				i_line += 1
+				if "pywinauto_recorder.py" in line:
+					d_line = i_line
+		
+		for line in output[d_line:]:
+			print(line, file=sys.stderr, end='')
+		input("Press Enter to continue...")
