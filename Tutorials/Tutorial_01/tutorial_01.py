@@ -2,8 +2,9 @@
 import time
 import os
 import shutil
-from dp_toolbox import *
-from pywinauto_recorder.player import *
+from dp_toolbox import Voice, OBSStudio, highlight, clear_overlay
+import pywinauto
+from pywinauto_recorder.player import UIPath, click, right_click, move, find, send_keys, exists, drag_and_drop
 from pathlib import Path
 
 # WARNING: This script must be launched with admin rights because of the installer
@@ -53,7 +54,7 @@ if __name__ == '__main__':
 	click("New Tab - Google Chrome (Guest)||Pane->*->Address and search bar||Edit%(-99,-23.33)")
 	
 	brian.say("Go to pywinauto-recorder dot read the docs dot io")
-	send_keys("pywinauto-recorder.readthedocs.io""{ENTER}", pause=0.15, vk_packet=True)
+	send_keys("pywinauto-recorder.readthedocs.io{ENTER}", pause=0.15, vk_packet=True)
 	#screen_zoom_out()
 
 
@@ -111,7 +112,7 @@ if __name__ == '__main__':
 		time.sleep(1)
 	
 	########################################################################
-	#                      Run pywinauto_recorder.exe                      #
+	#          Run pywinauto_recorder.exe from the installer               #
 	########################################################################
 	config_ini = Path.home() / r"Pywinauto recorder/config.ini"
 	config_ini.parent.mkdir(exist_ok=True, parents=True)
@@ -165,14 +166,14 @@ if __name__ == '__main__':
 	######################################
 	# Start Recording and run Calculator #
 	######################################
-	send_keys("{VK_CONTROL down}""{VK_MENU down}""r""{VK_MENU up}""{VK_CONTROL up}")
+	send_keys("{VK_CONTROL down}{VK_MENU down}r{VK_MENU up}{VK_CONTROL up}")
 	brian.say("Now it's recording!")
 	time.sleep(2.0)
 	send_keys("{VK_LWIN}")  # Task bar must be configured to hide and show when mouse hover it.
 	time.sleep(1.0)
 	brian.say("Then I'm going to start calculator to do a little addition.")
 	move("Start||Window->||Window->Type here to search||Button")
-	send_keys("calculator""{ENTER}", pause=0.2, vk_packet=False)
+	send_keys("calculator{ENTER}", pause=0.2, vk_packet=False)
 	time.sleep(2.0)
 	
 	################################
@@ -215,7 +216,7 @@ if __name__ == '__main__':
 	# Stop Recording and replay clipboard #
 	#######################################
 	brian.say("I press 'alt' 'control' 'r' to stop recording.")
-	send_keys("{VK_CONTROL down}""{VK_MENU down}""r""{VK_MENU up}""{VK_CONTROL up}")
+	send_keys("{VK_CONTROL down}{VK_MENU down}r{VK_MENU up}{VK_CONTROL up}")
 	brian.say("And click on Start playing in the tray menu.")
 	time.sleep(1.5)
 	send_keys("{VK_LWIN}")
@@ -243,7 +244,7 @@ if __name__ == '__main__':
 	time.sleep(0.5)
 	with UIPath("RegEx: ^C:\\\\Users\\\\.*\\\\Pywinauto recorder$||Window"):
 		click("||TitleBar")
-		send_keys("{LWIN down}""{VK_RIGHT}""{LWIN up}")
+		send_keys("{LWIN down}{VK_RIGHT}{LWIN up}")
 		time.sleep(0.5)
 	with UIPath(u"Snap Assist||Window"):
 		click("*->Description — pywinauto_recorder documentation - Google Chrome||ListItem->Close||Button")
@@ -265,7 +266,7 @@ if __name__ == '__main__':
 	find("RegEx: .* - Notepad\+\+||Window").maximize()
 	brian.say("You can see that it is an easy to read Python script.")
 
-	send_keys("{PGUP}""{VK_HOME}")
+	send_keys("{PGUP}{VK_HOME}")
 
 	brian.say("The functions return Pywinauto wrappers.")
 
@@ -273,22 +274,22 @@ if __name__ == '__main__':
 	send_keys("{VK_RIGHT 2}")
 	send_keys("pywinauto_wrapper1 = ")
 	brian.say("I'm going to call draw outline on some of these wrappers")
-	send_keys("{VK_END}""{ENTER}")
+	send_keys("{VK_END}{ENTER}")
 	brian.say("The first draw outline will display a red rectangle around the One button.")
 	send_keys("pywinauto_wrapper1.draw_outline(colour='red', thickness=22)")
-	send_keys("{VK_HOME}""{VK_DOWN}")
+	send_keys("{VK_HOME}{VK_DOWN}")
 	send_keys("pywinauto_wrapper2 = ")
-	send_keys("{VK_END}""{ENTER}")
+	send_keys("{VK_END}{ENTER}")
 	brian.say("The second one will display a green rectangle around the Plus button.")
 	send_keys("pywinauto_wrapper2.draw_outline(colour='green', thickness=22)")
-	send_keys("{VK_HOME}""{VK_DOWN}")
+	send_keys("{VK_HOME}{VK_DOWN}")
 	send_keys("pywinauto_wrapper3 = ")
-	send_keys("{VK_END}""{ENTER}")
+	send_keys("{VK_END}{ENTER}")
 	brian.say("And the third one will display a blue rectangle around the Two button.")
 	send_keys("pywinauto_wrapper3.draw_outline(colour='blue', thickness=22)")
-	send_keys("{VK_CONTROL down}""s""{VK_CONTROL up}")
+	send_keys("{VK_CONTROL down}s{VK_CONTROL up}")
 	brian.say("Let's replay it!", wait_until_the_end_of_the_sentence=True)
-	send_keys("{VK_MENU down}""{VK_F4}""{VK_MENU up}")
+	send_keys("{VK_MENU down}{VK_F4}{VK_MENU up}")
 	
 	################################
 	# Close pywinauto_recorder.exe #
@@ -322,7 +323,5 @@ if __name__ == '__main__':
 
 	obs.stop_recording()
 	obs.quit()
-
-
 	exit(0)
 
