@@ -1,54 +1,89 @@
 import pytest
-from pywinauto_recorder.player import UIPath, find, send_keys, left_click, menu_click, drag_and_drop, mouse_wheel
+import time
+from pywinauto_recorder.recorder import Recorder
+from pywinauto_recorder.player import UIPath, send_keys, find, click, menu_click, move, mouse_wheel, playback
+import re
+import os
 
 
 ################################################################################################
-#                                    Tests using Notepad                                       #
+#                              Tests using Windows 11 Notepad                                  #
 ################################################################################################
 
-@pytest.mark.parametrize('run_app', [("Notepad.exe", "Untitled - Notepad")], indirect=True)
-def test_send_keys(run_app):
+@pytest.mark.parametrize('start_kill_app', ["Notepad"], indirect=True)
+def test_send_keys(start_kill_app):
 	"""
 	Opens Notepad, clicks on the text editor, and sends the keys "This is a error" followed
 	by 5 backspaces, "test.", and an enter.
 	"""
 	with UIPath("Untitled - Notepad||Window"):
-		edit = left_click("Text Editor||Edit%(0,0)")
+		# edit = click("Text Editor||Edit")  # Windows 10
+		edit = click(u"Text editor||Document")  # Windows 11
 		send_keys("This is a error{BACKSPACE}{BACKSPACE}{BACKSPACE}{BACKSPACE}{BACKSPACE}test.{ENTER}")
-	result = edit.get_value()
-	assert result == 'This is a test.\r\n'
+	result = edit.legacy_properties()['Value']
+	# assert result == 'This is a test.\r\n'  # Windows 10
+	assert result == 'This is a test.\r'  # Windows 11
 
 
-@pytest.mark.parametrize('run_app', [("Notepad.exe", "Untitled - Notepad")], indirect=True)
-def test_drag_and_drop(run_app):
+@pytest.mark.parametrize('start_kill_app', ["Notepad"], indirect=True)
+def test_wheel(start_kill_app):
 	"""
-	It opens the font dialog of Notepad, scrolls to the bottom of the font size list using
-	a drag and drop, clicks on the last item in the list box,
+	It opens the font dialog of Notepad,
+	scrolls to the top of the font size list using the mouse wheel,  clicks on the first item in the list box,
+	and asserts that the selected item is the first one.
+	Then it scrolls to the bottom of the font size list using the mouse wheel, clicks on the last item in the list box,
 	and then asserts that the selected item is the last one.
 	"""
+		
 	with UIPath("Untitled - Notepad||Window"):
-		menu_click("", "Format->Font...", menu_type='NPP')
-	with UIPath("Untitled - Notepad||Window->Font||Window"):
-		size_list_box = find("Size:||ComboBox->Size:||List")
-		with UIPath("Size:||ComboBox->Size:||List"):
-			drag_and_drop("Vertical||ScrollBar->Position||Thumb", "Vertical||ScrollBar->Line down||Button")
-			left_click("Vertical||ScrollBar->Line down||Button%(-200,0)")  # select the last item in the list
-		assert size_list_box.get_selection()[0].name == size_list_box.children_texts()[-1]
+		menu_click("Edit->Font")
+		
+		font_list_box = click("*->Font||Group->Family||ComboBox%(76.86,-12.50)")
+		move("*->Font||Group->Family||ComboBox%(0,400)")
+		mouse_wheel(80, pause=0.05)
+		click("*->Font||Group->Family||ComboBox->RegEx: .*||ListItem#[0, 0]")
+		assert font_list_box.get_selection()[0].name == font_list_box.children_texts()[0]
+		
+		font_list_box = click("*->Font||Group->Family||ComboBox%(76.86,-12.50)")
+		move("*->Font||Group->Family||ComboBox%(0,400)")
+		mouse_wheel(-80, pause=0.05)
+		click("*->Font||Group->Family||ComboBox->RegEx: .*||ListItem#[-1, 0]")
+		assert font_list_box.get_selection()[0].name == font_list_box.children_texts()[-1]
 
 
-@pytest.mark.parametrize('run_app', [("Notepad.exe", "Untitled - Notepad")], indirect=True)
-def test_wheel(run_app):
-	"""
-	It opens the font dialog of Notepad, scrolls to the bottom of the font size list using
-	the mouse wheel, clicks on the last item in the list box,
-	and then asserts that the selected item is the last one.
-	"""
+@pytest.mark.parametrize('start_kill_app', ["Notepad"], indirect=True)
+def test_recorder_menu_click(start_kill_app):
+	recorder = Recorder()
+	recorder.process_menu_click_mode = True
+	recorder.start_recording()
 	with UIPath("Untitled - Notepad||Window"):
-		menu_click("", "Format->Font...", menu_type='NPP')
-	with UIPath("Untitled - Notepad||Window->Font||Window"):
-		size_list_box = find("Size:||ComboBox->Size:||List")
-		with UIPath("Size:||ComboBox->Size:||List"):
-			left_click("Vertical||ScrollBar->Position||Thumb")
-			mouse_wheel(-10)
-			left_click("Vertical||ScrollBar->Line down||Button%(-200,0)")  # select the last item in the list
-		assert size_list_box.get_selection()[0].name == size_list_box.children_texts()[-1]
+		for i in range(3):
+			move("*->View||MenuItem", duration=0)
+			time.sleep(0.8)
+			click("*->View||MenuItem", duration=0)
+			move("*->Zoom||MenuItem", duration=0)
+			time.sleep(0.8)
+			click("*->Zoom||MenuItem", duration=0)
+			move("*->Zoom in||MenuItem", duration=0)
+			time.sleep(0.8)
+			click("*->Zoom in||MenuItem", duration=0)
+		zoom_text = find("*->Zoom||Text")
+		regex = r"\' \d+%\'"
+		re_percentage_zoom = re.findall(regex, str(zoom_text.window_text))
+		assert len(re_percentage_zoom) == 1
+		percentage_zoom = int(re_percentage_zoom[0][2:-2])
+		assert percentage_zoom == 100 + (i+1)*10
+	recorded_python_script = recorder.stop_recording()
+	
+	playback(filename=recorded_python_script)
+	os.remove(recorded_python_script)
+	
+	with UIPath("Untitled - Notepad||Window"):
+		zoom_text = find("*->Zoom||Text")
+		regex = r"\' \d+%\'"
+		re_percentage_zoom = re.findall(regex, str(zoom_text.window_text))
+		assert len(re_percentage_zoom) == 1
+		percentage_zoom = int(re_percentage_zoom[0][2:-2])
+		assert percentage_zoom == 100 + (i+1)*2*10
+		
+	recorder.quit()
