@@ -579,8 +579,6 @@ class Recorder(Thread):
 	The above code clicks on the text field and then on 'utf8'.
 	All these events are recorded in a file. Then the file is replayed.
 
-	Methods:
-
 	Methods
 	-------
 	start_recording()
