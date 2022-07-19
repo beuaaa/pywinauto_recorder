@@ -28,5 +28,5 @@ The following table lists the useful methods and classes for the 'Player' and 'R
     pywinauto_recorder.player
     pywinauto_recorder.recorder.Recorder
 
+.. autoclasssumm:: pywinauto_recorder.player.UIPath
 .. autoclasssumm:: pywinauto_recorder.recorder.Recorder
-    :members:
