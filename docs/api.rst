@@ -22,6 +22,7 @@ The following table lists the useful methods and classes for the 'Player' and 'R
     :caption: Contents:
 
 .. autosummary::
+    :template: custom-module-template.rst
     :toctree: autosummary
     :recursive:
 
