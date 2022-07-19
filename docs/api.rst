@@ -27,4 +27,4 @@ The following table lists the useful methods and classes for the 'Player' and 'R
     :recursive:
 
     pywinauto_recorder.player
-    pywinauto_recorder.recorder.Recorder
+    pywinauto_recorder.recorder
