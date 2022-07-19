@@ -186,13 +186,6 @@ class UIPath(object):
 			with UIPath("*->Number pad||Group"):
 				click("One||Button")
 				click("Two||Button")
-
-	Methods:
-	
-	Methods
-	-------
-	get_full_path(element_path: Optional[UI_Path] = None) -> UI_Path
-		Returns the full path of the element.
 	"""
 	_path_list = []
 	_regex_list = []  # UIPath._regex_list must be removed
