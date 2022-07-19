@@ -29,5 +29,5 @@ Detailed API documentation
     pywinauto_recorder.player
     pywinauto_recorder.recorder.Recorder
 
-.. autoclass:: pywinauto_recorder.recorder.Recorder
-    :members:
+.. autoclasssumm:: pywinauto_recorder.recorder.Recorder
+    :autosummary-sections: Methods

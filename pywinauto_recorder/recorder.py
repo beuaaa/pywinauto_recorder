@@ -559,6 +559,7 @@ class Recorder(Thread):
 
 	.. code-block:: python
 		:caption: Example of code using 'Recorder'::
+		
 		from pywinauto_recorder.recorder import Recorder
 		from pywinauto_recorder.player import UIPath, click, move, playback
 
@@ -1199,7 +1200,6 @@ class Recorder(Thread):
 
 	def start_recording(self):
 		"""
-		Start recording:
 		It adds a mouse move event to the event list, displays the record icon to the main overlay,
 		clears and refreshes the main and info overlays, and then sets the mode to "Record".
 		"""
@@ -1215,7 +1215,6 @@ class Recorder(Thread):
 
 	def stop_recording(self):
 		"""
-		Stop recording:
 		It cleans the event list, displays the stop icon to the main overlay,
 		clears and refreshes the main and info overlays, writes the Python script, and then sets the mode to "Stop".
 		:return: The name of the file that was created.
