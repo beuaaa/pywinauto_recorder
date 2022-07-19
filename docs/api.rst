@@ -18,7 +18,7 @@ API documentation
 The following table lists the useful methods and classes for the 'Player' and 'Recorder' modules:
 
 .. toctree::
-    :maxdepth: 2
+    :maxdepth: 3
     :caption: Contents:
 
 .. autosummary::
