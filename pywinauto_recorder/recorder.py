@@ -581,8 +581,6 @@ class Recorder(Thread):
 
 	Methods
 	-------
-	start_recording()
-		Start recording.
 	"""
 	def __init__(self):
 		Thread.__init__(self)
