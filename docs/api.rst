@@ -18,7 +18,7 @@ API documentation
 The following table lists the useful methods and classes for the 'Player' and 'Recorder' modules:
 
 .. toctree::
-    :maxdepth: 3
+    :maxdepth: 2
     :caption: Contents:
 
 .. autosummary::
@@ -26,6 +26,7 @@ The following table lists the useful methods and classes for the 'Player' and 'R
     :recursive:
 
     pywinauto_recorder.player
+    pywinauto_recorder.player.UIPath
     pywinauto_recorder.recorder.Recorder
 
 .. autoclasssumm:: pywinauto_recorder.player.UIPath
