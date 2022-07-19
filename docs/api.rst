@@ -23,7 +23,6 @@ The following table lists the useful methods and classes for the 'Player' and 'R
 
 .. autosummary::
     :toctree: autosummary
-    :template: custom-module-template.rst
     :recursive:
 
     pywinauto_recorder.player

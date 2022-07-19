@@ -28,5 +28,5 @@ html_theme = 'sphinx_rtd_theme'
 
 # General information about the project.
 project = u'pywinauto_recorder'
-copyright = u"2021, David Pratmarty"
+copyright = u"2022, David Pratmarty"
 author = u"David Pratmarty"
