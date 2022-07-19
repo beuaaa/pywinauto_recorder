@@ -18,13 +18,16 @@ Functions
 Detailed API documentation
 
 .. toctree::
-   :maxdepth: 2
-   :caption: Contents:
+    :maxdepth: 2
+    :caption: Contents:
 
 .. autosummary::
-   :toctree: autosummary
-   :template: custom-module-template.rst
-   :recursive:
+    :toctree: autosummary
+    :template: custom-module-template.rst
+    :recursive:
 
-   pywinauto_recorder.player
-   pywinauto_recorder.recorder
+    pywinauto_recorder.player
+    pywinauto_recorder.recorder.Recorder
+
+.. autoclass:: pywinauto_recorder.recorder.Recorder
+    :members:
