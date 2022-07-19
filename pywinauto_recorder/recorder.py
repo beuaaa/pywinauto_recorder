@@ -554,6 +554,37 @@ def overlay_add_mode_icon(main_overlay, hicon, x, y):
 
 
 class Recorder(Thread):
+	"""
+	Recorder is a class thread used to record UI events in clipboard or in a file.
+
+	.. code-block:: python
+		:caption: Example of code using 'Recorder'::
+		from pywinauto_recorder.recorder import Recorder
+		from pywinauto_recorder.player import UIPath, click, move, playback
+
+		recorder = Recorder()
+		recorder.start_recording()
+		with UIPath("Untitled - Notepad||Window"):
+			doc = move("Text editor||Document")
+			time.sleep(0.5)
+			click(doc)
+			utf8 = move("||Pane-> UTF-8||Text")
+			time.sleep(0.5)
+			click(utf8)
+		recorded_python_script = recorder.stop_recording()
+		recorder.quit()
+		playback(filename=recorded_python_script)
+
+	The above code clicks on the text field and then on 'utf8'.
+	All these events are recorded in a file. Then the file is replayed.
+
+	Methods:
+
+	Methods
+	-------
+	start_recording()
+		Start recording.
+	"""
 	def __init__(self):
 		Thread.__init__(self)
 		from win32api import GetSystemMetrics
