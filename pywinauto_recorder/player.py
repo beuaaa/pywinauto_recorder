@@ -50,8 +50,13 @@ def unescape_special_char(string):
 
 class PlayerSettings:
 	"""The player settings class contains the mouse move duration and timeout."""
+	
 	mouse_move_duration = 0.5
+	"""mouse move duration"""
+	
 	timeout = 10
+	"""Maximum duration of the search function.
+	If the element is not found after the given timeout, the search is interrupted."""
 
 
 class MoveMode(Enum):
@@ -71,9 +76,15 @@ class MoveMode(Enum):
 
 class ButtonLocation(Enum):
 	"""The ButtonLocation class is an enumeration of the different locations of the mouse buttons"""
+	
 	left = 0
+	"""left mouse button"""
+	
 	middle = 1
+	"""middle mouse button"""
+	
 	right = 2
+	"""right mouse button"""
 
 
 _dictionary = {}
