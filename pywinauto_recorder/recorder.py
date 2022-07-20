@@ -43,7 +43,7 @@ class IconSet:
 	hicon_power = oaam.load_ico(path_icons + r'\Icons\power.ico', 48, 48)
 
 
-def escape_special_char(string):
+def _escape_special_char(string):
 	"""
 		Is called on all paths to remove all special characters but it's not good.
 		Should be moved in core
@@ -56,13 +56,13 @@ def escape_special_char(string):
 	return string
 
 
-def compute_dx_dy(x, y, rectangle):
+def _compute_dx_dy(x, y, rectangle):
 	cx, cy = rectangle.mid_point()
 	dx, dy = float(x - cx) / (rectangle.width() / 2 - 1), float(y - cy) / (rectangle.height() / 2 - 1)
 	return (dx, dy)
 
 
-def write_in_file(events, relative_coordinate_mode=False):
+def _write_in_file(events, relative_coordinate_mode=False):
 	from pathlib import Path
 	home_dir = Path.home() / 'Pywinauto recorder'
 	home_dir.mkdir(parents=True, exist_ok=True)
@@ -78,18 +78,18 @@ def write_in_file(events, relative_coordinate_mode=False):
 		e_i = events[i]
 		if type(e_i) in [DragAndDropEvent, ClickEvent, FindEvent, MenuEvent]:
 			if e_i.path != common_path:
-				new_common_path = find_new_common_path_in_next_user_events(events, i)
+				new_common_path = _find_new_common_path_in_next_user_events(events, i)
 				if new_common_path != common_path:
 					common_path = new_common_path
 					entry_list = get_entry_list(common_path)
 					e_i_window = entry_list[0]
 					if e_i_window != common_window:
 						common_window = e_i_window
-						script += '\nwith UIPath(u"' + escape_special_char(common_window) + '"):\n'
+						script += '\nwith UIPath(u"' + _escape_special_char(common_window) + '"):\n'
 					e_i_region = path_separator.join(entry_list[1:])
 					if e_i_region != common_region and e_i_region:
 						common_region = e_i_region
-						script += '\twith UIPath(u"' + escape_special_char(common_region) + '"):\n'
+						script += '\twith UIPath(u"' + _escape_special_char(common_region) + '"):\n'
 					else:
 						common_region = ''
 		if type(e_i) in [SendKeysEvent, MouseWheelEvent, DragAndDropEvent, ClickEvent, FindEvent, MenuEvent]:
@@ -106,12 +106,12 @@ def write_in_file(events, relative_coordinate_mode=False):
 				dx1, dy1 = "{:.2f}".format(round(e_i.dx1 * 100, 2)), "{:.2f}".format(round(e_i.dy1 * 100, 2))
 				dx2, dy2 = "{:.2f}".format(round(e_i.dx2 * 100, 2)), "{:.2f}".format(round(e_i.dy2 * 100, 2))
 				if common_path:
-					p1 = get_relative_path(common_path, p1)
-					p2 = get_relative_path(common_path, p2)
-				script += 'drag_and_drop(u"' + escape_special_char(p1)
+					p1 = _get_relative_path(common_path, p1)
+					p2 = _get_relative_path(common_path, p2)
+				script += 'drag_and_drop(u"' + _escape_special_char(p1)
 				if relative_coordinate_mode and eval(dx1) != 0 and eval(dy1) != 0:
 					script += '%(' + dx1 + ',' + dy1 + ')'
-				script += '", u"' + escape_special_char(p2)
+				script += '", u"' + _escape_special_char(p2)
 				if relative_coordinate_mode and eval(dx2) != 0 and eval(dy2) != 0:
 					script += '%(' + dx2 + ',' + dy2 + ')'
 				script += '")\n'
@@ -119,15 +119,15 @@ def write_in_file(events, relative_coordinate_mode=False):
 				p = e_i.path
 				dx, dy = "{:.2f}".format(round(e_i.dx * 100, 2)), "{:.2f}".format(round(e_i.dy * 100, 2))
 				if common_path:
-					p = get_relative_path(common_path, p)
+					p = _get_relative_path(common_path, p)
 				str_c = ['', '', 'double_', 'triple_']
 				if e_i.button == 'left':
 					if e_i.count == 1:
-						script += 'click(u"' + escape_special_char(p)
+						script += 'click(u"' + _escape_special_char(p)
 					else:
-						script += str_c[e_i.click_count]  + 'click(u"' + escape_special_char(p)
+						script += str_c[e_i.click_count] + 'click(u"' + _escape_special_char(p)
 				else:
-					script += str_c[e_i.click_count] + e_i.button + '_click(u"' + escape_special_char(p)
+					script += str_c[e_i.click_count] + e_i.button + '_click(u"' + _escape_special_char(p)
 				if relative_coordinate_mode and eval(dx) != 0 and eval(dy) != 0:
 					script += '%(' + dx + ',' + dy + ')'
 				script += '")\n'
@@ -135,13 +135,13 @@ def write_in_file(events, relative_coordinate_mode=False):
 				p = e_i.path
 				dx, dy = "{:.2f}".format(round(e_i.dx * 100, 2)), "{:.2f}".format(round(e_i.dy * 100, 2))
 				if common_path:
-					p = get_relative_path(common_path, p)
-				script += 'wrapper = find(u"' + escape_special_char(p)
+					p = _get_relative_path(common_path, p)
+				script += 'wrapper = find(u"' + _escape_special_char(p)
 				if relative_coordinate_mode and eval(dx) != 0 and eval(dy) != 0:
 					script += '%(' + dx + ',' + dy + ')'
 				script += '")\n'
 			elif type(e_i) is MenuEvent:
-				script += 'menu_click(u"' + escape_special_char(e_i.menu_path) + '")\n'
+				script += 'menu_click(u"' + _escape_special_char(e_i.menu_path) + '")\n'
 		i += 1
 	with codecs.open(record_file_name, "w", encoding=sys.getdefaultencoding()) as f:
 		f.write(script)
@@ -149,7 +149,7 @@ def write_in_file(events, relative_coordinate_mode=False):
 	return record_file_name
 
 
-def clean_events(events, remove_first_up=False):
+def _clean_events(events, remove_first_up=False):
 	""""
 	removes duplicate or useless events
 	removes all the last down events due or not to (CRTL+ALT+r) when ending record mode
@@ -188,28 +188,28 @@ def clean_events(events, remove_first_up=False):
 		i = i - 1
 
 
-def process_events(events, process_menu_click=True):
+def _process_events(events, process_menu_click=True):
 	i = 0
 	while i < len(events):
 		if type(events[i]) is keyboard.KeyboardEvent:
-			process_keyboard_events(events, i)
+			_process_keyboard_events(events, i)
 		elif type(events[i]) is mouse.WheelEvent:
-			process_wheel_events(events, i)
+			_process_wheel_events(events, i)
 		i = i + 1
 	i = len(events) - 1
 	while i >= 0:
 		if type(events[i]) is mouse.ButtonEvent and events[i].event_type == 'up':
-			i = process_drag_and_drop_or_click_events(events, i)
+			i = _process_drag_and_drop_or_click_events(events, i)
 		i = i - 1
 	if process_menu_click:
 		i = len(events) - 1
 		while i >= 0:
 			if type(events[i]) is ClickEvent:
-				i = process_menu_select_events(events, i)
+				i = _process_menu_select_events(events, i)
 			i = i - 1
 
 
-def process_keyboard_events(events, i):
+def _process_keyboard_events(events, i):
 	keyboard_events = [events[i]]
 	i0 = i + 1
 	i_processed_events = []
@@ -222,14 +222,14 @@ def process_keyboard_events(events, i):
 			i0 = i0 + 1
 		else:
 			break
-	line = get_send_keys_strings(keyboard_events)
+	line = _get_send_keys_strings(keyboard_events)
 	for i_p_e in sorted(i_processed_events, reverse=True):
 		del events[i_p_e]
 	if line:
 		events[i] = SendKeysEvent(line=line)
 
 
-def process_wheel_events(events, i):
+def _process_wheel_events(events, i):
 	delta = events[i].delta
 	i_processed_events = []
 	i0 = i + 1
@@ -247,7 +247,7 @@ def process_wheel_events(events, i):
 	events[i] = MouseWheelEvent(delta=delta)
 
 
-def process_drag_and_drop_or_click_events(events, i):
+def _process_drag_and_drop_or_click_events(events, i):
 	i0 = i - 1
 	while i0 >= 0:
 		if type(events[i0]) == ElementEvent:
@@ -285,14 +285,14 @@ def process_drag_and_drop_or_click_events(events, i):
 				move_event_start = events[i0]
 				break
 			i0 = i0 - 1
-		dx1, dy1 = compute_dx_dy(move_event_start.x, move_event_start.y, element_event_before_button_down.rectangle)
-		dx2, dy2 = compute_dx_dy(move_event_end.x, move_event_end.y, element_event_before_button_up.rectangle)
+		dx1, dy1 = _compute_dx_dy(move_event_start.x, move_event_start.y, element_event_before_button_down.rectangle)
+		dx2, dy2 = _compute_dx_dy(move_event_end.x, move_event_end.y, element_event_before_button_up.rectangle)
 		events[i] = DragAndDropEvent(
 			path=element_event_before_button_down.path, dx1=dx1, dy1=dy1,
 			path2=element_event_before_button_up.path, dx2=dx2, dy2=dy2)
 	else:
 		up_event = events[i]
-		dx, dy = compute_dx_dy(move_event_end.x, move_event_end.y, element_event_before_button_down.rectangle)
+		dx, dy = _compute_dx_dy(move_event_end.x, move_event_end.y, element_event_before_button_down.rectangle)
 		events[i] = ClickEvent(
 			button=up_event.button, click_count=click_count,
 			path=element_event_before_button_down.path, dx=dx, dy=dy, time=up_event.time)
@@ -308,7 +308,7 @@ def process_drag_and_drop_or_click_events(events, i):
 	return i
 
 
-def get_relative_path(common_path, path):
+def _get_relative_path(common_path, path):
 	if not path:
 		return ''
 	# TODO: check if common_path is the beginning of path
@@ -326,7 +326,7 @@ def get_relative_path(common_path, path):
 	return path
 
 
-def find_common_path(current_path, next_path):
+def _find_common_path(current_path, next_path):
 	current_entry_list = get_entry_list(current_path)
 	if len(current_entry_list) > 1:
 		_, _, y_x, _ = get_entry(current_entry_list[-1])
@@ -348,25 +348,25 @@ def find_common_path(current_path, next_path):
 	return common_path
 
 
-def find_new_common_path_in_next_user_events(events, i):
+def _find_new_common_path_in_next_user_events(events, i):
 	path_i = events[i].path
 	i0 = i + 1
 	new_common_path = ''
 	while i0 < len(events):
 		e = events[i0]
 		if type(e) in [DragAndDropEvent, ClickEvent, FindEvent, MenuEvent]:
-			new_common_path = find_common_path(path_i, e.path)
+			new_common_path = _find_common_path(path_i, e.path)
 			break
 		elif type(e) in [ElementEvent, mouse.MoveEvent]:
 			i0 = i0 + 1
 		else:
 			break
 	if new_common_path == '':
-		new_common_path = find_common_path(path_i, path_i)
+		new_common_path = _find_common_path(path_i, path_i)
 	return new_common_path
 
 
-def process_menu_select_events(events, i):
+def _process_menu_select_events(events, i):
 	i0 = i
 	i_processed_events = []
 	menu_path = []
@@ -394,7 +394,7 @@ def process_menu_select_events(events, i):
 	return i
 
 
-def common_start(sa, sb):
+def _common_start(sa, sb):
 	""" returns the longest common substring from the beginning of sa and sb """
 	
 	def _iter():
@@ -407,14 +407,14 @@ def common_start(sa, sb):
 	return ''.join(_iter())
 
 
-def get_typed_keys(keyboard_events):
+def _get_typed_keys(keyboard_events):
 	string = ''
 	previous_event = None
 	for event in keyboard_events:
 		event_name = event.name.replace('windows gauche', 'left windows')
 		event_name = event_name.replace('windows droite', 'right windows')
 		if previous_event:
-			common_event_name = common_start(event.name, previous_event.name)
+			common_event_name = _common_start(event.name, previous_event.name)
 			if common_event_name:
 				if previous_event.event_type == 'down' and event.event_type == 'up':
 					if len(common_event_name) == 1:
@@ -452,7 +452,7 @@ def get_typed_keys(keyboard_events):
 	return string
 
 
-def get_typed_strings(keyboard_events, allow_backspace=True):
+def _get_typed_strings(keyboard_events, allow_backspace=True):
 	"""
 	Given a sequence of events, tries to deduce what strings were typed.
 	Strings are separated when a non-textual key is pressed (such as tab or
@@ -486,7 +486,7 @@ def get_typed_strings(keyboard_events, allow_backspace=True):
 				string = string + name
 			else:
 				if string:
-					yield '"' + escape_special_char(string) + '"'
+					yield '"' + _escape_special_char(string) + '"'
 				if 'windows' in event.name:
 					yield '"' + '{LWIN}' + '"'
 				elif 'enter' in event.name:
@@ -494,7 +494,7 @@ def get_typed_strings(keyboard_events, allow_backspace=True):
 				string = ''
 
 
-def get_send_keys_strings(keyboard_events):
+def _get_send_keys_strings(keyboard_events):
 	is_typed_words = True
 	alnum_count = 0
 	for event in keyboard_events:
@@ -508,16 +508,16 @@ def get_send_keys_strings(keyboard_events):
 	if alnum_count <= 1:
 		is_typed_words = False
 	if is_typed_words:
-		return ''.join(format(code) for code in get_typed_strings(keyboard_events))
+		return ''.join(format(code) for code in _get_typed_strings(keyboard_events))
 	else:
-		return get_typed_keys(keyboard_events)
+		return _get_typed_keys(keyboard_events)
 
 
 t0_progress_icon_timings = time.time()
 progress_icon_timings = [0, 0, 0, 0, 0, 0, 0]
 
 
-def overlay_add_progress_icon(main_overlay, i, x, y):
+def _overlay_add_progress_icon(main_overlay, i, x, y):
 	global t0_progress_icon_timings
 	main_overlay.add(
 		geometry=oaam.Shape.rectangle, x=x, y=y, width=52, height=52,
@@ -541,7 +541,7 @@ def overlay_add_progress_icon(main_overlay, i, x, y):
 	t0_progress_icon_timings = time.time()
 
 
-def overlay_add_mode_icon(main_overlay, hicon, x, y):
+def _overlay_add_mode_icon(main_overlay, hicon, x, y):
 	main_overlay.add(
 		geometry=oaam.Shape.rectangle, x=x, y=y, width=52, height=52,
 		color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 255, 254))
@@ -695,14 +695,14 @@ class Recorder(Thread):
 			self._copy_count = 2
 			x, y = win32api.GetCursorPos()
 			l_e_e = self.last_element_event
-			dx, dy = compute_dx_dy(x, y, l_e_e.rectangle)
+			dx, dy = _compute_dx_dy(x, y, l_e_e.rectangle)
 			str_dx, str_dy = "{:.2f}".format(round(dx * 100, 2)), "{:.2f}".format(round(dy * 100, 2))
 			i = l_e_e.path.find(path_separator)
 			window_title = l_e_e.path[0:i]
 			# element_path = l_e_e.path[i+len(path_separator):]
-			p = get_relative_path(window_title, l_e_e.path)
-			code = 'with UIPath(u"' + escape_special_char(window_title) + '"):\n'
-			code += '\twrapper = find(u"' + escape_special_char(p)
+			p = _get_relative_path(window_title, l_e_e.path)
+			code = 'with UIPath(u"' + _escape_special_char(window_title) + '"):\n'
+			code += '\twrapper = find(u"' + _escape_special_char(p)
 			if self.relative_coordinate_mode and eval(str_dx) != 0 and eval(str_dy) != 0:
 				code += '%(' + str_dx + ',' + str_dy + ')'
 			code += '")\n'
@@ -738,7 +738,7 @@ class Recorder(Thread):
 		
 		if wrapper != self.wrapper_old_info_tip:
 			if self.wrapper_old_info_tip:
-				self.common_path_info_tip = find_common_path(get_wrapper_path(wrapper), get_wrapper_path(self.wrapper_old_info_tip))
+				self.common_path_info_tip = _find_common_path(get_wrapper_path(wrapper), get_wrapper_path(self.wrapper_old_info_tip))
 			self.wrapper_old_info_tip = wrapper
 			
 		end_path = get_wrapper_path(wrapper)[len(self.common_path_info_tip)::]
@@ -1067,13 +1067,13 @@ class Recorder(Thread):
 						self.event_list.append(self.last_element_event)
 				nb_icons = 0
 				if self.mode == "Record":
-					overlay_add_mode_icon(self.main_overlay, IconSet.hicon_record, 10, 10)
+					_overlay_add_mode_icon(self.main_overlay, IconSet.hicon_record, 10, 10)
 					nb_icons += 1
 				elif self.mode == "Stop":
 					while self.mode == "Stop":
 						self.info_overlay.clear_all()
 						self.main_overlay.clear_all()
-						overlay_add_mode_icon(self.main_overlay, IconSet.hicon_stop, 10, 10)
+						_overlay_add_mode_icon(self.main_overlay, IconSet.hicon_stop, 10, 10)
 						time.sleep(0.1)
 						self.info_overlay.refresh()
 						self.main_overlay.refresh()
@@ -1082,21 +1082,21 @@ class Recorder(Thread):
 					while self.mode == "Play":
 						self.info_overlay.clear_all()
 						self.main_overlay.clear_all()
-						overlay_add_mode_icon(self.main_overlay, IconSet.hicon_play, 10, 10)
+						_overlay_add_mode_icon(self.main_overlay, IconSet.hicon_play, 10, 10)
 						self.info_overlay.refresh()
 						self.main_overlay.refresh()
 						time.sleep(1.0)
 				if self.mode in ["Record", "Info"]:
-					overlay_add_progress_icon(self.main_overlay, i, 10+60*nb_icons, 10)
+					_overlay_add_progress_icon(self.main_overlay, i, 10 + 60 * nb_icons, 10)
 					nb_icons += 1
 				if self.mode == "Info":
-					overlay_add_mode_icon(self.main_overlay, IconSet.hicon_search, 10 + 60 * nb_icons, 10)
+					_overlay_add_mode_icon(self.main_overlay, IconSet.hicon_search, 10 + 60 * nb_icons, 10)
 					nb_icons += 1
 				if self.smart_mode:
-					overlay_add_mode_icon(self.main_overlay, IconSet.hicon_light_on, 10 + 60 * nb_icons, 10)
+					_overlay_add_mode_icon(self.main_overlay, IconSet.hicon_light_on, 10 + 60 * nb_icons, 10)
 					nb_icons += 1
 				if self._copy_count > 0:
-					overlay_add_mode_icon(self.main_overlay, IconSet.hicon_clipboard, 10 + 60 * nb_icons, 10)
+					_overlay_add_mode_icon(self.main_overlay, IconSet.hicon_clipboard, 10 + 60 * nb_icons, 10)
 					nb_icons += 1
 					self._copy_count = self._copy_count - 1
 				
@@ -1199,7 +1199,7 @@ class Recorder(Thread):
 		time.sleep(0.6)  # wait the recorder to be fully ready
 		x, y = win32api.GetCursorPos()
 		self.event_list = [mouse.MoveEvent(x, y, time.time())]
-		overlay_add_mode_icon(self.main_overlay, IconSet.hicon_record, 10, 10)
+		_overlay_add_mode_icon(self.main_overlay, IconSet.hicon_record, 10, 10)
 		self.info_overlay.clear_all()
 		self.main_overlay.clear_all()
 		self.main_overlay.refresh()
@@ -1218,15 +1218,15 @@ class Recorder(Thread):
 			self.mode = "Stop"
 			time.sleep(0.6)  # wait the recorder to be fully ready
 			if self.started_recording_with_keyboard:
-				clean_events(events, remove_first_up=True)
+				_clean_events(events, remove_first_up=True)
 			else:
-				clean_events(events)
+				_clean_events(events)
 			self.started_recording_with_keyboard = False
-			process_events(events, process_menu_click=self.process_menu_click_mode)
-			clean_events(events)
-			return write_in_file(events, relative_coordinate_mode=self.relative_coordinate_mode)
+			_process_events(events, process_menu_click=self.process_menu_click_mode)
+			_clean_events(events)
+			return _write_in_file(events, relative_coordinate_mode=self.relative_coordinate_mode)
 		self.main_overlay.clear_all()
-		overlay_add_mode_icon(self.main_overlay, IconSet.hicon_stop,  10, 10)
+		_overlay_add_mode_icon(self.main_overlay, IconSet.hicon_stop, 10, 10)
 		self.main_overlay.refresh()
 		self.mode = "Stop"
 		return None
