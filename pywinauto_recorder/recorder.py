@@ -1,5 +1,5 @@
 """This module contains functions and classes allowing to record a sequence of user actions.
-All these functions are private except the Recorder class. Recorder is the only public class of the module.
+All these functions and classes are private except the Recorder class.
 """
 
 import sys
