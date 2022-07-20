@@ -26,7 +26,9 @@
 
    .. autosummary::
    {% for item in attributes %}
+      {%- if not item.startswith('_') and item not in inherited_attributes %}
       ~{{ name }}.{{ item }}
+      {%- endif -%}
    {%- endfor %}
    {% endif %}
    {% endblock %}
