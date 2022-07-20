@@ -13,7 +13,7 @@
 
    .. autosummary::
    {% for item in methods %}
-      {%- if not item.startswith('_') %}
+      {%- if not item.startswith('_') and item not in inherited_members %}
       ~{{ name }}.{{ item }}
       {%- endif -%}
    {%- endfor %}
