@@ -18,7 +18,7 @@ import win32gui_struct
 import win32gui
 import win32ui
 import pyperclip
-from pywinauto_recorder.recorder import Recorder, IconSet, overlay_add_mode_icon, overlay_add_progress_icon
+from pywinauto_recorder.recorder import Recorder, IconSet, _overlay_add_mode_icon, _overlay_add_progress_icon
 from win32api import GetSystemMetrics, GetCursorPos
 import time
 
@@ -345,15 +345,15 @@ def display_splash_screen():
 			)
 			i = i + 1
 		if n % 6 in [0, 1, 2]:
-			overlay_add_mode_icon(splash_foreground, IconSet.hicon_record, splash_left + 50, splash_top + line_height * 8.7)
+			_overlay_add_mode_icon(splash_foreground, IconSet.hicon_record, splash_left + 50, splash_top + line_height * 8.7)
 		else:
-			overlay_add_mode_icon(splash_foreground, IconSet.hicon_stop, splash_left + 50, splash_top + line_height * 8.7)
-		overlay_add_mode_icon(splash_foreground, IconSet.hicon_light_on, int(splash_right - (52+50)), int(splash_top + line_height * 8.7))
-		overlay_add_progress_icon(splash_foreground, n % 6, splash_left + 50, splash_top + line_height * 11.7)
-		overlay_add_mode_icon(splash_foreground, IconSet.hicon_search, int(splash_right - (52+50)), splash_top + line_height * 11.7)
-		overlay_add_mode_icon(splash_foreground, IconSet.hicon_clipboard,  splash_left + 50, splash_top + line_height * 14.7)
-		overlay_add_mode_icon(splash_foreground, IconSet.hicon_power, int(splash_right - (52 + 50)), splash_top + line_height * 14.7)
-		overlay_add_mode_icon(splash_foreground, IconSet.hicon_play, splash_left + 50, int(splash_top + line_height * 19.3))
+			_overlay_add_mode_icon(splash_foreground, IconSet.hicon_stop, splash_left + 50, splash_top + line_height * 8.7)
+		_overlay_add_mode_icon(splash_foreground, IconSet.hicon_light_on, int(splash_right - (52 + 50)), int(splash_top + line_height * 8.7))
+		_overlay_add_progress_icon(splash_foreground, n % 6, splash_left + 50, splash_top + line_height * 11.7)
+		_overlay_add_mode_icon(splash_foreground, IconSet.hicon_search, int(splash_right - (52 + 50)), splash_top + line_height * 11.7)
+		_overlay_add_mode_icon(splash_foreground, IconSet.hicon_clipboard, splash_left + 50, splash_top + line_height * 14.7)
+		_overlay_add_mode_icon(splash_foreground, IconSet.hicon_power, int(splash_right - (52 + 50)), splash_top + line_height * 14.7)
+		_overlay_add_mode_icon(splash_foreground, IconSet.hicon_play, splash_left + 50, int(splash_top + line_height * 19.3))
 		
 		splash_foreground.refresh()
 		time.sleep(0.4)
