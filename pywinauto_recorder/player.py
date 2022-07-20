@@ -52,39 +52,39 @@ class PlayerSettings:
 	"""The player settings class contains the mouse move duration and timeout."""
 	
 	mouse_move_duration = 0.5
-	"""mouse move duration"""
+	"""Mouse move duration (in seconds)."""
 	
 	timeout = 10
-	"""Maximum duration of the search function.
+	"""Maximum duration (in seconds) of the search function.
 	If the element is not found after the given timeout, the search is interrupted."""
 
 
 class MoveMode(Enum):
-	"""The MoveMode class is an enumeration of the different ways that the mouse can move"""
+	"""The MoveMode class is an enumeration of the different ways that the mouse can move."""
 	
 	linear = 0
-	"""the mouse cursor moves in a straight line from the start point to the end point with a constant speed."""
+	"""The mouse cursor moves in a straight line from the start point to the end point with a constant speed."""
 	
 	y_first = 1
-	"""the mouse cursor moves at a right angle from the starting point to the ending point at a constant speed.
+	"""The mouse cursor moves at a right angle from the starting point to the ending point at a constant speed.
 	The first segment of the right angle is vertical and the second is horizontal."""
 	
 	x_first = 2
-	"""the mouse cursor moves at a right angle from the starting point to the ending point at a constant speed.
+	"""The mouse cursor moves at a right angle from the starting point to the ending point at a constant speed.
 	The first segment of the right angle is horizontal and the second is vertical."""
 
 
 class ButtonLocation(Enum):
-	"""The ButtonLocation class is an enumeration of the different locations of the mouse buttons"""
+	"""The ButtonLocation class is an enumeration of the different locations of the mouse buttons."""
 	
 	left = 0
-	"""left mouse button"""
+	"""Left mouse button."""
 	
 	middle = 1
-	"""middle mouse button"""
+	"""Middle mouse button."""
 	
 	right = 2
-	"""right mouse button"""
+	"""Right mouse button."""
 
 
 _dictionary = {}
@@ -95,7 +95,7 @@ w_rOLD = None
 
 def load_dictionary(filename_key: str, filename_def: str,encoding: str = 'utf8') -> None:
 	"""
-	Loads a dictionary
+	Loads a dictionary.
 
 	:param filename_key: filename of the key file
 	:param filename_def: filename of the definition file
@@ -121,7 +121,7 @@ def load_dictionary(filename_key: str, filename_def: str,encoding: str = 'utf8')
 
 def shortcut(str_shortcut: str) -> str:
 	"""
-	Returns the shortcut path associated to the shortcut defined in the previously loaded dictionary
+	Returns the shortcut path associated to the shortcut defined in the previously loaded dictionary.
 
 	:param str_shortcut: shortcut
 	"""
@@ -130,7 +130,7 @@ def shortcut(str_shortcut: str) -> str:
 
 def full_definition(str_shortcut: str) -> str:
 	"""
-	Returns the full element path associated to the shortcut defined in the previously loaded dictionary
+	Returns the full element path associated to the shortcut defined in the previously loaded dictionary.
 
 	:param str_shortcut: shortcut
 	"""
@@ -140,7 +140,7 @@ def full_definition(str_shortcut: str) -> str:
 def wait_is_ready_try1(wrapper, timeout=120):
 	"""
 	Waits until element is ready (wait while greyed, not enabled, not visible, not ready, ...) :
-	So far, I didn't find better than wait_cpu_usage_lower when greyed but must be enhanced
+	So far, I didn't find better than wait_cpu_usage_lower when greyed but must be enhanced.
 	"""
 	t0 = time.time()
 	while not wrapper.is_enabled() or not wrapper.is_visible():
@@ -446,7 +446,7 @@ def move(
 		mode: Enum = MoveMode.linear,
 		timeout: float = 120) -> PYWINAUTO_Wrapper:
 	"""
-	Moves on element
+	Moves on element.
 	
 	:param element_path: element path
 	:param duration: duration in seconds of the mouse move (it doesn't take into account the time it takes to find),
