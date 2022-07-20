@@ -56,9 +56,17 @@ class PlayerSettings:
 
 class MoveMode(Enum):
 	"""The MoveMode class is an enumeration of the different ways that the mouse can move"""
+	
 	linear = 0
+	"""the mouse cursor moves in a straight line from the start point to the end point with a constant speed."""
+	
 	y_first = 1
+	"""the mouse cursor moves at a right angle from the starting point to the ending point at a constant speed.
+	The first segment of the right angle is vertical and the second is horizontal."""
+	
 	x_first = 2
+	"""the mouse cursor moves at a right angle from the starting point to the ending point at a constant speed.
+	The first segment of the right angle is horizontal and the second is vertical."""
 
 
 class ButtonLocation(Enum):
