@@ -19,6 +19,8 @@ from .core import path_separator, type_separator, Strategy, is_int, \
                     find_element, read_config_file
 from .player import playback
 
+__all__ = ['Recorder']
+
 ElementEvent = namedtuple('ElementEvent', ['strategy', 'rectangle', 'path'])
 SendKeysEvent = namedtuple('SendKeysEvent', ['line'])
 MouseWheelEvent = namedtuple('MouseWheelEvent', ['delta'])
