@@ -316,7 +316,6 @@ def find(
 				if is_int(y_x[0]):
 					unique_element = candidates[int(y_x[0])][int(y_x[1])]
 				else:
-					# TODO: ref_unique_element, _ = find_element(get_entry_list(y_x[0]), window_candidates=[]) (dans tous le code)
 					ref_entry_list = get_entry_list(full_element_path) + get_entry_list(y_x[0])
 					ref_unique_element, _ = find_element(ref_entry_list)
 					if not ref_unique_element:
@@ -375,8 +374,7 @@ def find_all(
 	"""
 	if timeout is None:
 		timeout = PlayerSettings.timeout
-	
-	if element_path is None or type(element_path) is str:
+	if element_path is None or isinstance(element_path, str):
 		full_element_path = UIPath.get_full_path(element_path)
 	else:
 		full_element_path = get_wrapper_path(element_path)
@@ -384,30 +382,23 @@ def find_all(
 	_, _, y_x, _ = get_entry(entry_list[-1])
 	if y_x:
 		return find(element_path, timeout=timeout)
-	unique_element = None
-	elements = None
 	t0 = time.time()
 	while (time.time() - t0) < timeout:
 		try:
 			unique_element, elements = find_element(entry_list)
-			if unique_element or elements:
-				break
-			if not unique_element and not elements:
-				time.sleep(2.0)
+			if unique_element:
+				return [unique_element]
+			if elements:
+				return elements
+			time.sleep(2.0)
 		except Exception:
 			pass
-		if (time.time() - t0) > timeout:
-			msg = "No element found with the UIPath '" + full_element_path + "' after " + str(timeout) + " s of searching."
-			raise FailedSearch(msg)
 		time.sleep(0.1)
-
-	if unique_element:
-		return [unique_element]
-	else:
-		return elements
+	msg = "No element found with the UIPath '" + full_element_path + "' after " + str(timeout) + " s of searching."
+	raise FailedSearch(msg)
 
 
-def __move(x, y, xd, yd, duration=1, refresh_rate=25):
+def _move(x, y, xd, yd, duration=1, refresh_rate=25):
 	"""
 	It moves the mouse from (x, y) to (xd, yd) in a straight line, with a duration of `duration` seconds.
 	
@@ -441,7 +432,7 @@ def __move(x, y, xd, yd, duration=1, refresh_rate=25):
 
 
 def move(
-		element_path: UI_Selector,
+		element_path: Optional[UI_Selector] = None,
 		duration: Optional[float] = None,
 		mode: Enum = MoveMode.linear,
 		timeout: float = 120) -> PYWINAUTO_Wrapper:
@@ -466,7 +457,7 @@ def move(
 	global w_rOLD
 	
 	x, y = win32api_GetCursorPos()
-	if isinstance(element_path, str):
+	if element_path is None or isinstance(element_path, str):
 		element_path2 = UIPath.get_full_path(element_path)
 		entry_list = get_entry_list(element_path2)
 		if element_path2 == element_path_old:
@@ -510,19 +501,42 @@ def move(
 		unique_element = None
 	if (x, y) != (xd, yd):
 		if mode == MoveMode.linear:
-			__move(x, y, xd, yd, duration)
+			_move(x, y, xd, yd, duration)
 		elif mode == MoveMode.x_first:
-			__move(x, y, xd, y, duration/2)
-			__move(xd, y, xd, yd, duration/2)
+			_move(x, y, xd, y, duration / 2)
+			_move(xd, y, xd, yd, duration / 2)
 		elif mode == MoveMode.y_first:
-			__move(x, y, x, yd, duration/2)
-			__move(x, yd, xd, yd, duration/2)
+			_move(x, y, x, yd, duration / 2)
+			_move(x, yd, xd, yd, duration / 2)
 	if unique_element is None:
 		return None
 	unique_element_old = unique_element
 	element_path_old = element_path2
 	w_rOLD = w_r
 	return unique_element
+
+
+def _win32api_mouse_click(button: ButtonLocation = ButtonLocation.left, click_count: int = 1):
+	"""
+	Clicks the mouse.
+	
+	:param button: The button to click
+	:param click_count: How many times to click, defaults to 1
+	"""
+	if button == ButtonLocation.left:
+		event_down = MOUSEEVENTF_LEFTDOWN
+		event_up = MOUSEEVENTF_LEFTUP
+	elif button == ButtonLocation.middle:
+		event_down = MOUSEEVENTF_MIDDLEDOWN
+		event_up = MOUSEEVENTF_MIDDLEUP
+	elif button == ButtonLocation.right:
+		event_down = MOUSEEVENTF_RIGHTDOWN
+		event_up = MOUSEEVENTF_RIGHTUP
+	for _ in range(click_count):
+		win32api_mouse_event(event_down, 0, 0)
+		time.sleep(.01)
+		win32api_mouse_event(event_up, 0, 0)
+		time.sleep(.1)
 
 
 def click(
@@ -561,39 +575,21 @@ def click(
 	if timeout is None:
 		timeout = PlayerSettings.timeout
 	
-	if element_path:
-		if duration == -1:
-			wrapper = find(element_path)
-			has_get_value = getattr(wrapper, "click", None)
-			if callable(has_get_value):
-				wrapper.click()
-			else:
-				wrapper.click_input()
-			return wrapper
+	if duration == -1:
+		wrapper = find(element_path)
+		has_get_value = getattr(wrapper, "click", None)
+		if callable(has_get_value):
+			wrapper.click()
 		else:
-			wrapper = move(element_path, duration=duration, mode=mode, timeout=timeout)
-			if wait_ready and isinstance(element_path, str):
-				wait_is_ready_try1(wrapper, timeout=timeout)
-			else:
-				wrapper = None
-	if button == ButtonLocation.left:
-		event_down = MOUSEEVENTF_LEFTDOWN
-		event_up = MOUSEEVENTF_LEFTUP
-	elif button == ButtonLocation.middle:
-		event_down = MOUSEEVENTF_MIDDLEDOWN
-		event_up = MOUSEEVENTF_MIDDLEUP
-	elif button == ButtonLocation.right:
-		event_down = MOUSEEVENTF_RIGHTDOWN
-		event_up = MOUSEEVENTF_RIGHTUP
-	for _ in range(click_count):
-		win32api_mouse_event(event_down, 0, 0)
-		time.sleep(.01)
-		win32api_mouse_event(event_up, 0, 0)
-		time.sleep(.1)
-	if element_path:
+			wrapper.click_input()
 		return wrapper
 	else:
-		return None
+		wrapper = move(element_path, duration=duration, mode=mode, timeout=timeout)
+		if wait_ready and wrapper:
+			wait_is_ready_try1(wrapper, timeout=timeout)
+
+	_win32api_mouse_click(button, click_count)
+	return wrapper
 
 
 def wrapped_partial(func, *args, **kwargs):
