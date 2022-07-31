@@ -62,7 +62,7 @@ def test_recorder_mouse_move(start_kill_app):
 		y0 = random.randint(wrapper.rectangle().top+22, wrapper.rectangle().bottom-22)
 		move((x0, y0), duration=0)
 		x, y = win32api.GetCursorPos()
-		assert (x0, y0) == (x, y)
+		assert (x, y) == (x0, y0)
 		
 		send_keys("{VK_CONTROL down}{VK_SHIFT down}f{VK_SHIFT up}{VK_CONTROL up}", vk_packet=False)
 		time.sleep(0.5)
@@ -71,7 +71,7 @@ def test_recorder_mouse_move(start_kill_app):
 		words = words[1].split(')"')
 		move("Untitled - Paint||Window->*->Using Line tool on Canvas||Pane%(" + words[0] + ")", duration=0)
 		x, y = win32api.GetCursorPos()
-		assert (x0, y0) == (x, y)
+		assert (x, y) == (x0, y0)
 		
 		win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0)
 		x1 = random.randint(wrapper.rectangle().left + 22, wrapper.rectangle().right - 22)

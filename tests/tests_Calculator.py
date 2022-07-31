@@ -1,6 +1,6 @@
 import pytest
 import os
-from pywinauto_recorder.player import UIPath, load_dictionary, shortcut, \
+from pywinauto_recorder.player import PlayerSettings, UIPath, load_dictionary, shortcut, \
 	find, move, click, double_click, triple_click
 from pywinauto_recorder.recorder import Recorder
 import time
@@ -37,16 +37,12 @@ def test_asterisk(start_kill_app):
 	It clicks the "1" button, then the "+" button, then the "2" button, then the "=" button.
 	Then is does it again, but this time it searches within all the windows with UIPath("*").
 	"""
-	with UIPath("Calculator||Window"):
-		click("*->One||Button")
-		click("*->Plus||Button")
-		click("*->Two||Button")
-		click("*->Equals||Button")
-	with UIPath("*"):
-		click("*->One||Button")
-		click("*->Plus||Button")
-		click("*->Two||Button")
-		click("*->Equals||Button")
+	for root_path in ["Calculator||Window->*", "*->*"]:
+		with UIPath(root_path):
+			click("One||Button")
+			click("Plus||Button")
+			click("Two||Button")
+			click("Equals||Button")
 
 
 @pytest.mark.parametrize('start_kill_app', ["calc"], indirect=True)
@@ -115,7 +111,6 @@ def test_recorder_click(start_kill_app, wait_recorder_ready):
 def test_recorder_performance(start_kill_app, wait_recorder_ready):
 	""" Tests the performance to find a unique path. """
 	recorder = Recorder()
-	# time.sleep(0.6)  # wait the recorder to be fully ready
 	str_num = ["Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"]
 	move("Calculator||Window->*->Zero||Button", duration=0)
 	start_time = time.time()
@@ -126,39 +121,29 @@ def test_recorder_performance(start_kill_app, wait_recorder_ready):
 				wait_recorder_ready(recorder, num+"||Button", sleep=0)
 	duration = time.time() - start_time
 	recorder.quit()
-	assert duration < 35, "The duration of the loop is " + str(duration) + " s. It must be lower than 35 s"
+	assert duration < 30, "The duration of the loop is " + str(duration) + " s. It must be lower than 30 s"
 
 
 @pytest.mark.parametrize('start_kill_app', ["calc"], indirect=True)
 def test_player_performance(start_kill_app):
 	""" Tests the performance to find a unique path. """
+	old_mouse_move_duration = PlayerSettings.mouse_move_duration
 	iterations = 22
-	move("Calculator||Window->*->Zero||Button", duration=-1)
-	start_time = time.time()
-	with UIPath("Calculator||Window->*"):
-		for _ in range(iterations):
-			click("One||Button", duration=0)
-			click("Zero||Button", duration=0)
-			click("Plus||Button", duration=0)
-		click("Equals||Button", duration=0)
-		wrapper = find("RegEx: Display is ?||Text")
-	assert wrapper.window_text() == "Display is " + str(10*iterations*2)
-	duration = time.time() - start_time
-	print("Duration of the loop using 'duration=0':", duration)
-	assert duration < 17, "The duration of the loop is " + str(duration) + " s. It must be lower than 17 s"
-	
-	click("Calculator||Window->*->Clear entry||Button", duration=-1)
-	assert wrapper.window_text() == "Display is 0"
-
-	start_time = time.time()
-	with UIPath("Calculator||Window->*"):
-		for _ in range(iterations):
-			click("One||Button", duration=-1)
-			click("Zero||Button", duration=-1)
-			click("Plus||Button", duration=-1)
-		click("Equals||Button", duration=-1)
-		wrapper = find("RegEx: Display is ?||Text")
-	assert wrapper.window_text() == "Display is " + str(10*iterations*2)
-	duration = time.time() - start_time
-	print("Duration of the loop using 'duration=-1':", duration)
-	assert duration < 8, "The duration of the loop is " + str(duration) + " s. It must be lower than 8 s"
+	result_wrapper = find("Calculator||Window->*->RegEx: Display is||Text")
+	for mouse_move_duration, expected_duration in [(0, 10), (-1, 1)]:
+		PlayerSettings.mouse_move_duration = mouse_move_duration
+		start_time = time.time()
+		with UIPath("Calculator||Window->*"):
+			if result_wrapper.window_text() != "Display is 0":
+				click("Clear entry||Button")
+			for _ in range(iterations):
+				click("One||Button")
+				click("Zero||Button")
+				click("Plus||Button")
+			click("Equals||Button")
+		assert result_wrapper.window_text() == "Display is " + str(10*iterations*2)
+		duration = time.time() - start_time
+		message = "Duration of the loop using 'duration=" + str(mouse_move_duration) + "': " + str(duration) + " s."
+		print(message)
+		assert duration < expected_duration, message + " It must be lower than " + str(expected_duration) + " s."
+	PlayerSettings.mouse_move_duration = old_mouse_move_duration
