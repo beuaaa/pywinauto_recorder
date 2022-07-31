@@ -2,8 +2,9 @@
 
 # print('__file__={0:<35} | __name__={1:<20} | __package__={2:<20}'.format(__file__, __name__, str(__package__)))
 from enum import Enum
-from typing import Optional, Union, NewType
+from typing import Optional, Union, NewType, Tuple
 import time
+import re
 import pywinauto
 from win32api import GetCursorPos as win32api_GetCursorPos
 from win32api import GetSystemMetrics as win32api_GetSystemMetrics
@@ -15,7 +16,7 @@ from win32con import IDC_WAIT, MOUSEEVENTF_MOVE, MOUSEEVENTF_ABSOLUTE, MOUSEEVEN
 	WHEEL_DELTA
 from .core import type_separator, path_separator, get_entry, get_entry_list, find_element, get_sorted_region, \
 	get_wrapper_path, is_int
-from functools import partial, update_wrapper
+from functools import partial, update_wrapper, lru_cache
 
 
 UI_Coordinates = NewType('UI_Coordinates', (float, float))
@@ -38,7 +39,8 @@ __all__ = ['PlayerSettings', 'MoveMode', 'ButtonLocation', 'load_dictionary', 's
            'Window', 'Region', 'find', 'find_all', 'move', 'click', 'left_click', 'right_click',
            'double_left_click', 'triple_left_click', 'double_click', 'triple_click',
            'drag_and_drop', 'middle_drag_and_drop', 'right_drag_and_drop', 'menu_click',
-           'mouse_wheel', 'send_keys', 'set_combobox', 'set_text', 'exists', 'select_file', 'playback']
+           'mouse_wheel', 'send_keys', 'set_combobox', 'set_text', 'exists', 'select_file', 'playback',
+           'find_cache_clear']
 
 
 # TODO special_char_array in core for recorder.py and player.py (check when to call escape & unescape)
@@ -57,6 +59,25 @@ class PlayerSettings:
 	timeout = 10
 	"""Maximum duration (in seconds) of the search function.
 	If the element is not found after the given timeout, the search is interrupted."""
+
+	use_cache = True
+	"""If True, the search function caches the results of the search.
+	This is useful if the search is called multiple times."""
+	
+	@staticmethod
+	def apply_settings(mouse_move_duration: Optional[float] = None, timeout: Optional[float] = None) -> dict:
+		"""
+		If the duration and timeout arguments are None, set them to the default values.
+		
+		:param mouse_move_duration: The duration of the mouse movement
+		:param timeout: The maximum duration to wait for the find function to find an element before giving up
+		:return: The duration and timeout are being returned.
+		"""
+		if mouse_move_duration is None:
+			mouse_move_duration = PlayerSettings.mouse_move_duration
+		if timeout is None:
+			timeout = PlayerSettings.timeout
+		return {"mouse_move_duration": mouse_move_duration, "timeout": timeout}
 
 
 class MoveMode(Enum):
@@ -245,53 +266,29 @@ Window = UIPath
 Region = UIPath
 
 
-def find(
-		element_path: Optional[UI_Selector] = None,
-		regex: bool=False,
+def find_cache_clear():
+	_cached_find.cache_clear()
+
+
+@lru_cache(maxsize=128)
+def _cached_find(
+		full_element_path: Optional[UI_Selector] = None,
 		timeout: Optional[float] = None) -> PYWINAUTO_Wrapper:
 	"""
-	Finds the element matching element_path.
-
-	.. code-block:: python
-		:caption: Example of code using the 'find' function::
-		:emphasize-lines: 3,3
-		
-		from pywinauto_recorder.player import UIPath, find
-		with UIPath("RegEx: .* Google Chrome$||Pane"):
-			find().set_focus()  # Set focus to the Google Chrome window.
+	Finds the element defined by the full_element_path.
 	
-	The code above will set focus to the Google Chrome window. The 'find' function is used to find the window.
-	It will work only if the window is not minimized.
-	
-	:param element_path: element path
-	:param timeout: period of time in seconds that will be allowed to find the element
-	:return: Pywinauto wrapper of found element
+	full_element_path must not contain the relative coordinates.
 	"""
-	if regex:
-		deprecated_msg = """
-		The parameter 'regex' is deprecated. Please use the new RegEx syntax of UIPath!
-		For example:
-		
-		with Window(".* - Notepad||Window", regex=True):
-			edit = left_click("Text Editor||Edit")
-		
-		Must be coded with the new syntax:
-		
-		with UIPath("RegEx: .* - Notepad||Window"):
-			edit = left_click("Text Editor||Edit")
-			
-		This parameter will be removed in the next release.
-		"""
-		print(deprecated_msg)
-	if timeout is None:
-		timeout = PlayerSettings.timeout
-	
-	if element_path is None or isinstance(element_path, str):
-		full_element_path = UIPath.get_full_path(element_path)
-	else:
-		full_element_path = get_wrapper_path(element_path)
-	entry_list = get_entry_list(full_element_path)
-	_, _, y_x, _ = get_entry(entry_list[-1])
+	return _find(full_element_path, timeout)
+
+
+def _find(
+		full_element_path: Optional[UI_Selector] = None,
+		timeout: Optional[float] = None) -> PYWINAUTO_Wrapper:
+	"""
+	Finds the element defined by the full_element_path.
+	"""
+	_, _, y_x, _ = get_entry(get_entry_list(full_element_path)[-1])
 	unique_element = None
 	elements = None
 	t0 = time.time()
@@ -299,7 +296,7 @@ def find(
 		while (not y_x and not unique_element and not elements) or (y_x and not elements):
 			try:
 				# print("find_element(...): ")
-				unique_element, elements = find_element(entry_list)
+				unique_element, elements = find_element(get_entry_list(full_element_path))
 				if (not y_x and not unique_element and not elements) or (y_x and not elements):
 					time.sleep(2.0)
 			except Exception:
@@ -319,7 +316,8 @@ def find(
 					ref_entry_list = get_entry_list(full_element_path) + get_entry_list(y_x[0])
 					ref_unique_element, _ = find_element(ref_entry_list)
 					if not ref_unique_element:
-						msg = "No element found with the UIPath '" + full_element_path + path_separator + y_x[0] + "' in the array line."
+						msg = "No element found with the UIPath '" + full_element_path + path_separator + y_x[
+							0] + "' in the array line."
 						raise FailedSearch(msg)
 					ref_r = ref_unique_element.rectangle()
 					r_y = 0
@@ -334,7 +332,6 @@ def find(
 			break
 		time.sleep(0.1)
 	if not unique_element:
-		full_element_path = UIPath.get_full_path(element_path)
 		if elements:
 			message = "There are " + str(len(elements)) + " elements that match the path '" + full_element_path + "':"
 			for e in elements:
@@ -342,6 +339,60 @@ def find(
 			raise FailedSearch(message)
 		raise FailedSearch("Unique element not found using path '", full_element_path + "'")
 	return unique_element
+
+
+def find(
+		element_path: Optional[UI_Selector] = None,
+		regex: bool=False,
+		timeout: Optional[float] = None) -> PYWINAUTO_Wrapper:
+	"""
+	Finds the element matching element_path.
+
+	.. code-block:: python
+		:caption: Example of code using the 'find' function::
+		:emphasize-lines: 3,3
+		
+		from pywinauto_recorder.player import UIPath, find
+		with UIPath("RegEx: .* Google Chrome$||Pane"):
+			find().set_focus()  # Set focus to the Google Chrome window.
+	
+	The code above will set focus to the Google Chrome window. The 'find' function is used to find the window.
+	It will work only if the window is not minimized.
+	
+	:param element_path: element path
+	:param regex: The parameter 'regex' is deprecated. Please use the new RegEx syntax of UIPath!
+	:param timeout: duration in seconds that will be allowed to find the element
+	:return: Pywinauto wrapper of found element
+	"""
+	if regex:
+		deprecated_msg = """
+		The parameter 'regex' is deprecated. Please use the new RegEx syntax of UIPath!
+		For example:
+		
+		with Window(".* - Notepad||Window", regex=True):
+			edit = left_click("Text Editor||Edit")
+		
+		Must be coded with the new syntax:
+		
+		with UIPath("RegEx: .* - Notepad||Window"):
+			edit = left_click("Text Editor||Edit")
+			
+		This parameter will be removed in the next release.
+		"""
+		print(deprecated_msg)
+		
+	timeout = PlayerSettings.apply_settings(timeout=timeout)["timeout"]
+	
+	if element_path is None or isinstance(element_path, str):
+		if element_path is not None:
+			element_path = re.sub(r"%\([+-]?\d*.?\d*,\s?[+-]?\d*.?\d*\)$", "", element_path)  # remove "%(?, ?)"
+		full_element_path = UIPath.get_full_path(element_path)
+	else:
+		full_element_path = get_wrapper_path(element_path)
+	if PlayerSettings.use_cache:
+		return _cached_find(full_element_path, timeout=timeout)
+	else:
+		return _find(full_element_path, timeout=timeout)
 
 
 def find_all(
@@ -372,8 +423,7 @@ def find_all(
 	:param timeout: period of time in seconds that will be allowed to find the element
 	:return: Pywinauto wrapper list of found elements
 	"""
-	if timeout is None:
-		timeout = PlayerSettings.timeout
+	timeout = PlayerSettings.apply_settings(timeout=timeout)["timeout"]
 	if element_path is None or isinstance(element_path, str):
 		full_element_path = UIPath.get_full_path(element_path)
 	else:
@@ -446,59 +496,27 @@ def move(
 	:param timeout: period of time in seconds that will be allowed to find the element
 	:return: Pywinauto wrapper of clicked element
 	"""
-	if duration is None:
-		duration = PlayerSettings.mouse_move_duration
-	
+	duration = PlayerSettings.apply_settings(mouse_move_duration=duration)["mouse_move_duration"]
 	if duration == -1:
 		return
 	
-	global unique_element_old
-	global element_path_old
-	global w_rOLD
-	
-	x, y = win32api_GetCursorPos()
 	if element_path is None or isinstance(element_path, str):
-		element_path2 = UIPath.get_full_path(element_path)
-		entry_list = get_entry_list(element_path2)
-		if element_path2 == element_path_old:
-			w_r = w_rOLD
-			unique_element = unique_element_old
-		else:
-			unique_element = find(element_path, timeout=timeout)
-			w_r = unique_element.rectangle()
-		control_type = None
-		for entry in entry_list:
-			_, control_type, _, _ = get_entry(entry)
-			if control_type == 'Menu':
-				break
-		if control_type == 'Menu':
-			entry_list_old = get_entry_list(element_path_old)
-			control_type_old = None
-			for entry in entry_list_old:
-				_, control_type_old, _, _ = get_entry(entry)
-				if control_type_old == 'Menu':
-					break
-			if control_type_old == 'Menu':
-				mode = MoveMode.x_first
-			else:
-				mode = MoveMode.y_first
-			xd, yd = w_r.mid_point()
-		else:
-			_, _, _, dx_dy = get_entry(entry_list[-1])
+		unique_element = find(element_path, timeout=timeout)
+		w_r = unique_element.rectangle()
+		xd, yd = w_r.mid_point()
+		if element_path:
+			_, _, _, dx_dy = get_entry(get_entry_list(element_path)[-1])
 			if dx_dy:
-				dx, dy = dx_dy[0], dx_dy[1]
-			else:
-				dx, dy = 0, 0
-			xd, yd = w_r.mid_point()
-			xd, yd = xd + round(dx/100.0*(w_r.width()/2-1), 0), round(yd + dy/100.0*(w_r.height()/2-1), 0)
-	elif issubclass(type(element_path), pywinauto.base_wrapper.BaseWrapper):
+				dx, dy = dx_dy
+				xd, yd = round(xd + dx/100.0*(w_r.width()/2-1), 0), round(yd + dy/100.0*(w_r.height()/2-1), 0)
+	elif isinstance(element_path, pywinauto.base_wrapper.BaseWrapper):
 		unique_element = element_path
-		element_path2 = get_wrapper_path(unique_element)
 		w_r = unique_element.rectangle()
 		xd, yd = w_r.mid_point()
 	else:
 		(xd, yd) = element_path
 		unique_element = None
+	x, y = win32api_GetCursorPos()
 	if (x, y) != (xd, yd):
 		if mode == MoveMode.linear:
 			_move(x, y, xd, yd, duration)
@@ -508,11 +526,6 @@ def move(
 		elif mode == MoveMode.y_first:
 			_move(x, y, x, yd, duration / 2)
 			_move(x, yd, xd, yd, duration / 2)
-	if unique_element is None:
-		return None
-	unique_element_old = unique_element
-	element_path_old = element_path2
-	w_rOLD = w_r
 	return unique_element
 
 
@@ -569,11 +582,9 @@ def click(
 	:param wait_ready: if True waits until the element is ready
 	:return: Pywinauto wrapper of clicked element
 	"""
-	if duration is None:
-		duration = PlayerSettings.mouse_move_duration
-	
-	if timeout is None:
-		timeout = PlayerSettings.timeout
+	settings = PlayerSettings.apply_settings(mouse_move_duration=duration, timeout=timeout)
+	duration = settings["mouse_move_duration"]
+	timeout = settings["timeout"]
 	
 	if duration == -1:
 		wrapper = find(element_path)
@@ -702,6 +713,7 @@ def menu_click(
 			click(w, mode=MoveMode.x_first, duration=duration)
 		else:
 			click(w, mode=MoveMode.y_first, duration=duration)
+		time.sleep(0.1)  # wait for the menu to open (it is not always instantaneous depending on the animation settings)
 	return w
 
 
