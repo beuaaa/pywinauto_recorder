@@ -10,6 +10,7 @@ from pywinauto import Desktop as PywinautoDesktop
 from pywinauto.controls.uiawrapper import UIAWrapper
 from pywinauto import findwindows
 
+
 __all__ = ['path_separator', 'type_separator', 'Strategy', 'is_int',
            'get_wrapper_path', 'get_entry_list', 'get_entry', 'match_entry_list', 'get_sorted_region',
            'find_element', 'read_config_file']
