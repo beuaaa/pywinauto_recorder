@@ -52,21 +52,24 @@ def test_wheel(start_kill_app):
 
 
 @pytest.mark.parametrize('start_kill_app', ["Notepad"], indirect=True)
-def test_recorder_menu_click(start_kill_app):
+def test_recorder_menu_click(start_kill_app, wait_recorder_ready):
 	recorder = Recorder()
 	recorder.process_menu_click_mode = True
 	recorder.start_recording()
 	with UIPath("Untitled - Notepad||Window"):
 		for i in range(3):
-			move("*->View||MenuItem", duration=0)
-			time.sleep(0.8)
-			click("*->View||MenuItem", duration=0)
-			move("*->Zoom||MenuItem", duration=0)
-			time.sleep(0.8)
-			click("*->Zoom||MenuItem", duration=0)
-			move("*->Zoom in||MenuItem", duration=0)
-			time.sleep(0.8)
-			click("*->Zoom in||MenuItem", duration=0)
+			w = move("*->View||MenuItem", duration=0)
+			wait_recorder_ready(recorder, "View||MenuItem", sleep=0)
+			click(w, duration=0)
+			time.sleep(0.5)  # wait for the menu to open (it is not always instantaneous depending on the animation settings)
+			w = move("*->Zoom||MenuItem", duration=0)
+			wait_recorder_ready(recorder, "Zoom||MenuItem", sleep=0)
+			click(w, duration=0)
+			time.sleep(0.5)  # wait for the menu to open (it is not always instantaneous depending on the animation settings)
+			w = move("*->Zoom in||MenuItem", duration=0)
+			wait_recorder_ready(recorder, "Zoom in||MenuItem", sleep=0)
+			click(w, duration=0)
+			time.sleep(0.5)  # wait for the menu to open (it is not always instantaneous depending on the animation settings)
 		zoom_text = find("*->Zoom||Text")
 		regex = r"\' \d+%\'"
 		re_percentage_zoom = re.findall(regex, str(zoom_text.window_text))

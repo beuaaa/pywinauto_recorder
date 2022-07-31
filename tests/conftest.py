@@ -3,6 +3,17 @@ import pywinauto
 import time
 import win32api
 from pywinauto_recorder.core import Strategy
+from pywinauto_recorder.player import find_cache_clear
+
+
+@pytest.fixture(autouse=True)
+def run_around_tests():
+	# Code that will run before your test, for example:
+	find_cache_clear()
+	# A test function will be run at this point
+	yield
+	# Code that will run after your test, for example:
+	print("find_cache_clear")
 
 
 @pytest.fixture
