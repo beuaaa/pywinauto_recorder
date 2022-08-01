@@ -267,6 +267,9 @@ Region = UIPath
 
 
 def find_cache_clear():
+	"""
+	Clears the cache of the function 'find'.
+	"""
 	_cached_find.cache_clear()
 
 
