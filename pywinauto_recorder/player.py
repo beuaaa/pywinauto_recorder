@@ -2,7 +2,7 @@
 
 # print('__file__={0:<35} | __name__={1:<20} | __package__={2:<20}'.format(__file__, __name__, str(__package__)))
 from enum import Enum
-from typing import Optional, Union, NewType, Tuple
+from typing import Optional, Union, NewType
 import time
 import re
 import pywinauto
@@ -343,7 +343,7 @@ def _find(
 
 def find(
 		element_path: Optional[UI_Selector] = None,
-		regex: bool=False,
+		regex: bool = False,
 		timeout: Optional[float] = None) -> PYWINAUTO_Wrapper:
 	"""
 	Finds the element matching element_path.
