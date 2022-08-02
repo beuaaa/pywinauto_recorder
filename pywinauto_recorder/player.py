@@ -359,7 +359,8 @@ def find(
 		with UIPath("RegEx: .* Google Chrome$||Pane"):
 			find().set_focus()  # Set focus to the Google Chrome window.
 	
-	The code above will set focus to the Google Chrome window. The 'find' function is used to find the window.
+	The code above will set focus to the Google Chrome window.
+	The 'find' function is used to find the Pywinauto wrapper of the window.
 	It will work only if the window is not minimized.
 	
 	:param element_path: element path
@@ -883,7 +884,7 @@ def playback(str_code='', filename=''):
 	"""
 	This function plays back a string of code or a Python file.
 
-	:param str_code: The code to be played back
+	:param str_code: The Python code to be played back
 	:param filename: The name of the file corresponding to the Python code to be played back
 	"""
 	from ctypes import windll
