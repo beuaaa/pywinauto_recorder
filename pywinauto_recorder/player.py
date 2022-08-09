@@ -351,7 +351,7 @@ def find(
 	"""
 	Finds the element matching element_path.
 	
-	This function is called in all the other functions (click, move, ...) that require to search an element.
+	This function is called in all the other functions (:func:`.click`, move, ...) that require to search an element.
 	To significantly increase search performance, the user can enable a cache with 'Player.Setting.use_cache = True'.
 	When the cache is active, it is sometimes necessary to empty it with the 'find_cache_clear' function.
 
