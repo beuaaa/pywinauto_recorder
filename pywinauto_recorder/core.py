@@ -423,7 +423,7 @@ def find_element(entry_list=None, visible_only=True, enabled_only=True, active_o
 		return window_candidates[0], []
 	
 	
-	if True and  last_window_candidates is not None:
+	if False and  last_window_candidates is not None:
 		last_entry_list = get_entry_list(get_wrapper_path(last_window_candidates[0]))
 		i = 0
 		while last_entry_list[i] == entry_list[i]:
