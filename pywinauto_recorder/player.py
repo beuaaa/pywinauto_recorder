@@ -57,11 +57,11 @@ class PlayerSettings:
 	"""Mouse move duration (in seconds)."""
 	
 	timeout = 10
-	"""Maximum duration (in seconds) to wait for the 'find' function to search an element before giving up.
+	"""Maximum duration (in seconds) to wait for the :func:`find` function to search an element before giving up.
 	If the element is not found after the given timeout, the search is interrupted."""
 
 	use_cache = True
-	"""If True, the 'find' function caches the results of the search.
+	"""If True, the :func:`find` function caches the results of the search.
 	This is useful if the search is called multiple times."""
 	
 	@staticmethod
@@ -70,7 +70,7 @@ class PlayerSettings:
 		If the duration and timeout arguments are None, set them to the default values.
 		
 		:param mouse_move_duration: The duration of the mouse movement
-		:param timeout: The maximum duration to wait for the find function to find an element before giving up
+		:param timeout: The maximum duration to wait for the :func:`find` function to find an element before giving up
 		:return: The duration and timeout are being returned.
 		"""
 		if mouse_move_duration is None:
@@ -268,7 +268,7 @@ Region = UIPath
 
 def find_cache_clear():
 	"""
-	Clears the cache of the function 'find'.
+	Clears the cache of the :func:`find` function.
 	"""
 	_cached_find.cache_clear()
 
@@ -353,7 +353,7 @@ def find(
 	
 	This function is called in all the other functions (:func:`click`, :func:`move`, ...) that require to search an element.
 	To significantly increase search performance, the user can enable a cache with 'Player.Setting.use_cache = True'.
-	When the cache is active, it is sometimes necessary to empty it with the 'find_cache_clear' function.
+	When the cache is active, it is sometimes necessary to empty it with the :func:`find_cache_clear` function.
 
 	.. code-block:: python
 		:caption: Example of code using the 'find' function::
@@ -364,7 +364,7 @@ def find(
 			find().set_focus()  # Set focus to the Google Chrome window.
 	
 	The code above will set focus to the Google Chrome window.
-	The 'find' function is used to find the Pywinauto wrapper of the window.
+	The :func:`find` function is used to find the Pywinauto wrapper of the window.
 	It will work only if the window is not minimized.
 	
 	:param element_path: element path
@@ -614,8 +614,8 @@ def click(
 def wrapped_partial(func, *args, **kwargs):
 	partial_func = partial(func, *args, **kwargs)
 	update_wrapper(partial_func, func)
-	partial_func.__doc__ = "This function is a partial function derived from the '" + func.__name__ + "' general function."
-	partial_func.__doc__ += "\nThe parameters of the function are set with the following values:"
+	partial_func.__doc__ = "This function is a partial function derived from the :func:`" + func.__name__
+	partial_func.__doc__ += "` general function.\nThe parameters of the function are set with the following values:"
 	for key in kwargs.keys():
 		partial_func.__doc__ += "\n    - " + str(key) + "=" + str(kwargs[key])
 	partial_func.__doc__ += "\n\n" + func.__doc__
