@@ -424,7 +424,7 @@ def find_all(
 		
 	The code above will click on all tabs of Google Chrome and print the URL of each tab.
 	It will work only if the Google Chrome window is not minimized.
-	The 'find_all' function is used to find all tabs.
+	The :func:`find_all` function is used to find all tabs.
 	
 	
 	:param element_path: element path
@@ -495,7 +495,7 @@ def move(
 		mode: Enum = MoveMode.linear,
 		timeout: float = 120) -> PYWINAUTO_Wrapper:
 	"""
-	Moves on element.
+	Moves the mouse cursor over the user interface element.
 	
 	:param element_path: element path
 	:param duration: duration in seconds of the mouse move (it doesn't take into account the time it takes to find),
@@ -701,7 +701,7 @@ def menu_click(
 			
 	In the above code, the 'File tab' element that opens the menu is not of type 'MenuItem',
 	so it is not possible to call 'menu_click("File tab->New")'.
-	In this case the menu must be opened with 'click("*->File tab||Button")' before calling the 'menu_click' function.
+	In this case the menu must be opened with 'click("*->File tab||Button")' before calling :func:`menu_click`.
 	
 	:param menu_path: menu item path
 	:param duration: duration in seconds of the mouse move (it doesn't take into account the time it takes to find)
@@ -829,7 +829,7 @@ def exists(
 		element_path: UI_Selector,
 		timeout: Optional[float] = None) -> PYWINAUTO_Wrapper:
 	"""
-	Tests if en UI_Element exists.
+	Tests if the user interface element exists.
 	
 	:param element_path: element path
 	:param timeout: period of time in seconds that will be allowed to find the element
