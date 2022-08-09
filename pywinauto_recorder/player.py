@@ -57,15 +57,15 @@ class PlayerSettings:
 	"""Mouse move duration (in seconds)."""
 	
 	timeout = 10
-	"""Maximum duration (in seconds) of the search function.
+	"""Maximum duration (in seconds) to wait for the 'find' function to search an element before giving up.
 	If the element is not found after the given timeout, the search is interrupted."""
 
 	use_cache = True
-	"""If True, the search function caches the results of the search.
+	"""If True, the 'find' function caches the results of the search.
 	This is useful if the search is called multiple times."""
 	
 	@staticmethod
-	def apply_settings(mouse_move_duration: Optional[float] = None, timeout: Optional[float] = None) -> dict:
+	def _apply_settings(mouse_move_duration: Optional[float] = None, timeout: Optional[float] = None) -> dict:
 		"""
 		If the duration and timeout arguments are None, set them to the default values.
 		
@@ -350,6 +350,10 @@ def find(
 		timeout: Optional[float] = None) -> PYWINAUTO_Wrapper:
 	"""
 	Finds the element matching element_path.
+	
+	This function is called in all the other functions (click, move, ...) that require to search an element.
+	To significantly increase search performance, the user can enable a cache with 'Player.Setting.use_cache = True'.
+	When the cache is active, it is sometimes necessary to empty it with the 'find_cache_clear' function.
 
 	.. code-block:: python
 		:caption: Example of code using the 'find' function::
@@ -385,7 +389,7 @@ def find(
 		"""
 		print(deprecated_msg)
 		
-	timeout = PlayerSettings.apply_settings(timeout=timeout)["timeout"]
+	timeout = PlayerSettings._apply_settings(timeout=timeout)["timeout"]
 	
 	if element_path is None or isinstance(element_path, str):
 		if element_path is not None:
@@ -427,7 +431,7 @@ def find_all(
 	:param timeout: period of time in seconds that will be allowed to find the element
 	:return: Pywinauto wrapper list of found elements
 	"""
-	timeout = PlayerSettings.apply_settings(timeout=timeout)["timeout"]
+	timeout = PlayerSettings._apply_settings(timeout=timeout)["timeout"]
 	if element_path is None or isinstance(element_path, str):
 		full_element_path = UIPath.get_full_path(element_path)
 	else:
@@ -500,7 +504,7 @@ def move(
 	:param timeout: period of time in seconds that will be allowed to find the element
 	:return: Pywinauto wrapper of clicked element
 	"""
-	duration = PlayerSettings.apply_settings(mouse_move_duration=duration)["mouse_move_duration"]
+	duration = PlayerSettings._apply_settings(mouse_move_duration=duration)["mouse_move_duration"]
 	if duration == -1:
 		return
 	
@@ -586,7 +590,7 @@ def click(
 	:param wait_ready: if True waits until the element is ready
 	:return: Pywinauto wrapper of clicked element
 	"""
-	settings = PlayerSettings.apply_settings(mouse_move_duration=duration, timeout=timeout)
+	settings = PlayerSettings._apply_settings(mouse_move_duration=duration, timeout=timeout)
 	duration = settings["mouse_move_duration"]
 	timeout = settings["timeout"]
 	
