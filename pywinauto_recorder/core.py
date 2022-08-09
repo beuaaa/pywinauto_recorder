@@ -397,7 +397,10 @@ def filter_window_candidates(window_candidates):
 	return window_candidates
 
 
+last_window_candidates = None
+
 def find_element(entry_list=None, visible_only=True, enabled_only=True, active_only=True):
+	global last_window_candidates
 	"""
 	It takes an entry list and returns the unique element that matches the entry list
 
@@ -416,7 +419,29 @@ def find_element(entry_list=None, visible_only=True, enabled_only=True, active_o
 	window_candidates = filter_window_candidates(window_candidates)
 	
 	if len(entry_list) == 1 and len(window_candidates) == 1:
+		last_window_candidates = None
 		return window_candidates[0], []
+	
+	
+	if True and  last_window_candidates is not None:
+		last_entry_list = get_entry_list(get_wrapper_path(last_window_candidates[0]))
+		i = 0
+		while last_entry_list[i] == entry_list[i]:
+			i += 1
+			if i == len(entry_list) or i == len(last_entry_list):
+				break
+		parent_count = len(last_entry_list) - i
+		if False:
+			print(get_wrapper_path(last_window_candidates[0]))
+			print("->".join(entry_list))
+			print("len(last_entry_list):", len(last_entry_list), "\ti: ", i,  "\parent_count ", parent_count, )
+		
+		w = last_window_candidates[0]
+		for _ in range(parent_count):
+			w = w.parent()
+		window_candidates[0] = w
+		
+	
 	
 	candidates = []
 	for window in window_candidates:
@@ -439,8 +464,10 @@ def find_element(entry_list=None, visible_only=True, enabled_only=True, active_o
 		else:
 			return None, []
 	elif len(candidates) == 1:
+		last_window_candidates = candidates
 		return candidates[0], []
 	else:
+		last_window_candidates = candidates
 		return None, candidates
 
 

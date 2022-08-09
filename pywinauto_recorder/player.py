@@ -500,7 +500,7 @@ def move(
 	:param element_path: element path
 	:param duration: duration in seconds of the mouse move (it doesn't take into account the time it takes to find),
 		if duration is -1 the mouse cursor doesn't move.
-	:param mode: move mouse mode :func:`MoveMode`
+	:param mode: move mouse mode (see :class:`MoveMode`)
 	:param timeout: period of time in seconds that will be allowed to find the element
 	:return: Pywinauto wrapper of clicked element
 	"""
