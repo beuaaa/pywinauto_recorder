@@ -51,7 +51,7 @@ def unescape_special_char(string):
 
 
 class PlayerSettings:
-	"""The player settings class contains the mouse move duration and timeout."""
+	"""The player settings class contains the default settings."""
 	
 	mouse_move_duration = 0.5
 	"""Mouse move duration (in seconds)."""
@@ -62,7 +62,7 @@ class PlayerSettings:
 
 	use_cache = True
 	"""If True, the :func:`find` function caches the results of the search.
-	This is useful if the search is called multiple times."""
+	This is useful if the search is called several times on the same element."""
 	
 	@staticmethod
 	def _apply_settings(mouse_move_duration: Optional[float] = None, timeout: Optional[float] = None) -> dict:
