@@ -371,6 +371,7 @@ def find(
 	:param regex: The parameter 'regex' is deprecated. Please use the new RegEx syntax of UIPath!
 	:param timeout: duration in seconds that will be allowed to find the element
 	:return: Pywinauto wrapper of found element
+	:raises FailedSearch: if the element is not found
 	"""
 	if regex:
 		deprecated_msg = """
@@ -430,6 +431,7 @@ def find_all(
 	:param element_path: element path
 	:param timeout: period of time in seconds that will be allowed to find the element
 	:return: Pywinauto wrapper list of found elements
+	:raises FailedSearch: if no element found
 	"""
 	timeout = PlayerSettings._apply_settings(timeout=timeout)["timeout"]
 	if element_path is None or isinstance(element_path, str):
@@ -503,6 +505,7 @@ def move(
 	:param mode: move mouse mode (see :class:`MoveMode`)
 	:param timeout: period of time in seconds that will be allowed to find the element
 	:return: Pywinauto wrapper of clicked element
+	:raises FailedSearch: if the element is not found
 	"""
 	duration = PlayerSettings._apply_settings(mouse_move_duration=duration)["mouse_move_duration"]
 	if duration == -1:
@@ -589,6 +592,7 @@ def click(
 	:param timeout: period of time in seconds that will be allowed to find the element
 	:param wait_ready: if True waits until the element is ready
 	:return: Pywinauto wrapper of clicked element
+	:raises FailedSearch: if the element is not found
 	"""
 	settings = PlayerSettings._apply_settings(mouse_move_duration=duration, timeout=timeout)
 	duration = settings["mouse_move_duration"]
@@ -649,6 +653,7 @@ def drag_and_drop(
 	:param button: mouse button:  ButtonLocation.left, ButtonLocation.middle, ButtonLocation.right
 	:param timeout: period of time in seconds that will be allowed to find the element
 	:return: Pywinauto wrapper found with element_path2
+	:raises FailedSearch: if the element is not found
 	"""
 	move(element_path1, duration=duration, mode=mode, timeout=timeout)
 	if button == ButtonLocation.left:
@@ -709,6 +714,7 @@ def menu_click(
 		useful for minimized or non-active window).
 	:param timeout: period of time in seconds that will be allowed to find the element
 	:return: Pywinauto wrapper of the clicked item
+	:raises FailedSearch: if an element is not found
 	"""
 	menu_entry_list = menu_path.split(path_separator)
 	for menu_entry in menu_entry_list:
@@ -794,6 +800,7 @@ def set_combobox(
 		useful for minimized or non-active window).
 	:param mode: move mouse mode: MoveMode.linear, MoveMode.x_first, MoveMode.y_first
 	:param timeout: period of time in seconds that will be allowed to find the element
+	:raises FailedSearch: if the element is not found
 	"""
 	click(element_path, duration=duration, mode=mode, timeout=timeout, wait_ready=wait_ready)
 	time.sleep(0.9)
@@ -818,6 +825,7 @@ def set_text(
 	:param mode: move mouse mode: MoveMode.linear, MoveMode.x_first, MoveMode.y_first
 	:param timeout: period of time in seconds that will be allowed to find the element
 	:param pause: pause in seconds between each typed key
+	:raises FailedSearch: if the element is not found
 	"""
 	double_left_click(element_path, duration=duration, mode=mode, timeout=timeout)
 	send_keys("{VK_CONTROL down}a{VK_CONTROL up}", pause=0)
@@ -829,7 +837,8 @@ def exists(
 		element_path: UI_Selector,
 		timeout: Optional[float] = None) -> PYWINAUTO_Wrapper:
 	"""
-	Tests if the user interface element exists.
+	Tests if the user interface element exists. It returns the element if it exists, None otherwise.
+	In both cases no exception is thrown as for the :func:`find` function.
 	
 	:param element_path: element path
 	:param timeout: period of time in seconds that will be allowed to find the element
@@ -865,6 +874,7 @@ def select_file(
 	:param full_path: the full path of the file to select
 	:param force_slow_path_typing: if True it will type the path even if the current path of the dialog box is the same
 	as the file to select
+	:raises FailedSearch: if an element is not found
 	"""
 	import pyperclip
 	import pathlib

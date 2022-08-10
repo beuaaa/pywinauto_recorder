@@ -434,7 +434,7 @@ def find_element(entry_list=None, visible_only=True, enabled_only=True, active_o
 		if False:
 			print(get_wrapper_path(last_window_candidates[0]))
 			print("->".join(entry_list))
-			print("len(last_entry_list):", len(last_entry_list), "\ti: ", i,  "\parent_count ", parent_count, )
+			print("len(last_entry_list):", len(last_entry_list), "\ti: ", i,  "parent_count ", parent_count)
 		
 		w = last_window_candidates[0]
 		for _ in range(parent_count):
