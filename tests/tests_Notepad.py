@@ -53,6 +53,15 @@ def test_wheel(start_kill_app):
 
 @pytest.mark.parametrize('start_kill_app', ["Notepad"], indirect=True)
 def test_recorder_menu_click(start_kill_app, wait_recorder_ready):
+	def get_zoom_value():
+		with UIPath("Untitled - Notepad||Window"):
+			zoom_text = find("*->Zoom||Text")
+			regex = r"\' \d+%\'"
+			re_percentage_zoom = re.findall(regex, str(zoom_text.window_text))
+			assert len(re_percentage_zoom) == 1
+			percentage_zoom = int(re_percentage_zoom[0][2:-2])
+			return percentage_zoom
+	
 	recorder = Recorder()
 	recorder.process_menu_click_mode = True
 	recorder.start_recording()
@@ -70,23 +79,11 @@ def test_recorder_menu_click(start_kill_app, wait_recorder_ready):
 			wait_recorder_ready(recorder, "Zoom in||MenuItem", sleep=0)
 			click(w, duration=0)
 			time.sleep(0.5)  # wait for the menu to open (it is not always instantaneous depending on the animation settings)
-		zoom_text = find("*->Zoom||Text")
-		regex = r"\' \d+%\'"
-		re_percentage_zoom = re.findall(regex, str(zoom_text.window_text))
-		assert len(re_percentage_zoom) == 1
-		percentage_zoom = int(re_percentage_zoom[0][2:-2])
-		assert percentage_zoom == 100 + (i+1)*10
 	recorded_python_script = recorder.stop_recording()
+	assert get_zoom_value() == 100 + (i + 1) * 10
+	recorder.quit()
 	
 	playback(filename=recorded_python_script)
+	assert get_zoom_value() == 100 + (i+1)*2*10
 	os.remove(recorded_python_script)
-	
-	with UIPath("Untitled - Notepad||Window"):
-		zoom_text = find("*->Zoom||Text")
-		regex = r"\' \d+%\'"
-		re_percentage_zoom = re.findall(regex, str(zoom_text.window_text))
-		assert len(re_percentage_zoom) == 1
-		percentage_zoom = int(re_percentage_zoom[0][2:-2])
-		assert percentage_zoom == 100 + (i+1)*2*10
-		
-	recorder.quit()
+
