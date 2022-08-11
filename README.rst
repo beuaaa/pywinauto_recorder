@@ -1,4 +1,4 @@
-|Code quality| |Docs badge| |License| |PyPI version|
+|Code quality| |Codacy Badge| |Docs badge| |License| |PyPI version|
 
 .. image:: https://raw.githubusercontent.com/beuaaa/pywinauto_recorder/master/Images/logo.png?sanitize=true
     :align: center
@@ -29,5 +29,7 @@ See https://pywinauto-recorder.readthedocs.io for documentation.
 .. |License| image:: https://img.shields.io/badge/License-MIT-yellow.svg
    :target: https://opensource.org/licenses/MIT
    :alt: Repository License
-.. |Code quality| image:: https://img.shields.io/lgtm/grade/python/g/beuaaa/pywinauto_recorder.svg?logo=lgtm&logoWidth=18)
+.. |Code quality| image:: https://img.shields.io/lgtm/grade/python/g/beuaaa/pywinauto_recorder.svg?logo=lgtm&logoWidth=18
    :target: https://lgtm.com/projects/g/beuaaa/pywinauto_recorder/context:python
+.. |Codacy Badge| image:: https://app.codacy.com/project/badge/Grade/499d4f647ceb480abb921e0fda2d06c4
+   :target: https://www.codacy.com/gh/beuaaa/pywinauto_recorder/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=beuaaa/pywinauto_recorder&amp;utm_campaign=Badge_Grade

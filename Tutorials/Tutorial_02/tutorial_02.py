@@ -53,7 +53,7 @@ if __name__ == '__main__':
 	with UIPath(r".* - Notepad\+\+$||Window", regex_title=True):
 		#find().set_focus()
 		find().maximize()
-		menu_click("", u"File->New\tCtrl+N", menu_type="NPP")
+		menu_click("", u"File->New\tCtrl+N")
 
 	
 	
