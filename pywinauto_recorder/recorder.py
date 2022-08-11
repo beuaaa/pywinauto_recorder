@@ -17,7 +17,7 @@ from collections import namedtuple
 import pyperclip
 import codecs
 from .core import path_separator, type_separator, Strategy, is_int, \
-                    get_wrapper_path, get_entry_list, get_entry, match_entry_list, get_sorted_region, \
+                    get_wrapper_path, get_entry_list, get_entry, get_sorted_region, \
                     find_element, read_config_file
 from .player import playback
 
