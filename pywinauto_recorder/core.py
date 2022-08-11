@@ -5,7 +5,6 @@ import traceback
 from enum import Enum
 import configparser
 import ast
-from typing import Optional, Union, NewType
 from pywinauto import Desktop as PywinautoDesktop
 from pywinauto.controls.uiawrapper import UIAWrapper
 from pywinauto import findwindows
