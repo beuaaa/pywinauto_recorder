@@ -101,11 +101,11 @@ def _write_in_file(events, relative_coordinate_mode=False):
 				script += '\t'
 				if common_region:
 					script += '\t'
-			if type(e_i) is SendKeysEvent:
+			if isinstance(e_i, SendKeysEvent):
 				script += 'send_keys(' + e_i.line + ')\n'
-			elif type(e_i) is MouseWheelEvent:
+			elif isinstance(e_i, MouseWheelEvent):
 				script += 'mouse_wheel(' + str(e_i.delta) + ')\n'
-			elif type(e_i) is DragAndDropEvent:
+			elif isinstance(e_i, DragAndDropEvent):
 				p1, p2 = e_i.path, e_i.path2
 				dx1, dy1 = "{:.2f}".format(round(e_i.dx1 * 100, 2)), "{:.2f}".format(round(e_i.dy1 * 100, 2))
 				dx2, dy2 = "{:.2f}".format(round(e_i.dx2 * 100, 2)), "{:.2f}".format(round(e_i.dy2 * 100, 2))
@@ -119,7 +119,7 @@ def _write_in_file(events, relative_coordinate_mode=False):
 				if relative_coordinate_mode and eval(dx2) != 0 and eval(dy2) != 0:
 					script += '%(' + dx2 + ',' + dy2 + ')'
 				script += '")\n'
-			elif type(e_i) is ClickEvent:
+			elif isinstance(e_i, ClickEvent):
 				p = e_i.path
 				dx, dy = "{:.2f}".format(round(e_i.dx * 100, 2)), "{:.2f}".format(round(e_i.dy * 100, 2))
 				if common_path:
@@ -135,7 +135,7 @@ def _write_in_file(events, relative_coordinate_mode=False):
 				if relative_coordinate_mode and eval(dx) != 0 and eval(dy) != 0:
 					script += '%(' + dx + ',' + dy + ')'
 				script += '")\n'
-			elif type(e_i) is FindEvent:
+			elif isinstance(e_i, FindEvent):
 				p = e_i.path
 				dx, dy = "{:.2f}".format(round(e_i.dx * 100, 2)), "{:.2f}".format(round(e_i.dy * 100, 2))
 				if common_path:
@@ -144,7 +144,7 @@ def _write_in_file(events, relative_coordinate_mode=False):
 				if relative_coordinate_mode and eval(dx) != 0 and eval(dy) != 0:
 					script += '%(' + dx + ',' + dy + ')'
 				script += '")\n'
-			elif type(e_i) is MenuEvent:
+			elif isinstance(e_i, MenuEvent):
 				script += 'menu_click(u"' + _escape_special_char(e_i.menu_path) + '")\n'
 		i += 1
 	with codecs.open(record_file_name, "w", encoding=sys.getdefaultencoding()) as f:
@@ -164,7 +164,7 @@ def _clean_events(events, remove_first_up=False):
 		i = 0
 		i_up = 0
 		while i < len(events):
-			if type(events[i]) is keyboard.KeyboardEvent and events[i].event_type == 'up':
+			if isinstance(events[i], keyboard.KeyboardEvent) and events[i].event_type == 'up':
 				i_up = i_up + 1
 				events.pop(i)
 				if i_up == 2:
@@ -185,9 +185,9 @@ def _clean_events(events, remove_first_up=False):
 			i = i + 1
 	i = len(events) - 1
 	while i > 0:
-		if type(events[i]) is keyboard.KeyboardEvent and events[i].event_type == 'down':
+		if isinstance(events[i], keyboard.KeyboardEvent) and events[i].event_type == 'down':
 			events.pop(i)
-		elif type(events[i]) is keyboard.KeyboardEvent and events[i].event_type == 'up':
+		elif isinstance(events[i], keyboard.KeyboardEvent) and events[i].event_type == 'up':
 			break
 		i = i - 1
 
@@ -195,20 +195,20 @@ def _clean_events(events, remove_first_up=False):
 def _process_events(events, process_menu_click=True):
 	i = 0
 	while i < len(events):
-		if type(events[i]) is keyboard.KeyboardEvent:
+		if isinstance(events[i], keyboard.KeyboardEvent):
 			_process_keyboard_events(events, i)
-		elif type(events[i]) is mouse.WheelEvent:
+		elif isinstance(events[i], mouse.WheelEvent):
 			_process_wheel_events(events, i)
 		i = i + 1
 	i = len(events) - 1
 	while i >= 0:
-		if type(events[i]) is mouse.ButtonEvent and events[i].event_type == 'up':
+		if isinstance(events[i], mouse.ButtonEvent) and events[i].event_type == 'up':
 			i = _process_drag_and_drop_or_click_events(events, i)
 		i = i - 1
 	if process_menu_click:
 		i = len(events) - 1
 		while i >= 0:
-			if type(events[i]) is ClickEvent:
+			if isinstance(events[i], ClickEvent):
 				i = _process_menu_select_events(events, i)
 			i = i - 1
 
@@ -218,11 +218,11 @@ def _process_keyboard_events(events, i):
 	i0 = i + 1
 	i_processed_events = []
 	while i0 < len(events):
-		if type(events[i0]) == keyboard.KeyboardEvent:
+		if isinstance(events[i0], keyboard.KeyboardEvent):
 			keyboard_events.append(events[i0])
 			i_processed_events.append(i0)
 			i0 = i0 + 1
-		elif type(events[i0]) == ElementEvent:
+		elif isinstance(events[i0], ElementEvent):
 			i0 = i0 + 1
 		else:
 			break
@@ -238,7 +238,7 @@ def _process_wheel_events(events, i):
 	i_processed_events = []
 	i0 = i + 1
 	while i0 < len(events):
-		if type(events[i0]) == mouse.WheelEvent:
+		if isinstance(events[i0], mouse.WheelEvent):
 			delta = delta + events[i0].delta
 			i_processed_events.append(i0)
 			i0 = i0 + 1
@@ -254,12 +254,12 @@ def _process_wheel_events(events, i):
 def _process_drag_and_drop_or_click_events(events, i):
 	i0 = i - 1
 	while i0 >= 0:
-		if type(events[i0]) == ElementEvent:
+		if isinstance(events[i0], ElementEvent):
 			element_event_before_button_up = events[i0]
 			break
 		i0 = i0 - 1
 	while i0 >= 0:
-		if type(events[i0]) == mouse.MoveEvent:
+		if isinstance(events[i0], mouse.MoveEvent):
 			move_event_end = events[i0]
 			break
 		i0 = i0 - 1
@@ -267,10 +267,10 @@ def _process_drag_and_drop_or_click_events(events, i):
 	drag_and_drop = False
 	click_count = 0
 	while i0 >= 0:
-		if type(events[i0]) == mouse.MoveEvent:
+		if isinstance(events[i0], mouse.MoveEvent):
 			if events[i0].x != move_event_end.x or events[i0].y != move_event_end.y:
 				drag_and_drop = True
-		elif type(events[i0]) == mouse.ButtonEvent and events[i0].event_type in ['down', 'double']:
+		elif isinstance(events[i0], mouse.ButtonEvent) and events[i0].event_type in ['down', 'double']:
 			click_count = click_count + 1
 			if events[i0].event_type == 'down' or click_count == 3:
 				i1 = i0
@@ -278,14 +278,14 @@ def _process_drag_and_drop_or_click_events(events, i):
 		i0 = i0 - 1
 	element_event_before_button_down = None
 	while i0 >= 0:
-		if type(events[i0]) == ElementEvent:
+		if isinstance(events[i0], ElementEvent):
 			element_event_before_button_down = events[i0]
 			break
 		i0 = i0 - 1
 	if drag_and_drop:
 		move_event_start = None
 		while i0 >= 0:
-			if type(events[i0]) == mouse.MoveEvent:
+			if isinstance(events[i0], mouse.MoveEvent):
 				move_event_start = events[i0]
 				break
 			i0 = i0 - 1
@@ -375,7 +375,7 @@ def _process_menu_select_events(events, i):
 	i_processed_events = []
 	menu_path = []
 	while i0 >= 0:
-		if type(events[i0]) is ClickEvent:
+		if isinstance(events[i0], ClickEvent):
 			entry_list = get_entry_list(events[i0].path)
 			matching = [s for s in entry_list if "||MenuItem" in s]
 			if matching:
@@ -676,8 +676,8 @@ class Recorder(Thread):
 
 	def __mouse_on(self, mouse_event):
 		if self.mode == "Record":
-			if (type(mouse_event) == mouse.MoveEvent) and (len(self.event_list) > 0):
-				if type(self.event_list[-1]) == mouse.MoveEvent:
+			if isinstance(mouse_event, mouse.MoveEvent) and (len(self.event_list) > 0):
+				if isinstance(self.event_list[-1], mouse.MoveEvent):
 					self.event_list = self.event_list[:-1]
 			self.event_list.append(mouse_event)
 			
