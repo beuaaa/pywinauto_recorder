@@ -34,7 +34,8 @@ class FailedSearch(PywinautoRecorderException):
 	"""FailedSearch is a subclass of *PywinautoRecorderException* that is raised when a search for a control fails."""
 	pass
 
-', 'MoveMode', 'ButtonLocation', 'load_dictionary', 'shortcut', 'full_definition', 'UIPath',
+
+__all__ = ['PlayerSettings', 'MoveMode', 'ButtonLocation', 'load_dictionary', 'shortcut', 'full_definition', 'UIPath',
            'Window', 'Region', 'find', 'find_all', 'move', 'click', 'left_click', 'right_click',
            'double_left_click', 'triple_left_click', 'double_click', 'triple_click',
            'drag_and_drop', 'middle_drag_and_drop', 'right_drag_and_drop', 'menu_click',
@@ -43,8 +44,7 @@ class FailedSearch(PywinautoRecorderException):
 
 
 # TODO special_char_array in core for recorder.py and player.py (check when to call escape & unescape)
-def unescape_special
-__all__ = ['PlayerSettings_char(string):
+def unescape_special_char(string):
 	for r in (("\\\\", "\\"), ("\\t", "\t"), ("\\n", "\n"), ("\\r", "\r"), ("\\v", "\v"), ("\\f", "\f"), ('\\"', '"')):
 		string = string.replace(*r)
 	return string
