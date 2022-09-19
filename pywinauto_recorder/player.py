@@ -14,7 +14,7 @@ from win32gui import GetCursorInfo as win32gui_GetCursorInfo
 from win32con import IDC_WAIT, MOUSEEVENTF_MOVE, MOUSEEVENTF_ABSOLUTE, MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP, \
 	MOUSEEVENTF_MIDDLEDOWN, MOUSEEVENTF_MIDDLEUP, MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP, MOUSEEVENTF_WHEEL, \
 	WHEEL_DELTA
-from .core import type_separator, path_separator, get_entry, get_entry_list, find_element, get_sorted_region, \
+from .core import type_separator, path_separator, get_entry, get_entry_list, find_elements, get_sorted_region, \
 	get_wrapper_path, is_int
 from functools import partial, update_wrapper, lru_cache
 
@@ -34,8 +34,7 @@ class FailedSearch(PywinautoRecorderException):
 	"""FailedSearch is a subclass of *PywinautoRecorderException* that is raised when a search for a control fails."""
 	pass
 
-
-__all__ = ['PlayerSettings', 'MoveMode', 'ButtonLocation', 'load_dictionary', 'shortcut', 'full_definition', 'UIPath',
+', 'MoveMode', 'ButtonLocation', 'load_dictionary', 'shortcut', 'full_definition', 'UIPath',
            'Window', 'Region', 'find', 'find_all', 'move', 'click', 'left_click', 'right_click',
            'double_left_click', 'triple_left_click', 'double_click', 'triple_click',
            'drag_and_drop', 'middle_drag_and_drop', 'right_drag_and_drop', 'menu_click',
@@ -44,7 +43,8 @@ __all__ = ['PlayerSettings', 'MoveMode', 'ButtonLocation', 'load_dictionary', 's
 
 
 # TODO special_char_array in core for recorder.py and player.py (check when to call escape & unescape)
-def unescape_special_char(string):
+def unescape_special
+__all__ = ['PlayerSettings_char(string):
 	for r in (("\\\\", "\\"), ("\\t", "\t"), ("\\n", "\n"), ("\\r", "\r"), ("\\v", "\v"), ("\\f", "\f"), ('\\"', '"')):
 		string = string.replace(*r)
 	return string
@@ -299,7 +299,7 @@ def _find(
 		while (not y_x and not unique_element and not elements) or (y_x and not elements):
 			try:
 				# print("find_element(...): ")
-				unique_element, elements = find_element(get_entry_list(full_element_path))
+				unique_element, elements = find_elements(full_element_path)
 				if (not y_x and not unique_element and not elements) or (y_x and not elements):
 					time.sleep(2.0)
 			except Exception:
@@ -316,11 +316,10 @@ def _find(
 				if is_int(y_x[0]):
 					unique_element = candidates[int(y_x[0])][int(y_x[1])]
 				else:
-					ref_entry_list = get_entry_list(full_element_path) + get_entry_list(y_x[0])
-					ref_unique_element, _ = find_element(ref_entry_list)
+					ref_unique_element, _ = find_elements(full_element_path + path_separator + y_x[0])
 					if not ref_unique_element:
-						msg = "No element found with the UIPath '" + full_element_path + path_separator + y_x[
-							0] + "' in the array line."
+						msg = "No element found with the UIPath '" + full_element_path + path_separator + y_x[0] + \
+							"' in the array line."
 						raise FailedSearch(msg)
 					ref_r = ref_unique_element.rectangle()
 					r_y = 0
@@ -445,7 +444,7 @@ def find_all(
 	t0 = time.time()
 	while (time.time() - t0) < timeout:
 		try:
-			unique_element, elements = find_element(entry_list)
+			unique_element, elements = find_elements(full_element_path)
 			if unique_element:
 				return [unique_element]
 			if elements:
