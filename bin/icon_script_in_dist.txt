@@ -1,6 +1,0 @@
-  [FILENAMES]
-  Exe=    pywinauto_recorder.dist/pywinauto_recorder_original.exe
-  SaveAs= pywinauto_recorder.dist/pywinauto_recorder.exe	
-  [COMMANDS]
-  -addoverwrite ../pywinauto_recorder/Icons/IconPyRec.ico,ICONGROUP,101,0
-  -addoverwrite VersionInfo.res,VERSIONINFO,1,0
