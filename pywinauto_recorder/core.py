@@ -9,10 +9,11 @@ from pywinauto import Desktop as PywinautoDesktop
 from pywinauto.controls.uiawrapper import UIAWrapper
 from pywinauto import findwindows
 
+import time
 
 __all__ = ['path_separator', 'type_separator', 'Strategy', 'is_int',
            'get_wrapper_path', 'get_entry_list', 'get_entry', 'match_entry_list', 'get_sorted_region',
-           'find_element', 'read_config_file']
+           'find_elements', 'read_config_file']
 
 desktop = PywinautoDesktop(backend='uia', allow_magic_lookup=False)
 
@@ -395,20 +396,20 @@ def filter_window_candidates(window_candidates):
 			window_candidates))
 	return window_candidates
 
-
-last_window_candidates = None
-
-def find_element(entry_list=None, visible_only=True, enabled_only=True, active_only=True):
-	global last_window_candidates
+from cachetools import func
+@func.ttl_cache(ttl=10)
+def find_elements(full_element_path=None, visible_only=True, enabled_only=True, active_only=True):
 	"""
 	It takes an entry list and returns the unique element that matches the entry list
 
-	:param entry_list: full path list
+	:param full_element_path: full path of the element(s) to find
 	:param visible_only: If True, only visible elements are returned, defaults to True (optional)
 	:param enabled_only: If True, only enabled controls are returned, defaults to True (optional)
 	:param active_only: If True, only active windows are considered, defaults to True (optional)
 	:return: The element and the list of candidates
 	"""
+	# t0 = time.time()
+	entry_list = get_entry_list(full_element_path)
 	window_candidates = find_window_candidates(entry_list[0],
 	                                           visible_only=visible_only, enabled_only=enabled_only,
 	                                           active_only=active_only)
@@ -418,30 +419,8 @@ def find_element(entry_list=None, visible_only=True, enabled_only=True, active_o
 	window_candidates = filter_window_candidates(window_candidates)
 	
 	if len(entry_list) == 1 and len(window_candidates) == 1:
-		last_window_candidates = None
 		return window_candidates[0], []
-	
-	
-	if False and  last_window_candidates is not None:
-		last_entry_list = get_entry_list(get_wrapper_path(last_window_candidates[0]))
-		i = 0
-		while last_entry_list[i] == entry_list[i]:
-			i += 1
-			if i == len(entry_list) or i == len(last_entry_list):
-				break
-		parent_count = len(last_entry_list) - i
-		if False:
-			print(get_wrapper_path(last_window_candidates[0]))
-			print("->".join(entry_list))
-			print("len(last_entry_list):", len(last_entry_list), "\ti: ", i,  "parent_count ", parent_count)
-		
-		w = last_window_candidates[0]
-		for _ in range(parent_count):
-			w = w.parent()
-		window_candidates[0] = w
-		
-	
-	
+
 	candidates = []
 	for window in window_candidates:
 		title, control_type, _, _ = get_entry(entry_list[-1])
@@ -459,14 +438,14 @@ def find_element(entry_list=None, visible_only=True, enabled_only=True, active_o
 	
 	if not candidates:
 		if active_only:
-			return find_element(entry_list, visible_only=True, enabled_only=False, active_only=False)
+			return find_elements(full_element_path, visible_only=True, enabled_only=False, active_only=False)
 		else:
 			return None, []
 	elif len(candidates) == 1:
-		last_window_candidates = candidates
+		#t1 = time.time()
+		#print("duration: ", t1 - t0)
 		return candidates[0], []
 	else:
-		last_window_candidates = candidates
 		return None, candidates
 
 
@@ -508,7 +487,7 @@ def read_config_file():
 			print("Ignored windows: " + core_settings.window_filtering.ignore_windows)
 			core_settings.window_filtering.ignore_windows = ast.literal_eval(core_settings.window_filtering.ignore_windows)
 	else:
-		print("Warning: '" + str(config_file) + "' not found! Default C file is created!")
+		print("Warning: '" + str(config_file) + "' not found! This file is created with a default configuration!")
 		home_dir = Path.home() / 'Pywinauto recorder'
 		home_dir.mkdir(parents=True, exist_ok=True)
 		with open(config_file, 'w') as out_file:
