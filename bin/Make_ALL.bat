@@ -1,5 +1,18 @@
+REM Get version from __init__.py
+for /f "tokens=2 delims==" %%a in ('type ..\pywinauto_recorder\__init__.py^|find "__version__ = "') do (
+  set version=%%a & goto :continue
+)
+:continue
+set version=%version:~1%
+echo %version%
+
 REM COMPILE EXE
-C:\Users\d_pra\AppData\Local\Programs\Python\Python38\python.exe -m nuitka --standalone --mingw64 ..\pywinauto_recorder.py
+set PYTHON_EXE=%homedrive%%homepath%\AppData\Local\Programs\Python\Python38\python.exe
+set CMD_ICON=--windows-icon-from-ico=..\pywinauto_recorder\Icons\IconPyRec.ico
+set CMD_INFO=--windows-file-version=%version% --windows-product-version=%version% --windows-product-name="Pywinauto Recorder" --windows-company-name="Pywinauto Recorder"
+%PYTHON_EXE% -m nuitka --standalone --mingw64 %CMD_ICON% %CMD_INFO% ..\pywinauto_recorder.py 
+REM %PYTHON_EXE% -m nuitka --standalone --mingw64 ..\clear_comtypes_cache.py --show-scons
+
 
 REM CLEAN pywinauto_recorder.dist
 cd pywinauto_recorder.dist
@@ -18,7 +31,6 @@ del /Q _hashlib.pyd
 del /Q _elementtree.pyd
 del /Q gdiplus.dll
 del /Q ucrtbase.dll
-del /Q vcruntime140.dll
 del /Q _asyncio.pyd
 del /Q _decimal.pyd
 del /Q _lzma.pyd
@@ -28,9 +40,6 @@ rmdir certifi /s /q
 rmdir numpy /s /q
 rmdir PIL /s /q
 rmdir win32com /s /q
-
-REM Copy additional_dll\*.dll in pywinauto_recorder.dist
-xcopy /y ..\..\pywinauto_recorder\additional_dll\*.dll .
 
 
 REM Copy Icons\*.ico in pywinauto_recorder.dist
@@ -44,55 +53,6 @@ xcopy /y ..\clear_comtypes_cache.dist\*.exe .
 
 cd ..
 
-REM Create VersionInfo.rc 
-for /f "tokens=2 delims==" %%a in ('type ..\pywinauto_recorder\__init__.py^|find "__version__ = "') do (
-  set version=%%a & goto :continue
-)
-:continue
-set version=%version:~1%
-echo %version%
-
-setlocal ENABLEDELAYEDEXPANSION
-set word=^,
-set str=%version:.=!word!%
-set str=%str:" =%
-set str=%str:"=%
-
-@echo off
-setlocal EnableDelayedExpansion
-(
-echo(
-echo 1 VERSIONINFO
-echo FILEVERSION 0^,2^,0^,0
-echo PRODUCTVERSION %str%^,0
-echo FILEOS 0x40004
-echo FILETYPE 0x1
-echo {
-echo BLOCK "StringFileInfo"
-echo {
-echo 	BLOCK "000004B0"
-echo 	{
-echo 		VALUE "ProductName", "Pywinauto Recorder"
-echo 		VALUE "ProductVersion", %version%
-echo 	}
-echo }
-echo(
-echo BLOCK "VarFileInfo"
-echo {
-echo 	VALUE "Translation", 0x0000 0x04B0  
-echo }
-echo }
-) 1>"VersionInfo.rc"
-@echo on
-
-REM Compile VersioInfo.rc 
-"C:\Program Files (x86)\Resource Hacker\ResourceHacker.exe" -open .\VersionInfo.rc -save .\VersionInfo.res -action compile -log con
-
-REM Update pywinauto_recorder.exe with icons and version info
-RENAME .\pywinauto_recorder.dist\pywinauto_recorder.exe pywinauto_recorder_original.exe
-"C:\Program Files (x86)\Resource Hacker\ResourceHacker.exe" -script icon_script_in_dist.txt
-DEL .\pywinauto_recorder.dist\pywinauto_recorder_original.exe
-DEL VersionInfo.res
 
 REM Make installer
 "C:\Program Files (x86)\NSIS\Bin\makensis.exe" Pywinauto_recorder.nsi
