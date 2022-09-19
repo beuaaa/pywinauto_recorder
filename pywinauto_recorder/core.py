@@ -8,8 +8,8 @@ import ast
 from pywinauto import Desktop as PywinautoDesktop
 from pywinauto.controls.uiawrapper import UIAWrapper
 from pywinauto import findwindows
+from cachetools import func
 
-import time
 
 __all__ = ['path_separator', 'type_separator', 'Strategy', 'is_int',
            'get_wrapper_path', 'get_entry_list', 'get_entry', 'match_entry_list', 'get_sorted_region',
@@ -396,7 +396,7 @@ def filter_window_candidates(window_candidates):
 			window_candidates))
 	return window_candidates
 
-from cachetools import func
+
 @func.ttl_cache(ttl=10)
 def find_elements(full_element_path=None, visible_only=True, enabled_only=True, active_only=True):
 	"""

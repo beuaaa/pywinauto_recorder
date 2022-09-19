@@ -8,3 +8,4 @@ pytest
 pywin32
 Pillow
 enum34
+cachetools
