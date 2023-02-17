@@ -17,6 +17,7 @@ from win32con import IDC_WAIT, MOUSEEVENTF_MOVE, MOUSEEVENTF_ABSOLUTE, MOUSEEVEN
 from .core import type_separator, path_separator, get_entry, get_entry_list, find_elements, get_sorted_region, \
 	get_wrapper_path, is_int
 from functools import partial, update_wrapper, lru_cache
+import math
 
 
 UI_Coordinates = NewType('UI_Coordinates', (float, float))
@@ -316,10 +317,10 @@ def _find(
 				if is_int(y_x[0]):
 					unique_element = candidates[int(y_x[0])][int(y_x[1])]
 				else:
-					ref_unique_element, _ = find_elements(full_element_path + path_separator + y_x[0])
+					full_smart_element_path = UIPath.get_full_path(y_x[0])
+					ref_unique_element, _ = find_elements(full_smart_element_path)
 					if not ref_unique_element:
-						msg = "No element found with the UIPath '" + full_element_path + path_separator + y_x[0] + \
-							"' in the array line."
+						msg = "No element found with the UIPath '" + full_smart_element_path + "' in the array line."
 						raise FailedSearch(msg)
 					ref_r = ref_unique_element.rectangle()
 					r_y = 0
@@ -715,18 +716,45 @@ def menu_click(
 	:return: Pywinauto wrapper of the clicked item
 	:raises FailedSearch: if an element is not found
 	"""
+	
+	def nearest_perimeter_point(rect, point):
+		x1, y1, x2, y2 = rect.left, rect.top, rect.right, rect.bottom
+		x, y = point
+		if x1 <= x <= x2 and y1 <= y <= y2:
+			return point
+		if x < x1:
+			x = x1
+		elif x > x2:
+			x = x2
+		if y < y1:
+			y = y1
+		elif y > y2:
+			y = y2
+		return x, y
+	
+	def distance(pt_1, pt_2):
+		return math.hypot(pt_2[0] - pt_1[0], pt_2[1] - pt_2[1])
+	
+	if duration not in [None, -1]:
+		duration = float(duration)/2
+		
 	menu_entry_list = menu_path.split(path_separator)
-	for menu_entry in menu_entry_list:
-		w = find('*' + path_separator + menu_entry + type_separator + 'MenuItem', timeout=timeout)
-		x, y = win32api_GetCursorPos()
+	for i, menu_entry in enumerate(menu_entry_list):
+		if i > 0:
+			SAV_UIPath_path_list, SAV_UIPath_regex_list = UIPath._path_list, UIPath._regex_list
+			UIPath._path_list = UIPath._regex_list = []
+		mouse_cursor_pos = win32api_GetCursorPos()
+		ws = find_all('*' + path_separator + menu_entry + type_separator + 'MenuItem', timeout=timeout)
+		ws.sort(key=lambda w: distance(w.rectangle().mid_point(), mouse_cursor_pos))
+		w = ws[0]
+		item_pos = w.rectangle().mid_point()
 		r = w.parent().rectangle()
-		x_min = min(abs(r.left - x), abs(r.right - x))
-		y_min = min(abs(r.top - y), abs(r.bottom - y))
-		if x_min < y_min:
-			click(w, mode=MoveMode.x_first, duration=duration)
-		else:
-			click(w, mode=MoveMode.y_first, duration=duration)
+		nearest_p_point = nearest_perimeter_point(r, mouse_cursor_pos)
+		move(nearest_p_point, duration=duration)
+		click(item_pos, duration=duration)
 		time.sleep(0.1)  # wait for the menu to open (it is not always instantaneous depending on the animation settings)
+		if i>0:
+			UIPath._path_list, UIPath._regex_list = SAV_UIPath_path_list, SAV_UIPath_regex_list
 	return w
 
 
