@@ -185,6 +185,8 @@ def match_entry_sequence(i_e, entry_list, sequence_list):
 	:param sequence_list: a list of strings, each of which is a sequence of characters
 	:return: A boolean value.
 	"""
+	if (i_e + len(sequence_list)) > len(entry_list):
+		return False
 	for i_s in range(len(sequence_list)):
 		if not match_entry(entry_list[i_e + i_s], sequence_list[i_s]):
 			return False
