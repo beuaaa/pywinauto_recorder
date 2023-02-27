@@ -297,11 +297,11 @@ def _find(
 	elements = None
 	t0 = time.time()
 	while (time.time() - t0) < timeout:
-		while (not y_x and not unique_element and not elements) or (y_x and not elements):
+		while (not y_x and unique_element is None and not elements) or (y_x and unique_element is None and not elements):
 			try:
 				# print("find_element(...): ")
 				unique_element, elements = find_elements(full_element_path)
-				if (not y_x and not unique_element and not elements) or (y_x and not elements):
+				if (not y_x and unique_element is None and not elements) or (y_x and unique_element is None and not elements):
 					time.sleep(2.0)
 			except Exception:
 				pass
@@ -310,8 +310,8 @@ def _find(
 				raise FailedSearch(msg)
 		
 		if y_x is not None:
-			if unique_element and int(y_x[0]) == int(y_x[1]) == 0:
-				return unique_element
+			if unique_element:
+				return unique_element   # TODO: remove this test and replace (unique_element, elements) by elements in all the code of all modules
 			else:
 				nb_y, nb_x, candidates = get_sorted_region(elements)
 				if is_int(y_x[0]):
