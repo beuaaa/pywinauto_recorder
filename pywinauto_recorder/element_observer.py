@@ -5,7 +5,7 @@ from win32api import GetSystemMetrics, GetCursorPos
 from time import sleep
 from multiprocessing import Process, Event
 from pywinauto_recorder.recorder import IconSet, _find_common_path, _overlay_add_mode_icon
-
+import traceback
 
 wrapper_old_info_tip = None
 common_path_info_tip = ''
@@ -18,7 +18,7 @@ def _display_info_tiptool(desktop, info_overlay, screen_width):
 	tooltip_height = 25
 	
 	x, y = GetCursorPos()
-	wrapper = desktop.from_point(x,y)
+	wrapper = desktop.from_point(x, y)
 	
 	if wrapper is None:
 		return
@@ -181,19 +181,25 @@ def _display_info_tiptool(desktop, info_overlay, screen_width):
 
 
 def task(info_mode_event, info_mode_quit_event):
+	global wrapper_old_info_tip
+	global common_path_info_tip
 	screen_width = GetSystemMetrics(0)
 	info_overlay = oaam.Overlay(transparency=0.0)
 	desktop = Desktop(backend='uia', allow_magic_lookup=False)
 	while not info_mode_quit_event.is_set():
-		if info_mode_event.is_set():
-			try:
-				_display_info_tiptool(desktop, info_overlay, screen_width)
-			except:
-				pass
-		else:
+		try:
+			if info_mode_event.is_set():
+					_display_info_tiptool(desktop, info_overlay, screen_width)
+			else:
+				info_overlay.clear_all()
+				info_overlay.refresh()
+			sleep(0.1)
+		except:
+			wrapper_old_info_tip = None
+			common_path_info_tip = ''
 			info_overlay.clear_all()
 			info_overlay.refresh()
-		sleep(0.1)
+			sleep(0.1)
 	info_overlay.clear_all()
 	info_overlay.refresh()
 	info_overlay.quit()
