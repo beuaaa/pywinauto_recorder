@@ -635,9 +635,7 @@ class Recorder(Thread):
 							continue
 						previous_wrapper_path2 = wrapper_path2
 						
-						unique_candidate2, _ = find_elements(get_wrapper_path(wrapper2))
-						
-						if unique_candidate2 is not None:
+						if find_elements(get_wrapper_path(wrapper2)):
 							r = wrapper2_rectangle
 							self.main_overlay.add(
 								geometry=oaam.Shape.rectangle, x=r.left, y=r.top,
@@ -800,7 +798,6 @@ class Recorder(Thread):
 			time.sleep(0.5)
 			os.system(dir_path + r"\pywinauto_recorder.exe --no_splash_screen")
 			sys.exit(1)
-		unique_candidate = None
 		elements = []
 		i = 0
 		previous_wrapper_path = None
@@ -836,7 +833,7 @@ class Recorder(Thread):
 					i_strategy = 0
 					previous_wrapper_path = wrapper_path
 					t0 = time.time()
-					unique_candidate, elements = find_elements(wrapper_path)
+					elements = find_elements(wrapper_path)
 					t1 = time.time()
 					# print("duration", t1-t0, " find_elements(" + wrapper_path + ")")
 				#if wrapper_path == previous_wrapper_path and unique_wrapper_path:
@@ -849,42 +846,6 @@ class Recorder(Thread):
 				# => add tests to leave if mouse cursor is outside wrapper rectangle
 				wrapper_rectangle = wrapper.rectangle()
 				
-				'''
-				# TODO: cette strategie n'est utile que pour palier à self.desktop.from_point(*cursor_pos) qui ne fn pas
-				# dans tous les cas (par exemple CMD.exe). L'autre solution est de reimplementer from_point
-				if strategy == Strategy.unique_path_again and unique_candidate and not strategy_unique_path_again_done:
-					x_new, y_new = win32api.GetCursorPos()
-					if not ((wrapper_rectangle.left < x_new < wrapper_rectangle.right) and (
-							wrapper_rectangle.top < y_new < wrapper_rectangle.bottom)):
-						i_strategy = 0
-						continue
-					better_candidates = []
-					better_father_candidates = []
-					curent_wrapper = unique_candidate.top_level_parent()
-					for curent_wrapper_child in curent_wrapper.children():
-						rect_child = curent_wrapper_child.rectangle()
-						if ((rect_child.left < x_new < rect_child.right) and (rect_child.top < y_new < rect_child.bottom)):
-							better_father_candidates.append(curent_wrapper_child)
-							
-					while better_father_candidates:
-						curent_wrapper = better_father_candidates.pop()
-						curent_wrapper_children = curent_wrapper.children()
-						if curent_wrapper_children:
-							for curent_wrapper_child in curent_wrapper_children:
-								rect_child = curent_wrapper_child.rectangle()
-								if ((rect_child.left < x_new < rect_child.right) and (
-										rect_child.top < y_new < rect_child.bottom)):
-									better_father_candidates.append(curent_wrapper_child)
-						else:
-							better_candidates.append(curent_wrapper)
-					if better_candidates:
-						better_candidates.sort(key=lambda widget: widget.rectangle().width() * widget.rectangle().height())
-						unique_candidate = better_candidates[0]
-						wrapper = unique_candidate
-						wrapper_rectangle = wrapper.rectangle()
-					strategy_unique_path_again_done = True
-				'''
-				
 				#if strategy in [Strategy.unique_path, Strategy.unique_path_again]:
 				if strategy is Strategy.unique_path:
 					'''
@@ -894,8 +855,7 @@ class Recorder(Thread):
 						i_strategy = 0
 						continue
 					'''
-					if unique_candidate is not None:
-						# unique_wrapper_path = get_wrapper_path(unique_candidate)
+					if elements:
 						unique_wrapper_path = wrapper_path
 						r = wrapper_rectangle
 						self.main_overlay.add(

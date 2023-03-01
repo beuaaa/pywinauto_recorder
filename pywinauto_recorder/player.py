@@ -293,55 +293,49 @@ def _find(
 	Finds the element defined by the full_element_path.
 	"""
 	_, _, y_x, _ = get_entry(get_entry_list(full_element_path)[-1])
-	unique_element = None
-	elements = None
+	elements = []
 	t0 = time.time()
 	while (time.time() - t0) < timeout:
-		while (not y_x and unique_element is None and not elements) or (y_x and unique_element is None and not elements):
+		while not elements:
 			try:
 				# print("find_element(...): ")
-				unique_element, elements = find_elements(full_element_path)
-				if (not y_x and unique_element is None and not elements) or (y_x and unique_element is None and not elements):
+				elements = find_elements(full_element_path)
+				if not elements:
 					time.sleep(2.0)
 			except Exception:
 				pass
 			if (time.time() - t0) > timeout:
 				msg = "No element found with the UIPath '" + full_element_path + "' after " + str(timeout) + " s of searching."
 				raise FailedSearch(msg)
-		
+
 		if y_x is not None:
-			if unique_element:
-				return unique_element   # TODO: remove this test and replace (unique_element, elements) by elements in all the code of all modules
+			if len(elements) == 1:
+				return elements[0]
+			nb_y, nb_x, candidates = get_sorted_region(elements)
+			if is_int(y_x[0]):
+				return candidates[int(y_x[0])][int(y_x[1])]
 			else:
-				nb_y, nb_x, candidates = get_sorted_region(elements)
-				if is_int(y_x[0]):
-					unique_element = candidates[int(y_x[0])][int(y_x[1])]
-				else:
-					full_smart_element_path = UIPath.get_full_path(y_x[0])
-					ref_unique_element, _ = find_elements(full_smart_element_path)
-					if not ref_unique_element:
-						msg = "No element found with the UIPath '" + full_smart_element_path + "' in the array line."
-						raise FailedSearch(msg)
-					ref_r = ref_unique_element.rectangle()
-					r_y = 0
-					while r_y < nb_y:
-						for candidate in candidates[r_y]:
-							y_candidate = candidate.rectangle().mid_point()[1]
-							if ref_r.top < y_candidate < ref_r.bottom:
-								unique_element = candidates[r_y][y_x[1]]
-								return unique_element
-						r_y = r_y + 1
-		if unique_element is not None:
-			break
+				full_smart_element_path = UIPath.get_full_path(y_x[0])
+				ref_unique_element = find_elements(full_smart_element_path)
+				if len(ref_unique_element) > 1:
+					msg = "No element found with the UIPath '" + full_smart_element_path + "' in the array line."
+					raise FailedSearch(msg)
+				ref_r = ref_unique_element[0].rectangle()
+				r_y = 0
+				while r_y < nb_y:
+					for candidate in candidates[r_y]:
+						y_candidate = candidate.rectangle().mid_point()[1]
+						if ref_r.top < y_candidate < ref_r.bottom:
+							return candidates[r_y][y_x[1]]
+					r_y = r_y + 1
 		time.sleep(0.1)
-	if not unique_element:
-		if elements:
-			message = "There are " + str(len(elements)) + " elements that match the path '" + full_element_path + "':"
-			for e in elements:
-				message += "\n" + get_wrapper_path(e)
-			raise FailedSearch(message)
-		raise FailedSearch("Unique element not found using path '", full_element_path + "'")
-	return unique_element
+
+	if len(elements) > 1:
+		message = "There are " + str(len(elements)) + "undiscriminated elements that match the path '" + full_element_path + "':"
+		for e in elements:
+			message += "\n" + get_wrapper_path(e)
+		raise FailedSearch(message)
+	raise FailedSearch("Unique element not found using path '", full_element_path + "'")
 
 
 def find(
@@ -445,9 +439,7 @@ def find_all(
 	t0 = time.time()
 	while (time.time() - t0) < timeout:
 		try:
-			unique_element, elements = find_elements(full_element_path)
-			if unique_element:
-				return [unique_element]
+			elements = find_elements(full_element_path)
 			if elements:
 				return elements
 			time.sleep(2.0)

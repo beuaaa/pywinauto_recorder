@@ -52,8 +52,6 @@ def get_wrapper_path(wrapper):
 			wrapper = wrapper.parent()
 		return wrapper.element_info.name + type_separator + wrapper.element_info.control_type + path
 	except Exception as e:
-		traceback.print_exc()
-		print(e.message)
 		return ''
 
 
@@ -402,13 +400,13 @@ def filter_window_candidates(window_candidates):
 @func.ttl_cache(ttl=10)
 def find_elements(full_element_path=None, visible_only=True, enabled_only=True, active_only=True):
 	"""
-	It takes an entry list and returns the unique element that matches the entry list
+	It takes an entry list and returns the elements that matche the entry list
 
 	:param full_element_path: full path of the element(s) to find
 	:param visible_only: If True, only visible elements are returned, defaults to True (optional)
 	:param enabled_only: If True, only enabled controls are returned, defaults to True (optional)
 	:param active_only: If True, only active windows are considered, defaults to True (optional)
-	:return: The element and the list of candidates
+	:return: The elements found
 	"""
 	# t0 = time.time()
 	entry_list = get_entry_list(full_element_path)
@@ -416,12 +414,12 @@ def find_elements(full_element_path=None, visible_only=True, enabled_only=True, 
 	                                           visible_only=visible_only, enabled_only=enabled_only,
 	                                           active_only=active_only)
 	if window_candidates is None:
-		return None, []
+		return []
 	
 	window_candidates = filter_window_candidates(window_candidates)
 	
 	if len(entry_list) == 1 and len(window_candidates) == 1:
-		return window_candidates[0], []
+		return [window_candidates[0]]
 
 	candidates = []
 	for window in window_candidates:
@@ -442,13 +440,9 @@ def find_elements(full_element_path=None, visible_only=True, enabled_only=True, 
 		if active_only:
 			return find_elements(full_element_path, visible_only=True, enabled_only=False, active_only=False)
 		else:
-			return None, []
-	elif len(candidates) == 1:
-		#t1 = time.time()
-		#print("duration: ", t1 - t0)
-		return candidates[0], []
+			return []
 	else:
-		return None, candidates
+		return candidates
 
 
 # The following code should be called in recoder.py because it's useful only when recording
