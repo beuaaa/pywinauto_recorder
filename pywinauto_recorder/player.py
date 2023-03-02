@@ -291,6 +291,8 @@ def _find(
 		timeout: Optional[float] = None) -> PYWINAUTO_Wrapper:
 	"""
 	Finds the element defined by the full_element_path.
+	
+	When the [] operator is used and only one element is found, the row and column indices are not tested and the element is returned.
 	"""
 	_, _, y_x, _ = get_entry(get_entry_list(full_element_path)[-1])
 	elements = []
@@ -308,9 +310,10 @@ def _find(
 				msg = "No element found with the UIPath '" + full_element_path + "' after " + str(timeout) + " s of searching."
 				raise FailedSearch(msg)
 
-		if y_x is not None:
-			if len(elements) == 1:
+		if len(elements) == 1:
 				return elements[0]
+		
+		if y_x is not None:
 			nb_y, nb_x, candidates = get_sorted_region(elements)
 			if is_int(y_x[0]):
 				return candidates[int(y_x[0])][int(y_x[1])]
@@ -348,6 +351,8 @@ def find(
 	This function is called in all the other functions (:func:`click`, :func:`move`, ...) that require to search an element.
 	To significantly increase search performance, the user can enable a cache with 'Player.Setting.use_cache = True'.
 	When the cache is active, it is sometimes necessary to empty it with the :func:`find_cache_clear` function.
+
+	When the [] operator is used and only one element is found, the row and column indices are not tested and the element is returned.
 
 	.. code-block:: python
 		:caption: Example of code using the 'find' function::
