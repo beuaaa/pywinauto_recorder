@@ -26,9 +26,10 @@ def start_kill_app(request):
 	app_name = request.param
 	app = pywinauto.Application(backend="win32")
 	app.start(app_name)
+	time.sleep(2)
 	yield app
 	# 'app.connect' is needed by 'app.kill'
-	# #time.sleep(2)  # Wait for the app to start because sometimes a process is spawned before the app is ready.
+	time.sleep(2)  # Wait for the app to start because sometimes a process is spawned before the app is ready.
 	# When the sleep duration is too short, 'app.connect' fails because of a spawned process with the same title.
 	# Pywinauto 0.7.0 should be able to handle this without a sleep.
 	app.connect(path=app_name, timeout=10, visible_only=True)
