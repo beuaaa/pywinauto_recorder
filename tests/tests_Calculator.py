@@ -1,8 +1,9 @@
 import pytest
 import os
 from pywinauto_recorder.player import PlayerSettings, UIPath, load_dictionary, shortcut, \
-	find, move, click, double_click, triple_click
+	find, find_all, move, click, double_click, triple_click
 from pywinauto_recorder.recorder import Recorder
+from pywinauto_recorder.core import get_wrapper_path, get_entry, get_entry_list
 import time
 import win32gui
 
@@ -111,6 +112,7 @@ def test_recorder_click(start_kill_app, wait_recorder_ready):
 def test_recorder_performance(start_kill_app, wait_recorder_ready):
 	""" Tests the performance to find a unique path. """
 	recorder = Recorder()
+	time.sleep(4)
 	str_num = ["Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"]
 	move("Calculator||Window->*->Zero||Button", duration=0)
 	start_time = time.time()
@@ -147,3 +149,19 @@ def test_player_performance(start_kill_app):
 		print(message)
 		assert duration < expected_duration, message + " It must be lower than " + str(expected_duration) + " s."
 	PlayerSettings.mouse_move_duration = old_mouse_move_duration
+
+
+@pytest.mark.parametrize('start_kill_app', ["calc"], indirect=True)
+def test_ocr(start_kill_app):
+	"""
+	Searches the text of some elements of type "Text" and compares it with the text found by the OCR method.
+	"""
+	test_data = ("Calculator||Window->||Custom->Scientific Calculator mode||Text",
+	             "Calculator||Window->||Custom->||Group->*->Trigonometry||Text",
+	             "Calculator||Window->||Custom->||Group->*->Function||Text")
+	
+	with UIPath("Calculator||Window"):
+		for ui_path in test_data:
+			ref_text = find(ui_path).texts()[0]
+			ocr_text = find("*->" + ref_text + "||OCR_Text").result[1]
+			assert ocr_text == ref_text

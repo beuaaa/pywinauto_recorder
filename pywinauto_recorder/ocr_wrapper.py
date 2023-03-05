@@ -98,27 +98,29 @@ class OCRWrapper(object):
 		win32functions.DeleteDC(dc)
 
 
-def find_ocr_str(str_to_find, wrapper, allowlist=None, realiability_min=0.98, time_out=9.0):
-	if OCRWrapper.reader is None:
-		OCRWrapper.reader = easyocr.Reader(['fr'])  # this needs to run only once to load the model into memory
-	
-	mag_ratio = 0
-	reliability = -1
-	t0 = time.time()
-	while reliability <= realiability_min:
-		mag_ratio += 1
-		cropped_img = wrapper.capture_as_image()
-		results = OCRWrapper.reader.readtext(numpy_asarray(cropped_img), allowlist=allowlist, batch_size=2, mag_ratio=mag_ratio)
-		for ir, r in enumerate(results):
-			print(r[1])
-			if str_to_find in r[1]:
-				for i in range(4):
-					r[0][i][0] += wrapper.rectangle().left
-					r[0][i][1] += wrapper.rectangle().top
-				reliability = r[2]
-				if reliability > realiability_min:
-					return r
-		t1 = time.time()
-		if (t1 - t0) > time_out:
-			raise TimeoutError
+def find_all_ocr(img, wrapper, allowlist=None, mag_ratio=2, width_ths=0.5, contrast_ths=0.1, adjust_contrast=0.5, rotation_info=None):
+    """
+    It takes an image, a searching area, and a list of allowed characters, and returns a list of all the text it finds in
+    the image
 
+    :param img: the image to be searched
+    :param searching_area: the area to search for text
+    :param allowlist: a list of characters that you want to search for. If you don't want to search for any specific
+    characters, just leave it as None
+    :param width_ths: the minimum width of a character to be recognized
+    :param contrast_ths: text box with contrast lower than this value will be passed into model 2 times. First is with original image and second with contrast adjusted to 'adjust_contrast' value. The one with more confident level will be returned as a result.
+    :param adjust_contrast: target contrast level for low contrast text box
+    :return: A list of tuples. Each tuple contains the text, the bounding box, and the confidence.
+    """
+    if OCRWrapper.reader is None:
+	    OCRWrapper.reader = easyocr.Reader(['fr'])  # this needs
+
+    cropped_img = wrapper.capture_as_image()
+    results = OCRWrapper.reader.readtext(numpy_asarray(cropped_img), width_ths=width_ths, allowlist=allowlist, batch_size=2,
+                              mag_ratio=mag_ratio, contrast_ths=contrast_ths, adjust_contrast=adjust_contrast, rotation_info=rotation_info)
+    for r in results:
+        for i in range(4):
+            r[0][i][0] += wrapper.rectangle().left
+            r[0][i][1] += wrapper.rectangle().top
+    results.sort(key=lambda r: (r[0][0][1], r[0][1][0]))
+    return results

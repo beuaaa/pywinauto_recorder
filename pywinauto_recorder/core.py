@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 
 import re
-import traceback
 from enum import Enum
 import configparser
 import ast
@@ -9,7 +8,7 @@ from pywinauto import Desktop as PywinautoDesktop
 from pywinauto.controls.uiawrapper import UIAWrapper
 from pywinauto import findwindows
 from cachetools import func
-
+from .ocr_wrapper import find_all_ocr, OCRWrapper
 
 __all__ = ['path_separator', 'type_separator', 'Strategy', 'is_int',
            'get_wrapper_path', 'get_entry_list', 'get_entry', 'match_entry_list', 'get_sorted_region',
@@ -431,11 +430,29 @@ def find_elements(full_element_path=None, visible_only=True, enabled_only=True, 
 			candidates += filter(lambda e: match_entry_list(get_entry_list(get_wrapper_path(e)),
 			                                                entry_list), descendants)
 		else:
+			ocr_text = None
+			if control_type == "OCR_Text":
+				ocr_text = title
+				entry_list = entry_list[:-1]
+				title, control_type, _, _ = get_entry(entry_list[-1])
+				while entry_list[-1] == '*':
+					entry_list = entry_list[:-1]
+					title, control_type, _, _ = get_entry(entry_list[-1])
+				
 			descendants = window.descendants(title=title,
 			                                 control_type=control_type)  # , depth=max(1, len(entry_list)-2)
 			candidates += filter(lambda e: match_entry_list(get_entry_list(get_wrapper_path(e)),
 			                                                entry_list), descendants)
-	
+			if ocr_text is not None:
+				ocr_candidates = []
+				if not candidates:
+					candidates = [window]
+				for wrapper in candidates:
+					results = find_all_ocr(ocr_text, wrapper, allowlist=''.join(set(ocr_text)))
+					for r in results:
+						if ocr_text in r[1] and r[2] > 0.7:
+							ocr_candidates.append(OCRWrapper(r))
+				return ocr_candidates
 	if not candidates:
 		if active_only:
 			return find_elements(full_element_path, visible_only=True, enabled_only=False, active_only=False)
