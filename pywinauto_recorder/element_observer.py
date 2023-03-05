@@ -58,12 +58,13 @@ def _display_info_tiptool(desktop, info_overlay, screen_width):
 			text_width = 0
 			tooltip_height = tooltip_height + 16
 		else:
-			text_width = text_width + 6.8
+			text_width = text_width + 7.8
 		text = text + c
 		if text_width > tooltip_width:
 			text = text + '\n'
 			text_width = 0
 			tooltip_height = tooltip_height + 16
+	text = common_path_info_tip # TEST
 	
 	tooltip2_height = tooltip_height
 	text2 = ''
@@ -79,6 +80,8 @@ def _display_info_tiptool(desktop, info_overlay, screen_width):
 			text2 = text2 + '\n'
 			text_width = 0
 			tooltip2_height = tooltip2_height + 16
+	text2 = end_path # TEST
+
 	if x > screen_width / 2:
 		info_left = 9
 	else:
@@ -94,7 +97,7 @@ def _display_info_tiptool(desktop, info_overlay, screen_width):
 		x=info_left + 5, y=info_top + 1, width=tooltip_width - 7,
 		height=tooltip_height - 5,
 		text=text,
-		text_format="win32con.DT_LEFT|win32con.DT_TOP|win32con.DT_WORDBREAK|win32con.DT_NOCLIP|win32con.DT_VCENTER",
+		text_format="win32con.DT_LEFT|win32con.DT_WORDBREAK|win32con.DT_EXPANDTABS|win32con.DT_EDITCONTROL|win32con.DT_NOCLIP",
 		font_size=16, text_color=(255, 0, 255), brush=oaam.Brush.solid, brush_color=(222, 254, 255),
 		geometry=oaam.Shape.rectangle, thickness=0
 	)
@@ -106,7 +109,7 @@ def _display_info_tiptool(desktop, info_overlay, screen_width):
 		x=info_left + 5, y=info_top + tooltip_height, width=tooltip_width - 7,
 		height=tooltip_height - 5,
 		text=text2,
-		text_format="win32con.DT_LEFT|win32con.DT_TOP|win32con.DT_WORDBREAK|win32con.DT_NOCLIP|win32con.DT_VCENTER",
+		text_format="win32con.DT_LEFT | win32con.DT_WORDBREAK | win32con.DT_EXPANDTABS | win32con.DT_EDITCONTROL|win32con.DT_NOCLIP",
 		font_size=16, text_color=(0, 0, 255), brush=oaam.Brush.solid, brush_color=(180, 254, 255),
 		geometry=oaam.Shape.rectangle, thickness=0
 	)
@@ -164,6 +167,7 @@ def _display_info_tiptool(desktop, info_overlay, screen_width):
 			text3 = text3 + '\n'
 			text_width = 0
 			tooltip3_height = tooltip3_height + 16
+	text3 = text
 	if text3:
 		info_overlay.add(
 			geometry=oaam.Shape.rectangle, x=info_left, y=info_top - 4 + tooltip_height + tooltip2_height,
@@ -173,7 +177,7 @@ def _display_info_tiptool(desktop, info_overlay, screen_width):
 			x=info_left + 5, y=info_top + tooltip_height + tooltip2_height, width=tooltip_width - 7,
 			height=tooltip3_height - 5,
 			text=text3,
-			text_format="win32con.DT_LEFT|win32con.DT_TOP|win32con.DT_WORDBREAK|win32con.DT_NOCLIP|win32con.DT_VCENTER",
+			text_format="win32con.DT_LEFT|win32con.DT_WORDBREAK|win32con.DT_EXPANDTABS|win32con.DT_EDITCONTROL|win32con.DT_NOCLIP",
 			font_size=16, text_color=(0, 0, 0), brush=oaam.Brush.solid, brush_color=(2, 254, 255),
 			geometry=oaam.Shape.rectangle, thickness=0
 		)
@@ -199,7 +203,7 @@ def task(info_mode_event, info_mode_quit_event):
 			common_path_info_tip = ''
 			info_overlay.clear_all()
 			info_overlay.refresh()
-			sleep(0.1)
+			sleep(2.0)
 	info_overlay.clear_all()
 	info_overlay.refresh()
 	info_overlay.quit()
