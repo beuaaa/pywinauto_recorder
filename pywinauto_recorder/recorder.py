@@ -848,14 +848,12 @@ class Recorder(Thread):
 				
 				#if strategy in [Strategy.unique_path, Strategy.unique_path_again]:
 				if strategy is Strategy.unique_path:
-					'''
 					x_new, y_new = win32api.GetCursorPos()
 					if not ((wrapper_rectangle.left < x_new < wrapper_rectangle.right) and (
 							wrapper_rectangle.top < y_new < wrapper_rectangle.bottom)):
 						i_strategy = 0
 						continue
-					'''
-					if elements:
+					if len(elements)==1:
 						unique_wrapper_path = wrapper_path
 						r = wrapper_rectangle
 						self.main_overlay.add(
