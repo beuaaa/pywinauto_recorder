@@ -18,7 +18,7 @@ from .core import type_separator, path_separator, get_entry, get_entry_list, fin
 	get_wrapper_path, is_int
 from functools import partial, update_wrapper, lru_cache
 import math
-
+from .ocr_wrapper import OCRWrapper
 
 UI_Coordinates = NewType('UI_Coordinates', (float, float))
 UI_Path = str
@@ -299,16 +299,15 @@ def _find(
 	t0 = time.time()
 	while (time.time() - t0) < timeout:
 		while not elements:
+			if (time.time() - t0) > timeout:
+				msg = "No element found with the UIPath '" + full_element_path + "' after " + str(timeout) + " s of searching."
+				raise FailedSearch(msg)
 			try:
-				# print("find_element(...): ")
 				elements = find_elements(full_element_path)
 				if not elements:
 					time.sleep(2.0)
 			except Exception:
 				pass
-			if (time.time() - t0) > timeout:
-				msg = "No element found with the UIPath '" + full_element_path + "' after " + str(timeout) + " s of searching."
-				raise FailedSearch(msg)
 
 		if len(elements) == 1:
 				return elements[0]
@@ -334,9 +333,12 @@ def _find(
 		time.sleep(0.1)
 
 	if len(elements) > 1:
-		message = "There are " + str(len(elements)) + "undiscriminated elements that match the path '" + full_element_path + "':"
+		message = "There are " + str(len(elements)) + " undiscriminated elements that match the path '" + full_element_path + "':"
 		for e in elements:
-			message += "\n" + get_wrapper_path(e)
+			if type(e) is OCRWrapper:
+				message += "\n" + str(e.result)
+			else:
+				message += "\n" + get_wrapper_path(e)
 		raise FailedSearch(message)
 	raise FailedSearch("Unique element not found using path '", full_element_path + "'")
 
