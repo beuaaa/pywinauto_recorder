@@ -157,8 +157,8 @@ def test_ocr(start_kill_app):
 	Searches the text of some elements of type "Text" and compares it with the text found by the OCR method.
 	"""
 	test_data = ("Calculator||Window->||Custom->Scientific Calculator mode||Text",
-	             "Calculator||Window->||Custom->||Group->*->Trigonometry||Text",
-	             "Calculator||Window->||Custom->||Group->*->Function||Text")
+	             "Calculator||Window->||Custom->*->Trigonometry||Text",
+	             "Calculator||Window->||Custom->*->Function||Text")
 	
 	with UIPath("Calculator||Window"):
 		for ui_path in test_data:
