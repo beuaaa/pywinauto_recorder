@@ -61,6 +61,10 @@ def test_get_entry_elements():
 
 def test_match_entry_list():
 	"""Tests if the entry_list matches the template_list."""
+	entry = "wName||Window->pName||Pane->||Pane->materialFileLineEdit||Pane"
+	template = "wName||Window->pName||Pane->*->RegEx: .*||Pane"
+	assert match_entry_list(get_entry_list(entry), get_entry_list(template))
+
 	template_list = get_entry_list("wName||Window->*->Tab1||Tab->A||Group->B||Group->*->Login||Button")
 	entry_path_set = [
 		("wName||Window->Tab1||Tab->A||Group->B||Group->Login||Button", True),
