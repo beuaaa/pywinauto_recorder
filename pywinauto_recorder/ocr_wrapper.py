@@ -3,16 +3,20 @@ from pywinauto.win32structures import RECT
 from pywinauto import win32defines, win32structures, win32functions
 import ctypes
 import time
-import easyocr
+import traceback
 from numpy import asarray as numpy_asarray
-
 
 class OCRWrapper(object):
 	reader = None
 	
 	def __init__(self, result):
 		if OCRWrapper.reader is None:
-			OCRWrapper.reader = easyocr.Reader(['fr'])  # this needs to run only once to load the model into memory
+			import easyocr
+			try:
+				OCRWrapper.reader = easyocr.Reader(['fr', 'en'])  # this needs to run only once to load the model into memory
+			except ImportError:
+				print("Easyocr not found ! Install it if you want to use the OCR_Text type.")
+				raise
 		self.result = result
 	
 	def click(self):
@@ -98,29 +102,33 @@ class OCRWrapper(object):
 		win32functions.DeleteDC(dc)
 
 
-def find_all_ocr(img, wrapper, allowlist=None, mag_ratio=2, width_ths=0.5, contrast_ths=0.1, adjust_contrast=0.5, rotation_info=None):
-    """
-    It takes an image, a searching area, and a list of allowed characters, and returns a list of all the text it finds in
-    the image
-
-    :param img: the image to be searched
-    :param searching_area: the area to search for text
-    :param allowlist: a list of characters that you want to search for. If you don't want to search for any specific
-    characters, just leave it as None
-    :param width_ths: the minimum width of a character to be recognized
-    :param contrast_ths: text box with contrast lower than this value will be passed into model 2 times. First is with original image and second with contrast adjusted to 'adjust_contrast' value. The one with more confident level will be returned as a result.
-    :param adjust_contrast: target contrast level for low contrast text box
-    :return: A list of tuples. Each tuple contains the text, the bounding box, and the confidence.
-    """
-    if OCRWrapper.reader is None:
-	    OCRWrapper.reader = easyocr.Reader(['fr'])  # this needs
-
-    cropped_img = wrapper.capture_as_image()
-    results = OCRWrapper.reader.readtext(numpy_asarray(cropped_img), width_ths=width_ths, allowlist=allowlist, batch_size=2,
-                              mag_ratio=mag_ratio, contrast_ths=contrast_ths, adjust_contrast=adjust_contrast, rotation_info=rotation_info)
-    for r in results:
-        for i in range(4):
-            r[0][i][0] += wrapper.rectangle().left
-            r[0][i][1] += wrapper.rectangle().top
-    results.sort(key=lambda r: (r[0][0][1], r[0][1][0]))
-    return results
+def find_all_ocr(wrapper, allowlist=None, mag_ratio=2, width_ths=0.5, contrast_ths=0.1, adjust_contrast=0.5, rotation_info=None):
+	"""
+	It takes an image, a searching area, and a list of allowed characters, and returns a list of all the text it finds in
+	the image
+	
+	:param wrapper: the wrapper and its region to be searched
+	:param searching_area: the area to search for text
+	:param allowlist: a list of characters that you want to search for. If you don't want to search for any specific
+	characters, just leave it as None
+	:param width_ths: the minimum width of a character to be recognized
+	:param contrast_ths: text box with contrast lower than this value will be passed into model 2 times. First is with original image and second with contrast adjusted to 'adjust_contrast' value. The one with more confident level will be returned as a result.
+	:param adjust_contrast: target contrast level for low contrast text box
+	:return: A list of tuples. Each tuple contains the text, the bounding box, and the confidence.
+	"""
+	if OCRWrapper.reader is None:
+		try:
+			import easyocr
+			OCRWrapper.reader = easyocr.Reader(['fr', 'en'])
+		except ImportError as ie:
+			print("EasyOCR not found ! Install it if you want to use the OCR_Text type. See installation instructions at https://github.com/jaidedai/easyocr")
+			raise
+	cropped_img = wrapper.capture_as_image()
+	results = OCRWrapper.reader.readtext(numpy_asarray(cropped_img), width_ths=width_ths, allowlist=allowlist, batch_size=2,
+	                          mag_ratio=mag_ratio, contrast_ths=contrast_ths, adjust_contrast=adjust_contrast, rotation_info=rotation_info)
+	for r in results:
+		for i in range(4):
+			r[0][i][0] += wrapper.rectangle().left
+			r[0][i][1] += wrapper.rectangle().top
+	results.sort(key=lambda r: (r[0][0][1], r[0][1][0]))
+	return results
