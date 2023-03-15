@@ -14,7 +14,8 @@ extensions = ['sphinx.ext.autodoc',
               ]
 
 autodoc_mock_imports = ["pywinauto", "win32api", "win32gui", "win32con", "threading", "overlay_arrows_and_more",
-                        "keyboard", "mouse", "collections", "pyperclip", "codecs", "pytest", "os", "time", "PIL"]
+                        "keyboard", "mouse", "collections", "pyperclip", "codecs", "pytest", "os", "time", "PIL",
+                        "easyocr", "numpy"]
 
 autosummary_generate = True
 # autosummary_imported_members = True
