@@ -54,6 +54,9 @@ def unescape_special_char(string):
 class PlayerSettings:
 	"""The player settings class contains the default settings."""
 	
+	typing_pause = 0.1
+	"""The pause time between characters typed"""
+	
 	mouse_move_duration = 0.5
 	"""Mouse move duration (in seconds)."""
 	
@@ -66,19 +69,25 @@ class PlayerSettings:
 	This is useful if the search is called several times on the same element."""
 	
 	@staticmethod
-	def _apply_settings(mouse_move_duration: Optional[float] = None, timeout: Optional[float] = None) -> dict:
+	def _apply_settings(
+			typing_pause: Optional[float] = None,
+			mouse_move_duration: Optional[float] = None,
+			timeout: Optional[float] = None) -> dict:
 		"""
 		If the duration and timeout arguments are None, set them to the default values.
 		
+		:param typing_duration: The pause time between characters typed
 		:param mouse_move_duration: The duration of the mouse movement
 		:param timeout: The maximum duration to wait for the :func:`find` function to find an element before giving up
 		:return: The duration and timeout are being returned.
 		"""
+		if typing_pause is None:
+			typing_pause = PlayerSettings.typing_pause
 		if mouse_move_duration is None:
 			mouse_move_duration = PlayerSettings.mouse_move_duration
 		if timeout is None:
 			timeout = PlayerSettings.timeout
-		return {"mouse_move_duration": mouse_move_duration, "timeout": timeout}
+		return {"typing_pause": typing_pause, "mouse_move_duration": mouse_move_duration, "timeout": timeout}
 
 
 class MoveMode(Enum):
@@ -777,7 +786,7 @@ def mouse_wheel(steps: int, pause: float = 0.05) -> None:
 
 def send_keys(
 		str_keys: str,
-		pause: float = 0.1,
+		pause: Optional[float] = None,
 		with_spaces: bool = True,
 		with_tabs: bool = True,
 		with_newlines: bool = True,
@@ -796,11 +805,13 @@ def send_keys(
 	:param turn_off_numlock: if True numlock is turned off
 	:param vk_packet: For Windows only, pywinauto defaults to sending a virtual key packet (VK_PACKET) for textual input
 	"""
+	typing_pause = PlayerSettings._apply_settings(typing_pause=pause)["typing_pause"]
+	
 	for r in (('(', '{(}'),  (')', '{)}'), ('+', '{+}')):
 		str_keys = str_keys.replace(*r)
 	pywinauto.keyboard.send_keys(   # lgtm [py/call/wrong-named-argument]
 		str_keys,
-		pause=pause,
+		pause=typing_pause,
 		with_spaces=with_spaces,
 		with_tabs=with_tabs,
 		with_newlines=with_newlines,
