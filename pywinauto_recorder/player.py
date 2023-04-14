@@ -29,12 +29,12 @@ UI_Selector = Union[UI_Path, PYWINAUTO_Wrapper, UI_Coordinates]
 
 class PywinautoRecorderException(Exception):
 	"""Base class for other exceptions."""
-	pass
+	...
 
 
 class FailedSearch(PywinautoRecorderException):
 	"""FailedSearch is a subclass of *PywinautoRecorderException* that is raised when a search for a control fails."""
-	pass
+	...
 
 
 __all__ = ['PlayerSettings', 'MoveMode', 'ButtonLocation', 'load_dictionary', 'shortcut', 'full_definition', 'UIPath',
