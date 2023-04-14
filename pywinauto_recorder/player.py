@@ -5,6 +5,7 @@ from enum import Enum
 from typing import Optional, Union, NewType
 import time
 import re
+import pathlib
 import pywinauto
 from win32api import GetCursorPos as win32api_GetCursorPos
 from win32api import GetSystemMetrics as win32api_GetSystemMetrics
@@ -325,7 +326,7 @@ def _find(
 				return elements[0]
 		
 		if y_x is not None:
-			nb_y, nb_x, candidates = get_sorted_region(elements)
+			nb_y, _, candidates = get_sorted_region(elements)
 			if is_int(y_x[0]):
 				return candidates[int(y_x[0])][int(y_x[1])]
 			else:
@@ -347,7 +348,7 @@ def _find(
 	if len(elements) > 1:
 		message = "There are " + str(len(elements)) + " undiscriminated elements that match the path '" + full_element_path + "':"
 		for e in elements:
-			if type(e) is OCRWrapper:
+			if isinstance(e, OCRWrapper):
 				message += "\n" + str(e.result)
 			else:
 				message += "\n" + get_wrapper_path(e)
@@ -936,8 +937,6 @@ def select_file(
 	as the file to select
 	:raises FailedSearch: if an element is not found
 	"""
-	import pyperclip
-	import pathlib
 	p = pathlib.Path(full_path)
 	folder = p.parent
 	filename = p.name
@@ -984,7 +983,7 @@ def playback(str_code='', filename=''):
 		sys.path.append(script_dir)
 		compiled_code = compile(str_code, filename, 'exec')
 		exec(compiled_code)
-	except Exception as e:
+	except Exception:
 		windll.user32.ShowWindow(windll.kernel32.GetConsoleWindow(), 3)
 		exc_type, exc_value, exc_traceback = sys.exc_info()
 		output = traceback.format_exception(exc_type, exc_value, exc_traceback)
