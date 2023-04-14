@@ -840,10 +840,7 @@ class Recorder(Thread):
 					# strategy_unique_path_again_done = False
 					i_strategy = 0
 					previous_wrapper_path = wrapper_path
-					t0 = time.time()
 					elements = find_elements(wrapper_path)
-					t1 = time.time()
-					# print("duration", t1-t0, " find_elements(" + wrapper_path + ")")
 				#if wrapper_path == previous_wrapper_path and unique_wrapper_path:
 				#	strategy = Strategy.unique_path_again
 				# else:
@@ -939,7 +936,7 @@ class Recorder(Thread):
 					time.sleep(0.01)
 					loop_duration = time.time() - self._loop_t0
 				time.sleep(0.01)  # main_overlay.clear_all() doit attendre la fin de main_overlay.refresh()
-			except Exception as e:
+			except Exception:
 				exc_type, exc_value, exc_traceback = sys.exc_info()
 				print(repr(traceback.format_exception(exc_type, exc_value, exc_traceback)))
 				self.common_path_info_tip = ""
