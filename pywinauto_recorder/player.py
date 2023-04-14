@@ -16,7 +16,8 @@ from win32con import IDC_WAIT, MOUSEEVENTF_MOVE, MOUSEEVENTF_ABSOLUTE, MOUSEEVEN
 	WHEEL_DELTA
 from .core import type_separator, path_separator, get_entry, get_entry_list, find_elements, get_sorted_region, \
 	get_wrapper_path, is_int, is_absolute_path
-from functools import partial, update_wrapper, lru_cache
+from functools import partial, update_wrapper
+from cachetools import func
 import math
 from .ocr_wrapper import OCRWrapper
 
@@ -283,7 +284,7 @@ def find_cache_clear():
 	_cached_find.cache_clear()
 
 
-@lru_cache(maxsize=128)
+@func.ttl_cache(ttl=60)
 def _cached_find(
 		full_element_path: Optional[UI_Selector] = None,
 		timeout: Optional[float] = None) -> PYWINAUTO_Wrapper:
@@ -314,8 +315,10 @@ def _find(
 			try:
 				elements = find_elements(full_element_path)
 				if not elements:
+					#print("🔴", end="")
 					time.sleep(2.0)
 			except Exception:
+				#print("🟢", end="")
 				pass
 
 		if len(elements) == 1:
@@ -524,6 +527,8 @@ def move(
 		try:
 			w_r = unique_element.rectangle()
 		except Exception:
+			#with _cached_find.cache_lock:
+			#	_cached_find.cache.pop(_cached_find.cache_key(element_path, timeout=timeout), None)
 			find_cache_clear()
 			unique_element = find(element_path, timeout=timeout)
 			w_r = unique_element.rectangle()
@@ -620,10 +625,20 @@ def click(
 			wrapper.click_input()
 		return wrapper
 	else:
-		wrapper = move(element_path, duration=duration, mode=mode, timeout=timeout)
-		if wait_ready and wrapper:
+		
+		
+		if wait_ready and \
+			(element_path is None or isinstance(element_path, str) or isinstance(element_path, pywinauto.base_wrapper.BaseWrapper)):
+			use_cache_old = PlayerSettings.use_cache
+			PlayerSettings.use_cache = False
+			if isinstance(element_path, pywinauto.base_wrapper.BaseWrapper):
+				wrapper = element_path
+			else:
+				wrapper = move(element_path, duration=duration, mode=mode, timeout=timeout)
 			wait_is_ready_try1(wrapper, timeout=timeout)
-
+			PlayerSettings.use_cache = use_cache_old
+		else:
+			wrapper = move(element_path, duration=duration, mode=mode, timeout=timeout)
 	_win32api_mouse_click(button, click_count)
 	return wrapper
 
@@ -931,7 +946,14 @@ def select_file(
 		click("*->All locations||SplitButton")
 	if not force_slow_path_typing:
 		with UIPath(window_path):
-			old_folder = find("*->Address||ComboBox->Address||Edit").get_value()
+			try:
+				old_folder = find("*->Address||ComboBox->Address||Edit").get_value()
+			except Exception:
+				find_cache_clear()
+				#with _cached_find.cache_lock:
+				#	_cached_find.cache.pop(_cached_find.cache_key("*->Address||ComboBox->Address||Edit"), None)
+				old_folder = find("*->Address||ComboBox->Address||Edit").get_value()
+			
 	if force_slow_path_typing or old_folder != folder:
 		send_keys(str(folder))
 	send_keys("{ENTER}")

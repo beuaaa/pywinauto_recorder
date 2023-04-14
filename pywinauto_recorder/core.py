@@ -7,7 +7,6 @@ import ast
 from pywinauto import Desktop as PywinautoDesktop
 from pywinauto.controls.uiawrapper import UIAWrapper
 from pywinauto import findwindows
-from cachetools import func
 from thefuzz import fuzz
 from .ocr_wrapper import find_all_ocr, OCRWrapper
 
@@ -366,7 +365,6 @@ def find_ocr_elements(ocr_text, window, entry_list):
 	return ocr_candidates
 
 
-@func.ttl_cache(ttl=10) # TODO: PlayerSettings.use_cache = False doit le désactiver et trouver comment faire PlayerSettings.ttl_cache_time = 3
 def find_elements(full_element_path=None, visible_only=True, enabled_only=True, active_only=True):
 	"""
 	It takes an entry list and returns the elements that matche the entry list
