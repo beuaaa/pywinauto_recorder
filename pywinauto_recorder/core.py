@@ -12,7 +12,7 @@ from thefuzz import fuzz
 from .ocr_wrapper import find_all_ocr, OCRWrapper
 
 
-__all__ = ['path_separator', 'type_separator', 'Strategy', 'is_int',
+__all__ = ['path_separator', 'type_separator', 'Strategy', 'is_int', 'is_absolute_path',
            'get_wrapper_path', 'get_entry_list', 'get_entry', 'match_entry_list', 'get_sorted_region',
            'find_elements', 'read_config_file']
 
@@ -93,6 +93,8 @@ def is_int(s):
 	except ValueError:
 		return False
 
+def is_absolute_path(entry):
+	return entry[-16:] == '~Absolute_UIPath'
 
 def get_entry(entry):
 	"""
@@ -101,6 +103,8 @@ def get_entry(entry):
 	:param entry: the string that is the entry in the listbox
 	:return: The name of the entry, the type of the entry, the size of the entry, and the dx and dy of the entry.
 	"""
+	if is_absolute_path(entry):
+		entry = entry[:-16]
 	if entry[0:7] == "RegEx: ":
 		entry = entry[7:]
 	i = entry.find(type_separator)
@@ -362,7 +366,7 @@ def find_ocr_elements(ocr_text, window, entry_list):
 	return ocr_candidates
 
 
-@func.ttl_cache(ttl=10)
+@func.ttl_cache(ttl=10) # TODO: PlayerSettings.use_cache = False doit le désactiver et trouver comment faire PlayerSettings.ttl_cache_time = 3
 def find_elements(full_element_path=None, visible_only=True, enabled_only=True, active_only=True):
 	"""
 	It takes an entry list and returns the elements that matche the entry list

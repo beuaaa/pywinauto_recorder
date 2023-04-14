@@ -15,7 +15,7 @@ from win32con import IDC_WAIT, MOUSEEVENTF_MOVE, MOUSEEVENTF_ABSOLUTE, MOUSEEVEN
 	MOUSEEVENTF_MIDDLEDOWN, MOUSEEVENTF_MIDDLEUP, MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP, MOUSEEVENTF_WHEEL, \
 	WHEEL_DELTA
 from .core import type_separator, path_separator, get_entry, get_entry_list, find_elements, get_sorted_region, \
-	get_wrapper_path, is_int
+	get_wrapper_path, is_int, is_absolute_path
 from functools import partial, update_wrapper, lru_cache
 import math
 from .ocr_wrapper import OCRWrapper
@@ -251,7 +251,7 @@ class UIPath(object):
 		"""
 		if element_path is None or element_path == "":
 			return path_separator.join(UIPath._path_list)
-		elif UIPath._path_list:
+		elif UIPath._path_list and not is_absolute_path(element_path):
 			return path_separator.join(UIPath._path_list) + path_separator + element_path
 		else:
 			return element_path
@@ -521,7 +521,12 @@ def move(
 	
 	if element_path is None or isinstance(element_path, str):
 		unique_element = find(element_path, timeout=timeout)
-		w_r = unique_element.rectangle()
+		try:
+			w_r = unique_element.rectangle()
+		except Exception:
+			find_cache_clear()
+			unique_element = find(element_path, timeout=timeout)
+			w_r = unique_element.rectangle()
 		xd, yd = w_r.mid_point()
 		if element_path:
 			_, _, _, dx_dy = get_entry(get_entry_list(element_path)[-1])
@@ -687,7 +692,8 @@ right_drag_and_drop = wrapped_partial(drag_and_drop, button=ButtonLocation.right
 def menu_click(
 		menu_path: str,
 		duration: Optional[float] = None,
-		timeout: Optional[float] = None) -> PYWINAUTO_Wrapper:
+		timeout: Optional[float] = None,
+		absolute_path = False) -> PYWINAUTO_Wrapper:
 	"""
 	Clicks on the menu items.
 	
@@ -747,12 +753,13 @@ def menu_click(
 		duration = float(duration)/2
 		
 	menu_entry_list = menu_path.split(path_separator)
+	str_menu_item = 'MenuItem~Absolute_UIPath' if absolute_path else 'MenuItem'
 	for i, menu_entry in enumerate(menu_entry_list):
 		if i > 0:
 			SAV_UIPath_path_list, SAV_UIPath_regex_list = UIPath._path_list, UIPath._regex_list
 			UIPath._path_list = UIPath._regex_list = []
 		mouse_cursor_pos = win32api_GetCursorPos()
-		ws = find_all('*' + path_separator + menu_entry + type_separator + 'MenuItem', timeout=timeout)
+		ws = find_all('*' + path_separator + menu_entry + type_separator + str_menu_item, timeout=timeout)
 		ws.sort(key=lambda w: distance(w.rectangle().mid_point(), mouse_cursor_pos))
 		w = ws[0]
 		item_pos = w.rectangle().mid_point()
@@ -850,7 +857,7 @@ def set_text(
 		duration: Optional[float] = None,
 		mode: Enum = MoveMode.linear,
 		timeout: Optional[float] = None,
-		pause: float = 0.1) -> None:
+		pause: float = None) -> None:
 	"""
 	Sets the value of a text field.
 	
@@ -864,10 +871,11 @@ def set_text(
 	:param pause: pause in seconds between each typed key
 	:raises FailedSearch: if the element is not found
 	"""
+	typing_pause = PlayerSettings._apply_settings(typing_pause=pause)["typing_pause"]
 	double_left_click(element_path, duration=duration, mode=mode, timeout=timeout)
 	send_keys("{VK_CONTROL down}a{VK_CONTROL up}", pause=0)
 	time.sleep(0.1)
-	send_keys(value + "{ENTER}", pause=pause)
+	send_keys(value + "{ENTER}", pause=typing_pause)
 
 
 def exists(
@@ -922,8 +930,9 @@ def select_file(
 		find().set_focus()
 		click("*->All locations||SplitButton")
 	if not force_slow_path_typing:
-		send_keys("{VK_CONTROL down}c{VK_CONTROL up}")
-	if force_slow_path_typing or pathlib.Path(pyperclip.paste()) != folder:
+		with UIPath(window_path):
+			old_folder = find("*->Address||ComboBox->Address||Edit").get_value()
+	if force_slow_path_typing or old_folder != folder:
 		send_keys(str(folder))
 	send_keys("{ENTER}")
 	with UIPath(window_path):
