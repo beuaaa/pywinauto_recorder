@@ -97,7 +97,7 @@ def is_absolute_path(entry):
 
 def get_entry(entry):
 	"""
-	It takes a string of the form `"name"#["y",x]%(dx,dy)` and returns a tuple of the form `(name, type, [y,x], (dx,dy))`
+	It takes a string of the form "name"#["y",x]%(dx,dy)~Absolute_UIPath and returns a tuple of the form (name, type, [y,x], (dx,dy))
 	
 	:param entry: the string that is the entry in the listbox
 	:return: The name of the entry, the type of the entry, the size of the entry, and the dx and dy of the entry.
