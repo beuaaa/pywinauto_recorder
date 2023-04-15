@@ -51,7 +51,7 @@ def get_wrapper_path(wrapper):
 			path = path_separator + wrapper.element_info.name + type_separator + wrapper.element_info.control_type + path
 			wrapper = wrapper.parent()
 		return wrapper.element_info.name + type_separator + wrapper.element_info.control_type + path
-	except Exception as e:
+	except Exception:
 		return ''
 
 
@@ -92,8 +92,10 @@ def is_int(s):
 	except ValueError:
 		return False
 
+
 def is_absolute_path(entry):
 	return entry[-16:] == '~Absolute_UIPath'
+
 
 def get_entry(entry):
 	"""
@@ -375,7 +377,6 @@ def find_elements(full_element_path=None, visible_only=True, enabled_only=True, 
 	:param active_only: If True, only active windows are considered, defaults to True (optional)
 	:return: The elements found
 	"""
-	# t0 = time.time()
 	entry_list = get_entry_list(full_element_path)
 	window_candidates = find_window_candidates(entry_list[0], visible_only=visible_only, enabled_only=enabled_only,
 	                                           active_only=active_only)
