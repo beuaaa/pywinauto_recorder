@@ -472,7 +472,7 @@ def find_all(
 
 def _move(x, y, xd, yd, duration=1, refresh_rate=25):
 	"""
-	It moves the mouse from (x, y) to (xd, yd) in a straight line, with a duration of `duration` seconds.
+	It moves the mouse from (x, y) to (xd, yd) in a straight line, with a duration of duration seconds.
 	
 	:param x: The x-coordinate of the mouse cursor before the move
 	:param y: The y-coordinate of the mouse cursor before the move
@@ -734,9 +734,7 @@ def menu_click(
 			click("*->File tab||Button")
 			menu_click("New")
 			
-	In the above code, the 'File tab' element that opens the menu is not of type 'MenuItem',
-	so it is not possible to call 'menu_click("File tab->New")'.
-	In this case the menu must be opened with 'click("*->File tab||Button")' before calling :func:`menu_click`.
+	In the above code, the 'File tab' element that opens the menu is not of type 'MenuItem', so it is not possible to call 'menu_click("File tab->New")'. In this case the menu must be opened with 'click("*->File tab||Button")' before calling :func:`menu_click`.
 	
 	:param menu_path: menu item path
 	:param duration: duration in seconds of the mouse move (it doesn't take into account the time it takes to find)
@@ -933,8 +931,7 @@ def select_file(
 
 	:param window_path: window path of the file dialog (e.g. "Untitled - Paint||Window->Save As||Window"
 	:param full_path: the full path of the file to select
-	:param force_slow_path_typing: if True it will type the path even if the current path of the dialog box is the same
-	as the file to select
+	:param force_slow_path_typing: if True it will type the path even if the current path of the dialog box is the same as the file to select
 	:raises FailedSearch: if an element is not found
 	"""
 	p = pathlib.Path(full_path)
