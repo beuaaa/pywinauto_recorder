@@ -109,8 +109,7 @@ def find_all_ocr(wrapper, allowlist=None, mag_ratio=2, width_ths=0.5, contrast_t
 	
 	:param wrapper: the wrapper and its region to be searched
 	:param searching_area: the area to search for text
-	:param allowlist: a list of characters that you want to search for. If you don't want to search for any specific
-	characters, just leave it as None
+	:param allowlist: a list of characters that you want to search for. If you don't want to search for any specific characters, just leave it as None
 	:param width_ths: the minimum width of a character to be recognized
 	:param contrast_ths: text box with contrast lower than this value will be passed into model 2 times. First is with original image and second with contrast adjusted to 'adjust_contrast' value. The one with more confident level will be returned as a result.
 	:param adjust_contrast: target contrast level for low contrast text box
