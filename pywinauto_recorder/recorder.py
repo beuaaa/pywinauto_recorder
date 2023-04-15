@@ -21,7 +21,7 @@ from .core import path_separator, type_separator, Strategy, is_int, \
                     read_config_file
 from .core import find_elements as not_ttl_cached_find_elements
 from .player import playback
-from cachetools import func
+# from cachetools import func
 
 
 # @func.ttl_cache(ttl=10)

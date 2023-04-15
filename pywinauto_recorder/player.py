@@ -18,7 +18,7 @@ from win32con import IDC_WAIT, MOUSEEVENTF_MOVE, MOUSEEVENTF_ABSOLUTE, MOUSEEVEN
 from .core import type_separator, path_separator, get_entry, get_entry_list, find_elements, get_sorted_region, \
 	get_wrapper_path, is_int, is_absolute_path
 from functools import partial, update_wrapper
-from cachetools import func
+# from cachetools import func
 import math
 from .ocr_wrapper import OCRWrapper
 
