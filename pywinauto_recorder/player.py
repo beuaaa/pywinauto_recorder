@@ -285,7 +285,7 @@ def find_cache_clear():
 	_cached_find.cache_clear()
 
 
-@func.ttl_cache(ttl=60)
+# @func.ttl_cache(ttl=60)
 def _cached_find(
 		full_element_path: Optional[UI_Selector] = None,
 		timeout: Optional[float] = None) -> PYWINAUTO_Wrapper:
