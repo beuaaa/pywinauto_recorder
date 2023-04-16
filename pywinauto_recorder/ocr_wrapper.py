@@ -1,3 +1,12 @@
+class OCRWrapper:
+	...
+
+
+def find_all_ocr(wrapper, allowlist=None, mag_ratio=2, width_ths=0.5, contrast_ths=0.1, adjust_contrast=0.5,
+                 rotation_info=None):
+	return []
+
+r'''
 from pywinauto import mouse
 from pywinauto.win32structures import RECT
 from pywinauto import win32defines, win32structures, win32functions
@@ -5,6 +14,7 @@ import ctypes
 import time
 import traceback
 from numpy import asarray as numpy_asarray
+
 
 class OCRWrapper(object):
 	reader = None
@@ -48,7 +58,6 @@ class OCRWrapper(object):
 	                 rect=None):
 		"""
 		Draw an outline around the window.
-
 		* **colour** can be either an integer or one of 'red', 'green', 'blue'
 		  (default 'green')
 		* **thickness** thickness of rectangle (default 2)
@@ -102,11 +111,12 @@ class OCRWrapper(object):
 		win32functions.DeleteDC(dc)
 
 
-def find_all_ocr(wrapper, allowlist=None, mag_ratio=2, width_ths=0.5, contrast_ths=0.1, adjust_contrast=0.5, rotation_info=None):
+def find_all_ocr(wrapper, allowlist=None, mag_ratio=2, width_ths=0.5, contrast_ths=0.1, adjust_contrast=0.5,
+                 rotation_info=None):
 	"""
 	It takes an image, a searching area, and a list of allowed characters, and returns a list of all the text it finds in
 	the image
-	
+
 	:param wrapper: the wrapper and its region to be searched
 	:param searching_area: the area to search for text
 	:param allowlist: a list of characters that you want to search for. If you don't want to search for any specific characters, just leave it as None
@@ -120,14 +130,18 @@ def find_all_ocr(wrapper, allowlist=None, mag_ratio=2, width_ths=0.5, contrast_t
 			import easyocr
 			OCRWrapper.reader = easyocr.Reader(['fr', 'en'])
 		except ImportError as ie:
-			print("EasyOCR not found ! Install it if you want to use the OCR_Text type. See installation instructions at https://github.com/jaidedai/easyocr")
+			print(
+				"EasyOCR not found ! Install it if you want to use the OCR_Text type. See installation instructions at https://github.com/jaidedai/easyocr")
 			raise
 	cropped_img = wrapper.capture_as_image()
-	results = OCRWrapper.reader.readtext(numpy_asarray(cropped_img), width_ths=width_ths, allowlist=allowlist, batch_size=2,
-	                          mag_ratio=mag_ratio, contrast_ths=contrast_ths, adjust_contrast=adjust_contrast, rotation_info=rotation_info)
+	results = OCRWrapper.reader.readtext(numpy_asarray(cropped_img), width_ths=width_ths, allowlist=allowlist,
+	                                     batch_size=2,
+	                                     mag_ratio=mag_ratio, contrast_ths=contrast_ths, adjust_contrast=adjust_contrast,
+	                                     rotation_info=rotation_info)
 	for r in results:
 		for i in range(4):
 			r[0][i][0] += wrapper.rectangle().left
 			r[0][i][1] += wrapper.rectangle().top
 	results.sort(key=lambda r: (r[0][0][1], r[0][1][0]))
 	return results
+'''

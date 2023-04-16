@@ -8,7 +8,7 @@ from pywinauto import Desktop as PywinautoDesktop
 from pywinauto.controls.uiawrapper import UIAWrapper
 from pywinauto import findwindows
 from thefuzz import fuzz
-# from .ocr_wrapper import find_all_ocr, OCRWrapper
+from .ocr_wrapper import find_all_ocr, OCRWrapper
 
 
 __all__ = ['path_separator', 'type_separator', 'Strategy', 'is_int', 'is_absolute_path',

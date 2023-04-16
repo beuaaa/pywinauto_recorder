@@ -20,11 +20,8 @@ from .core import type_separator, path_separator, get_entry, get_entry_list, fin
 from functools import partial, update_wrapper
 from cachetools import func
 import math
-# from .ocr_wrapper import OCRWrapper
+from .ocr_wrapper import OCRWrapper
 
-
-class OCRWrapper:
-	...
 
 UI_Coordinates = NewType('UI_Coordinates', (float, float))
 UI_Path = str
