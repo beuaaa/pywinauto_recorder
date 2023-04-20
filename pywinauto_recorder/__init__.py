@@ -12,7 +12,7 @@
 
 __version__ = "0.6.6"
 
-#from .player import *
+from .player import *
 from .recorder import Recorder
 
 
