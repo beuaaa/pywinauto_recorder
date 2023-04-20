@@ -21,10 +21,10 @@ from .core import path_separator, type_separator, Strategy, is_int, \
                     read_config_file
 from .core import find_elements as not_ttl_cached_find_elements
 from .player import playback
-from cachetools import func
+#from cachetools import func
 
 
-@func.ttl_cache(ttl=10)
+#@func.ttl_cache(ttl=10)
 def find_elements(full_element_path=None, visible_only=True, enabled_only=True, active_only=True):
 	return not_ttl_cached_find_elements(full_element_path=full_element_path, visible_only=visible_only, enabled_only=enabled_only, active_only=active_only)
 
