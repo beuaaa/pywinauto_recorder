@@ -26,5 +26,5 @@ The following table lists the useful methods and classes for the 'Player' and 'R
     :toctree: autosummary
     :recursive:
 
-    pywinauto_recorder.player
-    pywinauto_recorder.recorder
+..    pywinauto_recorder.player
+..    pywinauto_recorder.recorder

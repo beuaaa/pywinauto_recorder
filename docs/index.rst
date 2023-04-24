@@ -17,5 +17,6 @@
    description
    pywinauto_recorder_exe
    tests
+   api
    contribute
    code-of-conduct
