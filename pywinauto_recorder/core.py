@@ -7,7 +7,7 @@ import ast
 from pywinauto import Desktop as PywinautoDesktop
 from pywinauto.controls.uiawrapper import UIAWrapper
 from pywinauto import findwindows
-from thefuzz import fuzz
+# from thefuzz import fuzz
 from .ocr_wrapper import find_all_ocr, OCRWrapper
 
 
@@ -346,6 +346,8 @@ def filter_window_candidates(window_candidates):
 
 
 def find_ocr_elements(ocr_text, window, entry_list):
+	return []
+	'''
 	entry_list = entry_list[:-1]
 	title, control_type, _, _ = get_entry(entry_list[-1])
 	while entry_list[-1] == '*':
@@ -365,7 +367,7 @@ def find_ocr_elements(ocr_text, window, entry_list):
 	if len(perfect_candidate) == 1:
 		return perfect_candidate
 	return ocr_candidates
-
+	'''
 
 def find_elements(full_element_path=None, visible_only=True, enabled_only=True, active_only=True):
 	"""
