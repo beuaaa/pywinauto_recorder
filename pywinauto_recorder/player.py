@@ -12,6 +12,8 @@ from win32api import GetSystemMetrics as win32api_GetSystemMetrics
 from win32api import mouse_event as win32api_mouse_event
 from win32gui import LoadCursor as win32gui_LoadCursor
 from win32gui import GetCursorInfo as win32gui_GetCursorInfo
+from win32gui import FindWindow as win32gui_FindWindow
+from win32gui import MoveWindow as win32gui_MoveWindow
 from win32con import IDC_WAIT, MOUSEEVENTF_MOVE, MOUSEEVENTF_ABSOLUTE, MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP, \
 	MOUSEEVENTF_MIDDLEDOWN, MOUSEEVENTF_MIDDLEUP, MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP, MOUSEEVENTF_WHEEL, \
 	WHEEL_DELTA
@@ -40,7 +42,7 @@ class FailedSearch(PywinautoRecorderException):
 
 
 __all__ = ['PlayerSettings', 'MoveMode', 'ButtonLocation', 'load_dictionary', 'shortcut', 'full_definition', 'UIPath',
-           'Window', 'Region', 'find', 'find_all', 'move', 'click', 'left_click', 'right_click',
+           'Window', 'Region', 'find', 'find_all', 'move_window', 'move', 'click', 'left_click', 'right_click',
            'double_left_click', 'triple_left_click', 'double_click', 'triple_click',
            'drag_and_drop', 'middle_drag_and_drop', 'right_drag_and_drop', 'menu_click',
            'mouse_wheel', 'send_keys', 'set_combobox', 'set_text', 'exists', 'select_file', 'playback',
@@ -469,6 +471,28 @@ def find_all(
 		time.sleep(0.1)
 	msg = "No element found with the UIPath '" + full_element_path + "' after " + str(timeout) + " s of searching."
 	raise FailedSearch(msg)
+
+
+def move_window(element_path: Optional[UI_Selector] = None,
+                x: Optional[int] = 0,
+                y: Optional[int] = 0,
+                width: Optional[int] = 800,
+                height: Optional[int] = 800):
+	"""
+	Moves and resizes a window
+
+	:param element_path: element path
+	:param x: new x coordinate of the upper left corner of the window
+	:param y: new y coordinate of the upper left corner of the window
+	:param width: new width of the window
+	:param height: new height of the window
+	:return: Pywinauto wrapper of found window
+	:raises FailedSearch: if no element found
+	"""
+	window = find(element_path)
+	hwnd = win32gui_FindWindow(None, window.window_text())
+	win32gui_MoveWindow(hwnd, x, y, width, height, True)
+	return window
 
 
 def _move(x, y, xd, yd, duration=1, refresh_rate=25):
