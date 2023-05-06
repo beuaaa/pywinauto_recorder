@@ -27,6 +27,7 @@ share/python-wheels/
 *.egg
 *.build
 *.dist
+*.exe
 MANIFEST
 upload_pypi.bat
 
