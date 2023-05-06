@@ -613,7 +613,23 @@ class Recorder(Thread):
 		self.started_recording_with_keyboard = False
 		self.element_info_tooltip = ElementInfoTooltip()
 		self.start()
-
+	
+	def __overlay_add_bold_rectangle(self, wrapper_rectangle, color=(0, 255, 0)):
+		thickness = 5
+		r = wrapper_rectangle
+		self.main_overlay.add(
+			geometry=oaam.Shape.rectangle, x=r.left, y=r.top, width=r.width(), height=thickness,
+			thickness=0, color=(0, 128, 0), brush=oaam.Brush.solid, brush_color=color)
+		self.main_overlay.add(
+			geometry=oaam.Shape.rectangle, x=r.left, y=r.bottom - thickness, width=r.width(), height=thickness,
+			thickness=0, color=(0, 128, 0), brush=oaam.Brush.solid, brush_color=color)
+		self.main_overlay.add(
+			geometry=oaam.Shape.rectangle, x=r.left, y=r.top, width=thickness, height=r.height(),
+			thickness=0, color=(0, 128, 0), brush=oaam.Brush.solid, brush_color=color)
+		self.main_overlay.add(
+			geometry=oaam.Shape.rectangle, x=r.right - thickness, y=r.top, width=thickness, height=r.height(),
+			thickness=0, color=(0, 128, 0), brush=oaam.Brush.solid, brush_color=color)
+		
 	def __find_unique_element_array_1d(self, wrapper_rectangle, elements):
 		nb_y, nb_x, candidates = get_sorted_region(elements)
 		window_title = get_entry_list((get_wrapper_path(elements[0])))[0]
@@ -644,18 +660,8 @@ class Recorder(Thread):
 						previous_wrapper_path2 = wrapper_path2
 						
 						if find_elements(get_wrapper_path(wrapper2)):
-							r = wrapper2_rectangle
-							self.main_overlay.add(
-								geometry=oaam.Shape.rectangle, x=r.left, y=r.top,
-								width=r.width(), height=r.height(),
-								thickness=1, color=(0, 0, 255), brush=oaam.Brush.solid,
-								brush_color=(0, 0, 255))
-							r = wrapper_rectangle
-							self.main_overlay.add(
-								geometry=oaam.Shape.rectangle, x=r.left, y=r.top,
-								width=r.width(), height=r.height(),
-								thickness=1, color=(255, 0, 0), brush=oaam.Brush.solid,
-								brush_color=(255, 200, 0))
+							self.__overlay_add_bold_rectangle(wrapper2_rectangle, color=(0, 0, 255))
+							self.__overlay_add_bold_rectangle(wrapper_rectangle, color=(255, 200, 0))
 							return '#[' + wrapper_path2 + ',' + str(r_x) + ']'
 					return None
 		return None
@@ -670,14 +676,10 @@ class Recorder(Thread):
 				except IndexError:
 					continue
 				if r == wrapper_rectangle:
-					color = (255, 200, 0)
+					self.__overlay_add_bold_rectangle(r, color=(255, 200, 0))
 					unique_array_2d = '#[' + str(r_y) + ',' + str(r_x) + ']'
 				else:
-					color = (255, 0, 0)
-				self.main_overlay.add(
-					geometry=oaam.Shape.rectangle, x=r.left, y=r.top, width=r.width(),
-					height=r.height(),
-					thickness=1, color=(255, 0, 0), brush=oaam.Brush.solid, brush_color=color)
+					self.__overlay_add_bold_rectangle(r, color=(255, 0, 0))
 		return unique_array_2d
 
 	def __mouse_on(self, mouse_event):
@@ -860,17 +862,10 @@ class Recorder(Thread):
 						continue
 					if len(elements)==1:
 						unique_wrapper_path = wrapper_path
-						r = wrapper_rectangle
-						self.main_overlay.add(
-							geometry=oaam.Shape.rectangle, x=r.left, y=r.top, width=r.width(), height=r.height(),
-							thickness=1, color=(0, 128, 0), brush=oaam.Brush.solid, brush_color=(0, 255, 0))
+						self.__overlay_add_bold_rectangle(wrapper_rectangle, color=(0, 255, 0))
 					else:
 						for e in elements:
-							r = e.rectangle()
-							self.main_overlay.add(
-								geometry=oaam.Shape.rectangle, x=r.left, y=r.top, width=r.width(),
-								height=r.height(),
-								thickness=1, color=(0, 128, 0), brush=oaam.Brush.solid, brush_color=(255, 0, 0))
+							self.__overlay_add_bold_rectangle(e.rectangle(), color=(255, 0, 0))
 
 				if strategy == Strategy.array_1D and elements:
 					x_new, y_new = win32api.GetCursorPos()
