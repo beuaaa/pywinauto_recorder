@@ -766,7 +766,7 @@ def menu_click(
 		(if duration is -1 the mouse cursor doesn't move, it just sends WM_CLICK window message,
 		useful for minimized or non-active window).
 	:param timeout: period of time in seconds that will be allowed to find the element
-	:return: Pywinauto wrapper of the clicked item
+	:return: Pywinauto wrapper of the first clicked item
 	:raises FailedSearch: if an element is not found
 	"""
 	
@@ -801,6 +801,8 @@ def menu_click(
 		ws = find_all('*' + path_separator + menu_entry + type_separator + str_menu_item, timeout=timeout)
 		ws.sort(key=lambda w: distance(w.rectangle().mid_point(), mouse_cursor_pos))
 		w = ws[0]
+		if i == 0:
+			w_to_return= w
 		item_pos = w.rectangle().mid_point()
 		r = w.parent().rectangle()
 		nearest_p_point = nearest_perimeter_point(r, mouse_cursor_pos)
@@ -809,7 +811,7 @@ def menu_click(
 		time.sleep(0.1)  # wait for the menu to open (it is not always instantaneous depending on the animation settings)
 		if i>0:
 			UIPath._path_list, UIPath._regex_list = SAV_UIPath_path_list, SAV_UIPath_regex_list
-	return w
+	return w_to_return
 
 
 def mouse_wheel(steps: int, pause: float = 0.05) -> None:
@@ -896,7 +898,8 @@ def set_text(
 		duration: Optional[float] = None,
 		mode: Enum = MoveMode.linear,
 		timeout: Optional[float] = None,
-		pause: float = None) -> None:
+		pause: float = None,
+		end_with_enter: bool = True) -> None:
 	"""
 	Sets the value of a text field.
 	
@@ -904,17 +907,20 @@ def set_text(
 	:param value: value of the combobox
 	:param duration: duration in seconds of the mouse move (it doesn't take into account the time it takes to find)
 		(if duration is -1 the mouse cursor doesn't move, it just sends WM_CLICK window message,
-		useful for minimized or non-active window).
+		useful for minimized or non-active window)
 	:param mode: move mouse mode: MoveMode.linear, MoveMode.x_first, MoveMode.y_first
 	:param timeout: period of time in seconds that will be allowed to find the element
 	:param pause: pause in seconds between each typed key
+	:param end_with_enter: if True then Enter is sent after the value is entered
 	:raises FailedSearch: if the element is not found
 	"""
 	typing_pause = PlayerSettings._apply_settings(typing_pause=pause)["typing_pause"]
 	double_left_click(element_path, duration=duration, mode=mode, timeout=timeout)
 	send_keys("{VK_CONTROL down}a{VK_CONTROL up}", pause=0)
 	time.sleep(0.1)
-	send_keys(value + "{ENTER}", pause=typing_pause)
+	send_keys(value, pause=typing_pause)
+	if end_with_enter:
+		send_keys("{ENTER}", pause=typing_pause)
 
 
 def exists(
@@ -930,8 +936,15 @@ def exists(
 	"""
 	if timeout is None:
 		timeout = PlayerSettings.timeout
+		
+	if element_path is None or isinstance(element_path, str):
+		if element_path is not None:
+			element_path = re.sub(r"%\([+-]?\d*.?\d*,\s?[+-]?\d*.?\d*\)$", "", element_path)  # remove "%(?, ?)"
+		full_element_path = UIPath.get_full_path(element_path)
+	else:
+		full_element_path = get_wrapper_path(element_path)
 	try:
-		wrapper = find(element_path, timeout=timeout)
+		wrapper = _find(full_element_path, timeout=timeout)
 		return wrapper
 	except FailedSearch:
 		return None

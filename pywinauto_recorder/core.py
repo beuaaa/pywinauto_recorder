@@ -7,7 +7,7 @@ import ast
 from pywinauto import Desktop as PywinautoDesktop
 from pywinauto.controls.uiawrapper import UIAWrapper
 from pywinauto import findwindows
-from thefuzz import fuzz
+# from thefuzz import fuzz
 from .ocr_wrapper import find_all_ocr, OCRWrapper
 
 
