@@ -390,7 +390,6 @@ def filter_with_match_entry_list(window, descendants, entry_list):
 		if wp not in ds:
 			ds[wp] = []
 		ds[wp].append(d)
-	print("OK")
 	for k in ds.keys():
 		if match_entry_list(get_entry_list(k), entry_list):
 			result += ds[k]
