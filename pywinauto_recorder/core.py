@@ -36,6 +36,8 @@ class Strategy(Enum):
 	array_2D = 3
 
 
+last_parent_wrapper, last_parent_wrapper_path = None, None
+
 def get_wrapper_path(wrapper, wrapper_top_level_parent=None):
 	"""
 	It takes a UI Automation wrapper object and returns a string that represents the path to the element from the root of
@@ -44,6 +46,8 @@ def get_wrapper_path(wrapper, wrapper_top_level_parent=None):
 	:param wrapper: The UIAutomation wrapper object
 	:return: The path of the wrapper from the top level parent to the wrapper.
 	"""
+	global last_parent_wrapper, last_parent_wrapper_path
+	first_parent = True
 	try:
 		path = ''
 		if wrapper_top_level_parent is None:
@@ -51,6 +55,13 @@ def get_wrapper_path(wrapper, wrapper_top_level_parent=None):
 		while wrapper != wrapper_top_level_parent:
 			path = path_separator + wrapper.element_info.name + type_separator + wrapper.element_info.control_type + path
 			wrapper = wrapper.parent()
+			if first_parent:
+				if wrapper == last_parent_wrapper:
+					return last_parent_wrapper_path +  path
+				last_parent_wrapper = wrapper
+				first_parent = False
+		last_parent_wrapper_path = wrapper.element_info.name + type_separator + wrapper.element_info.control_type + path
+		last_parent_wrapper_path = last_parent_wrapper_path[:last_parent_wrapper_path.rfind(path_separator)]
 		return wrapper.element_info.name + type_separator + wrapper.element_info.control_type + path
 	except Exception:
 		return ''
@@ -355,7 +366,7 @@ def find_ocr_elements(ocr_text, window, entry_list):
 		entry_list = entry_list[:-1]
 		title, control_type, _, _ = get_entry(entry_list[-1])
 	descendants = window.descendants(title=title, control_type=control_type)
-	candidates = list(filter(lambda e: match_entry_list(get_entry_list(get_wrapper_path(e)), entry_list), descendants))
+	candidates = list(filter(lambda e: match_entry_list(get_entry_list(get_wrapper_path(e, window)), entry_list), descendants))
 	ocr_candidates = []
 	if not candidates:
 		candidates = [window]
@@ -369,6 +380,22 @@ def find_ocr_elements(ocr_text, window, entry_list):
 		return perfect_candidate
 	return ocr_candidates
 	'''
+
+
+def filter_with_match_entry_list(window, descendants, entry_list):
+	result = []
+	ds = {}
+	for d in descendants:
+		wp = get_wrapper_path(d, window)
+		if wp not in ds:
+			ds[wp] = []
+		ds[wp].append(d)
+	print("OK")
+	for k in ds.keys():
+		if match_entry_list(get_entry_list(k), entry_list):
+			result += ds[k]
+	return result
+
 
 def find_elements(full_element_path=None, visible_only=True, enabled_only=True, active_only=True):
 	"""
@@ -395,23 +422,17 @@ def find_elements(full_element_path=None, visible_only=True, enabled_only=True, 
 		if is_regex_entry(entry_list[-1]):
 			eis = findwindows.find_elements(title_re=title, control_type=control_type, backend="uia", parent=window, top_level_only=False)
 			descendants = [UIAWrapper(ei) for ei in eis]
-			candidates += filter(lambda e: match_entry_list(get_entry_list(get_wrapper_path(e)), entry_list), descendants)
+			#candidates += filter(lambda e: match_entry_list(get_entry_list(get_wrapper_path(e, window)), entry_list), descendants)
+			candidates += filter_with_match_entry_list(window, descendants, entry_list)
 		else:
 			if control_type == "OCR_Text":
 				candidates += find_ocr_elements(title, window, entry_list)
 			else:
-				descendants = window.descendants(title=title, control_type=control_type)  # , depth=max(1, len(entry_list)-2)
+				#descendants = window.descendants(title=title, control_type=control_type, visible_only=True)  # , depth=max(1, len(entry_list)-2)
+				eis = findwindows.find_elements(title=title, control_type=control_type, backend="uia", parent=window, top_level_only=False)
+				descendants = [UIAWrapper(ei) for ei in eis]
 				#candidates += filter(lambda e: match_entry_list(get_entry_list(get_wrapper_path(e, window)), entry_list), descendants)
-				ds = {}
-				for d in descendants:
-					wp = get_wrapper_path(d)
-					if wp not in ds:
-						ds[wp] = []
-					ds[wp].append(d)
-				print("OK")
-				for k in ds.keys():
-					if match_entry_list(get_entry_list(k), entry_list):
-						candidates.extend(ds[k])
+				candidates += filter_with_match_entry_list(window, descendants, entry_list)
 
 	if not candidates:
 		if active_only:
