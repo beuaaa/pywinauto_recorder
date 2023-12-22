@@ -46,7 +46,7 @@ def get_wrapper_path(wrapper, wrapper_top_level_parent=None):
 	"""
 	try:
 		path = ''
-		if wrapper_top_level_parent is Noen:
+		if wrapper_top_level_parent is None:
 			wrapper_top_level_parent = wrapper.top_level_parent()
 		while wrapper != wrapper_top_level_parent:
 			path = path_separator + wrapper.element_info.name + type_separator + wrapper.element_info.control_type + path
@@ -401,7 +401,18 @@ def find_elements(full_element_path=None, visible_only=True, enabled_only=True, 
 				candidates += find_ocr_elements(title, window, entry_list)
 			else:
 				descendants = window.descendants(title=title, control_type=control_type)  # , depth=max(1, len(entry_list)-2)
-				candidates += filter(lambda e: match_entry_list(get_entry_list(get_wrapper_path(e, window)), entry_list), descendants)
+				#candidates += filter(lambda e: match_entry_list(get_entry_list(get_wrapper_path(e, window)), entry_list), descendants)
+				ds = {}
+				for d in descendants:
+					wp = get_wrapper_path(d)
+					if wp not in ds:
+						ds[wp] = []
+					ds[wp].append(d)
+				print("OK")
+				for k in ds.keys():
+					if match_entry_list(get_entry_list(k), entry_list):
+						candidates.extend(ds[k])
+
 	if not candidates:
 		if active_only:
 			return find_elements(full_element_path, visible_only=True, enabled_only=False, active_only=False)
