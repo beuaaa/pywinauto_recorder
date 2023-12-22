@@ -36,7 +36,7 @@ class Strategy(Enum):
 	array_2D = 3
 
 
-def get_wrapper_path(wrapper):
+def get_wrapper_path(wrapper, wrapper_top_level_parent=None):
 	"""
 	It takes a UI Automation wrapper object and returns a string that represents the path to the element from the root of
 	the UI Automation tree
@@ -46,7 +46,8 @@ def get_wrapper_path(wrapper):
 	"""
 	try:
 		path = ''
-		wrapper_top_level_parent = wrapper.top_level_parent()
+		if wrapper_top_level_parent is Noen:
+			wrapper_top_level_parent = wrapper.top_level_parent()
 		while wrapper != wrapper_top_level_parent:
 			path = path_separator + wrapper.element_info.name + type_separator + wrapper.element_info.control_type + path
 			wrapper = wrapper.parent()
@@ -400,7 +401,7 @@ def find_elements(full_element_path=None, visible_only=True, enabled_only=True, 
 				candidates += find_ocr_elements(title, window, entry_list)
 			else:
 				descendants = window.descendants(title=title, control_type=control_type)  # , depth=max(1, len(entry_list)-2)
-				candidates += filter(lambda e: match_entry_list(get_entry_list(get_wrapper_path(e)), entry_list), descendants)
+				candidates += filter(lambda e: match_entry_list(get_entry_list(get_wrapper_path(e, window)), entry_list), descendants)
 	if not candidates:
 		if active_only:
 			return find_elements(full_element_path, visible_only=True, enabled_only=False, active_only=False)
