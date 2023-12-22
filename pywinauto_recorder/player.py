@@ -242,6 +242,7 @@ class UIPath(object):
 				click("One||Button")
 				click("Two||Button")
 	"""
+	_stack = []
 	_path_list = []
 	_regex_list = []  # UIPath._regex_list must be removed
 	
@@ -261,11 +262,15 @@ class UIPath(object):
 		else:
 			return element_path
 	
-	def __init__(self, relative_path=None, regex_title=False):
+	def __init__(self, relative_path=None, regex_title=False,absolute_path=False):
 		self.relative_path = relative_path
 		self.regex_title = regex_title  # UIPath._regex_list must be removed
+		self.absolute_path = absolute_path
 	
 	def __enter__(self):
+		if self.absolute_path:
+			UIPath._stack.append(UIPath._path_list)
+			UIPath._path_list = []
 		if self.relative_path:
 			UIPath._path_list.append(self.relative_path)
 			UIPath._regex_list.append(self.regex_title)  # UIPath._regex_list must be removed
@@ -275,7 +280,8 @@ class UIPath(object):
 		if self.relative_path:
 			UIPath._path_list = UIPath._path_list[0:-1]
 			UIPath._regex_list = UIPath._regex_list[0:-1]  # UIPath._regex_list must be removed
-
+		if UIPath._stack:
+			UIPath._path_list = UIPath._stack.pop()
 
 Window = UIPath
 Region = UIPath
@@ -650,20 +656,16 @@ def click(
 		else:
 			wrapper.click_input()
 		return wrapper
-	else:
-		
-		
-		if wait_ready and \
+	elif wait_ready and \
 			(element_path is None or isinstance(element_path, str) or isinstance(element_path, pywinauto.base_wrapper.BaseWrapper)):
-			use_cache_old = PlayerSettings.use_cache
-			PlayerSettings.use_cache = False
-			if isinstance(element_path, pywinauto.base_wrapper.BaseWrapper):
-				wrapper = element_path
-			else:
+				use_cache_old = PlayerSettings.use_cache
+				PlayerSettings.use_cache = False
+				# if isinstance(element_path, pywinauto.base_wrapper.BaseWrapper):
+				#	wrapper = element_path
 				wrapper = move(element_path, duration=duration, mode=mode, timeout=timeout)
-			wait_is_ready_try1(wrapper, timeout=timeout)
-			PlayerSettings.use_cache = use_cache_old
-		else:
+				wait_is_ready_try1(wrapper, timeout=timeout)
+				PlayerSettings.use_cache = use_cache_old
+	else:
 			wrapper = move(element_path, duration=duration, mode=mode, timeout=timeout)
 	_win32api_mouse_click(button, click_count)
 	return wrapper
@@ -704,7 +706,7 @@ def drag_and_drop(
 		(if duration is -1 the mouse cursor doesn't move, it just sends WM_CLICK window message,
 		useful for minimized or non-active window).
 	:param mode: move mouse mode: MoveMode.linear, MoveMode.x_first, MoveMode.y_first
-	:param button: mouse button:  ButtonLocation.left, ButtonLocation.middle, ButtonLocation.right
+	:param button: mouse button:  ButtonLocation.left, ButtonLocation.middl, ButtonLocation.right
 	:param timeout: period of time in seconds that will be allowed to find the element
 	:return: Pywinauto wrapper found with element_path2
 	:raises FailedSearch: if the element is not found
@@ -769,7 +771,6 @@ def menu_click(
 	:return: Pywinauto wrapper of the first clicked item
 	:raises FailedSearch: if an element is not found
 	"""
-	
 	def nearest_perimeter_point(rect, point):
 		x1, y1, x2, y2 = rect.left, rect.top, rect.right, rect.bottom
 		x, y = point
