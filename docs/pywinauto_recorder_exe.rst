@@ -3,10 +3,10 @@ Pywinauto_recorder for Windows
 
 - "pywinauto_recorder.exe_" is a standalone application, it's the compiled version of "pywinauto_recorder.py" for 64-bit Windows.
 
-.. _pywinauto_recorder.exe: https://github.com/beuaaa/pywinauto_recorder/archive/refs/tags/Pywinauto_recorder_installer.0.6.7.exe
+.. _pywinauto_recorder.exe: https://github.com/beuaaa/pywinauto_recorder/releases/download/0.6.7/Pywinauto_recorder_installer.exe
 
 .. image:: https://raw.githubusercontent.com/beuaaa/pywinauto_recorder/master/Images/Download.png?sanitize=true
-            :target: https://github.com/beuaaa/pywinauto_recorder/archive/refs/tags/Pywinauto_recorder_installer.0.6.7.exe
+            :target:https://github.com/beuaaa/pywinauto_recorder/releases/download/0.6.7/Pywinauto_recorder_installer.exe
             :width: 200 px
             :align: center
             :alt: Download installer
