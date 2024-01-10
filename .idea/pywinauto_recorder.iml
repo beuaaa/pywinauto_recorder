@@ -11,6 +11,9 @@
   <component name="PackageRequirementsSettings">
     <option name="versionSpecifier" value="Don't specify version" />
   </component>
+  <component name="SonarLintModuleSettings">
+    <option name="uniqueId" value="a4323db3-770b-4cb0-8d87-7943dc6c6e4e" />
+  </component>
   <component name="TestRunnerService">
     <option name="PROJECT_TEST_RUNNER" value="pytest" />
   </component>

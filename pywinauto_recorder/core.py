@@ -37,17 +37,17 @@ class Strategy(Enum):
 
 
 def get_wrapper_path(wrapper, wrapper_top_level_parent=None):
-    try:
-        path = ''
-        wrapper_top_level_parent = wrapper.top_level_parent()
-        while wrapper != wrapper_top_level_parent:
-            path = path_separator + wrapper.element_info.name + type_separator + wrapper.element_info.control_type + path
-            wrapper = wrapper.parent()
-        return wrapper.element_info.name + type_separator + wrapper.element_info.control_type + path
-    except Exception as e:
-        traceback.print_exc()
-        print(e.message)
-        return ''
+	try:
+		path = ''
+		wrapper_top_level_parent = wrapper.top_level_parent()
+		while wrapper != wrapper_top_level_parent:
+			path = path_separator + wrapper.element_info.name + type_separator + wrapper.element_info.control_type + path
+			wrapper = wrapper.parent()
+		return wrapper.element_info.name + type_separator + wrapper.element_info.control_type + path
+	except Exception as e:
+		traceback.print_exc()
+		print(e.message)
+		return ''
 
 
 def get_entry_list(path):
@@ -366,6 +366,7 @@ def find_ocr_elements(ocr_text, window, entry_list):
 
 
 last_parent_element_info, last_parent_element_info_path = None, None
+
 
 def get_element_info_path(element_info, element_info_top_level_parent=None):
 	"""
