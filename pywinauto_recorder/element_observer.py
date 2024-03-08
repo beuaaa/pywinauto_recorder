@@ -115,10 +115,11 @@ def _display_info_tiptool(desktop, info_overlay, screen_width):
 	)
 	
 	text = ""
+	text += "process_id: " + str(wrapper.element_info.process_id) + "\n"
 	try:
 		has_get_value = getattr(wrapper, "get_value", None)
 		if callable(has_get_value):
-			text = "wrapper.get_value(): " + wrapper.get_value()
+			text += "wrapper.get_value(): " + wrapper.get_value()
 	except:
 		has_get_value = False
 	has_legacy_properties = getattr(wrapper, "legacy_properties", None)
