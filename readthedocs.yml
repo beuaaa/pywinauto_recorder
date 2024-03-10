@@ -1,0 +1,6 @@
+# readthedocs.yml
+version: 2
+
+# Spécifiez le chemin vers le fichier de configuration dans le répertoire "docs"
+config:
+  file: docs/.readthedocs.yml
