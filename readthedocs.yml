@@ -4,3 +4,7 @@ version: 2
 # Spécifiez le chemin vers le fichier de configuration dans le répertoire "docs"
 config:
   file: docs/.readthedocs.yml
+
+# Build configuration
+build:
+  os: ubuntu-22.04
