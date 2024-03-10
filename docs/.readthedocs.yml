@@ -10,10 +10,16 @@ requirements_file: requirements.txt
 python:
   version: 3.8.3
 
-# Build documentation in the current directory with Sphinx
-sphinx:
+# Build configuration
+build:
+  image: latest
   configuration: conf.py
 
 # Setup submodules
 submodules:
   include: all
+
+# Configuration spécifique à Sphinx
+sphinx:
+  configuration: conf.py
+
