@@ -1,12 +1,21 @@
 # readthedocs.yml
 version: 2
 
-# Spécifiez le chemin vers le fichier de configuration dans le répertoire "docs"
-config:
-  file: docs/.readthedocs.yml
+requirements_file: requirements.txt
+
+python:
+  version: 3.8.3
 
 # Build configuration
 build:
   os: ubuntu-22.04
   tools:
     python: "3.12"
+
+# Setup submodules
+submodules:
+  include: all
+
+# Configuration spécifique à Sphinx
+sphinx:
+  configuration: conf.py
