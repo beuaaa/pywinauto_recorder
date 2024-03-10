@@ -12,8 +12,9 @@ python:
 
 # Build configuration
 build:
-  image: latest
-  configuration: conf.py
+  os: ubuntu-22.04
+  tools:
+    python: "3.12"
 
 # Setup submodules
 submodules:
