@@ -18,16 +18,17 @@ import pyperclip
 import codecs
 from .core import path_separator, type_separator, Strategy, is_int, \
                     get_wrapper_path, get_entry_list, get_entry, get_sorted_region, \
-                    read_config_file
+                    read_config_file, set_native_window_handle
 from .core import find_elements as not_ttl_cached_find_elements
+#from .core import find_elements
 from .player import playback
 from cachetools import func
 
-
+""" """
 @func.ttl_cache(ttl=10)
-def find_elements(full_element_path=None, visible_only=True, enabled_only=True, active_only=True):
-	return not_ttl_cached_find_elements(full_element_path=full_element_path, visible_only=visible_only, enabled_only=enabled_only, active_only=active_only)
-
+def find_elements(full_element_path=None):
+	return not_ttl_cached_find_elements(full_element_path=full_element_path)
+""" """
 
 __all__ = ['Recorder']
 
@@ -823,6 +824,14 @@ class Recorder(Thread):
 				self.main_overlay.clear_all()
 				cursor_pos = win32api.GetCursorPos()
 				wrapper = self.desktop.from_point(*cursor_pos)
+				
+				""" """
+				window = wrapper
+				while window.parent() is not None and window.parent().parent() is not None:
+					window = window.parent()
+				set_native_window_handle(window.handle)
+				""" """
+				
 				#wrapper = self.my_from_point(*cursor_pos)
 				if wrapper is None:
 					time.sleep(0.01)

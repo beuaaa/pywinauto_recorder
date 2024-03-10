@@ -115,7 +115,8 @@ def _display_info_tiptool(desktop, info_overlay, screen_width):
 	)
 	
 	text = ""
-	text += "process_id: " + str(wrapper.element_info.process_id) + "\n"
+	text += "process id: " + str(wrapper.element_info.process_id) + "\n"
+	text += "native window handle: " + str(wrapper.element_info.handle) + "\n"
 	try:
 		has_get_value = getattr(wrapper, "get_value", None)
 		if callable(has_get_value):

@@ -12,13 +12,14 @@ from win32api import GetSystemMetrics as win32api_GetSystemMetrics
 from win32api import mouse_event as win32api_mouse_event
 from win32gui import LoadCursor as win32gui_LoadCursor
 from win32gui import GetCursorInfo as win32gui_GetCursorInfo
-from win32gui import FindWindow as win32gui_FindWindow
 from win32gui import MoveWindow as win32gui_MoveWindow
+from win32gui import SetForegroundWindow as win32gui_SetForegroundWindow
+from win32gui import ShowWindow as win32gui_ShowWindow
 from win32con import IDC_WAIT, MOUSEEVENTF_MOVE, MOUSEEVENTF_ABSOLUTE, MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP, \
 	MOUSEEVENTF_MIDDLEDOWN, MOUSEEVENTF_MIDDLEUP, MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP, MOUSEEVENTF_WHEEL, \
-	WHEEL_DELTA
+	WHEEL_DELTA, SW_RESTORE
 from .core import type_separator, path_separator, get_entry, get_entry_list, find_elements, get_sorted_region, \
-	get_wrapper_path, is_int, is_absolute_path
+	get_wrapper_path, is_int, is_absolute_path, set_native_window_handle, get_native_window_handle
 from functools import partial, update_wrapper
 from cachetools import func
 import math
@@ -46,7 +47,8 @@ __all__ = ['PlayerSettings', 'MoveMode', 'ButtonLocation', 'load_dictionary', 's
            'double_left_click', 'triple_left_click', 'double_click', 'triple_click',
            'drag_and_drop', 'middle_drag_and_drop', 'right_drag_and_drop', 'menu_click',
            'mouse_wheel', 'send_keys', 'set_combobox', 'set_text', 'exists', 'select_file', 'playback',
-           'find_cache_clear']
+           'find_cache_clear', 'UIApplication', 'start_application', 'connect_application', 'focus_on_application',
+           'kill_application']
 
 
 # TODO special_char_array in core for recorder.py and player.py (check when to call escape & unescape)
@@ -297,6 +299,7 @@ def find_cache_clear():
 @func.ttl_cache(ttl=60)
 def _cached_find(
 		full_element_path: Optional[UI_Selector] = None,
+		window_handle=None,
 		timeout: Optional[float] = None) -> PYWINAUTO_Wrapper:
 	"""
 	Finds the element defined by the full_element_path.
@@ -422,7 +425,7 @@ def find(
 	else:
 		full_element_path = get_wrapper_path(element_path)
 	if PlayerSettings.use_cache:
-		return _cached_find(full_element_path, timeout=timeout)
+		return _cached_find(full_element_path, get_native_window_handle(), timeout=timeout)
 	else:
 		return _find(full_element_path, timeout=timeout)
 
@@ -495,9 +498,12 @@ def move_window(element_path: Optional[UI_Selector] = None,
 	:return: Pywinauto wrapper of found window
 	:raises FailedSearch: if no element found
 	"""
+
 	window = find(element_path)
-	hwnd = win32gui_FindWindow(None, window.window_text())
-	win32gui_MoveWindow(hwnd, x, y, width, height, True)
+	while window.handle is None:
+		window = window.parent()
+	native_window_handle = window.handle
+	win32gui_MoveWindow(native_window_handle, x, y, width, height, True)
 	return window
 
 
@@ -1034,3 +1040,81 @@ def playback(str_code='', filename=''):
 		for line in output[d_line:]:
 			print(line, file=sys.stderr, end='')
 		input("Press Enter to continue...")
+
+
+class UIApplication(object):
+	def __init__(self, app, native_window_handle=None):
+		self.app = app
+		self.native_window_handle = native_window_handle
+
+
+def start_application(cmd_line, timeout=10):
+	"""
+	This function starts an application
+
+	:param cmd_line: The command line to start the application
+	:param timeout: timeout of the connection process
+	:return: UIApplication object
+	"""
+	desktop = pywinauto.Desktop(backend='uia', allow_magic_lookup=False)
+	window_candidates_1 = desktop.windows()
+	app = pywinauto.Application(backend="win32")
+	app.start(cmd_line=cmd_line, timeout=timeout)
+	time.sleep(2)
+	window_candidates_2 = desktop.windows()
+	diff = set(window_candidates_2) - set(window_candidates_1)
+	native_window_handle = list(diff)[0].handle   # We assume that there is only one window
+	set_native_window_handle(native_window_handle)
+	return UIApplication(app, native_window_handle)
+
+
+def connect_application(**kwargs):
+	"""Connect to an already running application
+
+	The action is performed according to only one of parameters
+
+	:param process: a process ID of the target
+	:param handle: a native window handle of the target
+	:param path: a path used to launch the target
+	:param timeout: a timeout for process start (relevant if path is specified)
+
+	.. seealso::
+
+	   :func:`pywinauto.findwindows.find_elements` - the keyword arguments that
+	   are also can be used instead of **process**, **handle** or **path**
+	"""
+	app = pywinauto.Application(backend="win32")
+	app.connect(**kwargs)
+	top_window = app.top_window().wrapper_object()
+	native_window_handle = top_window.handle
+	return UIApplication(app, native_window_handle)
+
+
+def focus_on_application(application=None):
+	"""
+	Focuses on a specified application by bringing its main window to the foreground.
+	If 'application' is None, it clears the focus, allowing subsequent automation commands
+	to target any application without restrictions.
+
+	:param application: UIApplication object or None
+	    The UIApplication object representing the application to focus on.
+	    If None, the focus is cleared.
+	"""
+	if application is None:
+		set_native_window_handle(None)
+	else:
+		set_native_window_handle(application.native_window_handle)
+		time.sleep(1)
+		win32gui_ShowWindow(application.native_window_handle, SW_RESTORE)
+		win32gui_SetForegroundWindow(application.native_window_handle)
+
+
+def kill_application(application, timeout=10):
+	"""
+		This function kills an application.
+
+		:param application: UIApplication object
+		:param timeout: timeout of the connection process
+		"""
+	application.app.connect(handle=application.native_window_handle, timeout=timeout)
+	application.app.kill()

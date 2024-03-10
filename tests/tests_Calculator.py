@@ -1,12 +1,9 @@
 import pytest
 import os
 from pywinauto_recorder.player import PlayerSettings, UIPath, load_dictionary, shortcut, \
-	find, find_all, move, click, double_click, triple_click
+	find, move, click, double_click, triple_click, move_window, start_application, focus_on_application, kill_application, connect_application
 from pywinauto_recorder.recorder import Recorder
-from pywinauto_recorder.core import get_wrapper_path, get_entry, get_entry_list
 import time
-import win32gui
-
 
 ################################################################################################
 #                               Tests using Windows 11 Calculator                              #
@@ -49,15 +46,11 @@ def test_asterisk(start_kill_app):
 @pytest.mark.parametrize('start_kill_app', ["calc"], indirect=True)
 def test_recorder_click(start_kill_app, wait_recorder_ready):
 	""" Tests the ability to record all clicks. """
-	hwnd = None
-	while not hwnd:
-		time.sleep(0.1)
-		hwnd = win32gui.FindWindow(None, 'Calculator')
-	print(hwnd)
-	win32gui.MoveWindow(hwnd, 0, 100, 400, 400, True)
-	# with UIPath("Calculator||Window"):  # 'UIAWrapper' object had no 'move_window' until Pywinauto 0.7.0
-	# 	find().move_window(0, 100, 400, 400, True)
+	focus_on_application(None)
+	move_window("Calculator||Window", x=0, y=100, width=400, height=400)
+	move("Calculator||Window->*->Zero||Button", duration=0)
 	recorder = Recorder()
+	time.sleep(4)
 	recorder.start_recording()
 	start_time = time.time()
 	with UIPath("Calculator||Window->*"):
@@ -111,10 +104,11 @@ def test_recorder_click(start_kill_app, wait_recorder_ready):
 @pytest.mark.parametrize('start_kill_app', ["calc"], indirect=True)
 def test_recorder_performance(start_kill_app, wait_recorder_ready):
 	""" Tests the performance to find a unique path. """
+	focus_on_application(None)
+	move("Calculator||Window->*->Zero||Button", duration=0)
 	recorder = Recorder()
 	time.sleep(4)
 	str_num = ["Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"]
-	move("Calculator||Window->*->Zero||Button", duration=0)
 	start_time = time.time()
 	with UIPath("Calculator||Window->*"):
 		for _ in range(9):
@@ -123,6 +117,7 @@ def test_recorder_performance(start_kill_app, wait_recorder_ready):
 				wait_recorder_ready(recorder, num+"||Button", sleep=0)
 	duration = time.time() - start_time
 	recorder.quit()
+	print('duration:', duration)
 	assert duration < 30, "The duration of the loop is " + str(duration) + " s. It must be lower than 30 s"
 
 
@@ -132,7 +127,9 @@ def test_player_performance(start_kill_app):
 	old_mouse_move_duration = PlayerSettings.mouse_move_duration
 	iterations = 22
 	result_wrapper = find("Calculator||Window->*->RegEx: Display is||Text")
-	for mouse_move_duration, expected_duration in [(0, 10), (-1, 1)]:
+	calculator_1 = connect_application(title="Calculator")
+	focus_on_application(calculator_1)
+	for mouse_move_duration, expected_duration in [(0, 11), (-1, 1)]:
 		PlayerSettings.mouse_move_duration = mouse_move_duration
 		start_time = time.time()
 		with UIPath("Calculator||Window->*"):
@@ -165,3 +162,44 @@ def test_ocr(start_kill_app):
 			ref_text = find(ui_path).texts()[0]
 			ocr_text = find("*->" + ref_text + "||OCR_Text").result[1]
 			assert ocr_text == ref_text
+
+
+#TODO: Insure that the Calculators started are killed even if the test fails.
+def test_multi_instances():
+	"""
+	Demonstrates automation of two instances of the Calculator application.
+
+	1. Starts two instances of Calculator.
+	2. Performs actions on the first instance:
+	    - Focuses on the application.
+	    - Moves its window to a specified position and size.
+	    - Clicks the 'One' button.
+	3. Performs actions on the second instance using a UIPath context:
+	    - Focuses on the application using an asterisk in UIPath.
+	    - Moves the window to a different position and size.
+	    - Performs a series of button clicks: 'Three', 'Minus', 'One', 'Equals'.
+	4. Waits for 2 seconds to observe the changes.
+	5. Closes both instances of the Calculator application.
+	"""
+	calculator_1 = start_application("calc")
+	calculator_2 = start_application("calc")
+	
+	focus_on_application(calculator_1)
+	move_window("Calculator||Window", x=1500, y=0, width=400, height=500)
+	click("Calculator||Window->*->One||Button")
+	
+	focus_on_application(calculator_2)
+	# This time, we'll use a UIPath context to simplify the paths to the user interface for multiple actions
+	# As focus_on_application focus on the application calculator_2, we can use a UIPath with an asterisk
+	# because there's no ambiguity when it comes to finding the application's main window.
+	with UIPath("*"):
+		move_window(x=1500, y=500, width=400, height=500)
+		click("Three||Button")
+		click("Minus||Button")
+		click("One||Button")
+		click("Equals||Button")
+	
+	time.sleep(2)
+	kill_application(calculator_1)
+	kill_application(calculator_2)
+

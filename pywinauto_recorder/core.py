@@ -5,6 +5,7 @@ from enum import Enum
 import configparser
 import ast
 from pywinauto import Desktop as PywinautoDesktop
+from pywinauto import Application
 from pywinauto.controls.uiawrapper import UIAWrapper
 from pywinauto import findwindows
 # from thefuzz import fuzz
@@ -13,9 +14,22 @@ from .ocr_wrapper import find_all_ocr, OCRWrapper
 
 __all__ = ['path_separator', 'type_separator', 'Strategy', 'is_int', 'is_absolute_path',
            'get_wrapper_path', 'get_entry_list', 'get_entry', 'match_entry_list', 'get_sorted_region',
-           'find_elements', 'read_config_file']
+           'find_elements', 'read_config_file', 'get_native_window_handle', 'set_native_window_handle']
 
 desktop = PywinautoDesktop(backend='uia', allow_magic_lookup=False)
+native_window_handle = None
+
+
+def get_native_window_handle():
+	global native_window_handle
+	return native_window_handle
+
+
+def set_native_window_handle(handle):
+	global native_window_handle
+	native_window_handle = handle
+
+
 
 
 class CoreSettings:
@@ -290,34 +304,26 @@ def get_sorted_region(elements, min_height=8, max_height=9999, min_width=8, max_
 	return h + 1, w, arrays
 
 
-def find_window_candidates(root_entry, visible_only=True, enabled_only=True, active_only=True):
+def find_window_candidates(root_entry):
 	"""
 	It returns a list of windows that match the given root entry
 	
-	:param root_entry: The root entry of the window you want to find
-	:param visible_only: If True, only visible windows are returned, defaults to True (optional)
-	:param enabled_only: If True, only enabled controls are returned, defaults to True (optional)
-	:param active_only: If True, only the active window will be returned, defaults to True (optional)
 	:return: A list of window candidates.
 	"""
+	handle = native_window_handle
 	title, control_type, _, _ = get_entry(root_entry)
 	if root_entry == "*":
-		window_candidates = desktop.windows(
-			visible_only=visible_only, enabled_only=enabled_only, active_only=active_only)
-	elif is_regex_entry(root_entry):
-		window_candidates = desktop.windows(
-			title_re=title, control_type=control_type,
-			visible_only=visible_only, enabled_only=enabled_only, active_only=active_only)
+		title = None
+		control_type = None
+	if is_regex_entry(root_entry):
+		window_candidates = desktop.windows(title_re=title, control_type=control_type,
+		                                    visible_only=False, enabled_only=False, active_only=False, handle=handle)
 	else:
-		window_candidates = desktop.windows(
-			title=title, control_type=control_type,
-			visible_only=visible_only, enabled_only=enabled_only, active_only=active_only)
+		window_candidates = desktop.windows(title=title, control_type=control_type,
+		                                    visible_only=False, enabled_only=False, active_only=False, handle=handle)
 	if not window_candidates:
-		if active_only:
-			return find_window_candidates(root_entry, visible_only=True, enabled_only=False, active_only=False)
-		else:
-			print("Warning: No window '" + title + "' with control type '" + control_type + "' found! ")
-			return None
+		print("Warning: No window '" + title + "' with control type '" + control_type + "' found! ")
+		return None
 	return window_candidates
 
 
@@ -413,19 +419,15 @@ def filter_with_match_entry_list(window, descendants, entry_list):
 	return result
 
 
-def find_elements(full_element_path=None, visible_only=True, enabled_only=True, active_only=True):
+def find_elements(full_element_path=None):
 	"""
 	It returns the elements (UIAWrapper list) that matche the full_element_path
 
 	:param full_element_path: full path of the element(s) to find
-	:param visible_only: If True, only visible elements are returned, defaults to True (optional)
-	:param enabled_only: If True, only enabled controls are returned, defaults to True (optional)
-	:param active_only: If True, only active windows are considered, defaults to True (optional)
 	:return: The elements found
 	"""
 	entry_list = get_entry_list(full_element_path)
-	window_candidates = find_window_candidates(entry_list[0], visible_only=visible_only, enabled_only=enabled_only,
-	                                           active_only=active_only)
+	window_candidates = find_window_candidates(entry_list[0])
 	if window_candidates is None:
 		return []
 	window_candidates = filter_window_candidates(window_candidates)
@@ -447,9 +449,6 @@ def find_elements(full_element_path=None, visible_only=True, enabled_only=True, 
 	candidates = [UIAWrapper(ei) for ei in candidates]
 	
 	if not candidates:
-		if active_only:
-			return find_elements(full_element_path, visible_only=True, enabled_only=False, active_only=False)
-		else:
 			return []
 	else:
 		return candidates
