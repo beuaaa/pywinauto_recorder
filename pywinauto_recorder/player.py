@@ -13,17 +13,17 @@ from win32api import mouse_event as win32api_mouse_event
 from win32gui import LoadCursor as win32gui_LoadCursor
 from win32gui import GetCursorInfo as win32gui_GetCursorInfo
 from win32gui import MoveWindow as win32gui_MoveWindow
-from win32gui import SetForegroundWindow as win32gui_SetForegroundWindow
 from win32gui import ShowWindow as win32gui_ShowWindow
 from win32con import IDC_WAIT, MOUSEEVENTF_MOVE, MOUSEEVENTF_ABSOLUTE, MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP, \
 	MOUSEEVENTF_MIDDLEDOWN, MOUSEEVENTF_MIDDLEUP, MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP, MOUSEEVENTF_WHEEL, \
-	WHEEL_DELTA, SW_RESTORE
+	WHEEL_DELTA, SW_RESTORE,HWND_NOTOPMOST, HWND_TOPMOST
 from .core import type_separator, path_separator, get_entry, get_entry_list, find_elements, get_sorted_region, \
 	get_wrapper_path, is_int, is_absolute_path, set_native_window_handle, get_native_window_handle
 from functools import partial, update_wrapper
 from cachetools import func
 import math
 from .ocr_wrapper import OCRWrapper
+import sys
 
 
 UI_Coordinates = NewType('UI_Coordinates', (float, float))
@@ -317,6 +317,8 @@ def _find(
 	
 	When the [] operator is used and only one element is found, the row and column indices are not tested and the element is returned.
 	"""
+	print("🔎", end="", file=sys.stdout)
+	sys.stdout.flush()
 	_, _, y_x, _ = get_entry(get_entry_list(full_element_path)[-1])
 	elements = []
 	t0 = time.time()
@@ -328,14 +330,16 @@ def _find(
 			try:
 				elements = find_elements(full_element_path)
 				if not elements:
-					#print("🔴", end="")
+					print("🔴", end="", file=sys.stdout)
+					sys.stdout.flush()
 					time.sleep(2.0)
 			except Exception:
-				#print("🟢", end="")
+				print("🟢", end="", file=sys.stdout)
+				sys.stdout.flush()
 				pass
 
 		if len(elements) == 1:
-				return elements[0]
+			return elements[0]
 		
 		if y_x is not None:
 			nb_y, _, candidates = get_sorted_region(elements)
@@ -478,8 +482,7 @@ def find_all(
 		except Exception:
 			pass
 		time.sleep(0.1)
-	msg = "No element found with the UIPath '" + full_element_path + "' after " + str(timeout) + " s of searching."
-	raise FailedSearch(msg)
+	return []
 
 
 def move_window(element_path: Optional[UI_Selector] = None,
@@ -797,7 +800,9 @@ def menu_click(
 	
 	if duration not in [None, -1]:
 		duration = float(duration)/2
-		
+	
+	native_window_handle_before_menu = get_native_window_handle()
+	set_native_window_handle(None)
 	menu_entry_list = menu_path.split(path_separator)
 	str_menu_item = 'MenuItem~Absolute_UIPath' if absolute_path else 'MenuItem'
 	for i, menu_entry in enumerate(menu_entry_list):
@@ -818,6 +823,7 @@ def menu_click(
 		time.sleep(0.1)  # wait for the menu to open (it is not always instantaneous depending on the animation settings)
 		if i>0:
 			UIPath._path_list, UIPath._regex_list = SAV_UIPath_path_list, SAV_UIPath_regex_list
+	set_native_window_handle(native_window_handle_before_menu)
 	return w_to_return
 
 
@@ -1048,7 +1054,7 @@ class UIApplication(object):
 		self.native_window_handle = native_window_handle
 
 
-def start_application(cmd_line, timeout=10):
+def start_application(cmd_line, timeout=10, wait_for_idle=True):
 	"""
 	This function starts an application
 
@@ -1059,10 +1065,14 @@ def start_application(cmd_line, timeout=10):
 	desktop = pywinauto.Desktop(backend='uia', allow_magic_lookup=False)
 	window_candidates_1 = desktop.windows()
 	app = pywinauto.Application(backend="win32")
-	app.start(cmd_line=cmd_line, timeout=timeout)
+	app.start(cmd_line=cmd_line, timeout=timeout, wait_for_idle=wait_for_idle)
 	time.sleep(2)
 	window_candidates_2 = desktop.windows()
 	diff = set(window_candidates_2) - set(window_candidates_1)
+	while not diff:
+		time.sleep(1)
+		window_candidates_2 = desktop.windows()
+		diff = set(window_candidates_2) - set(window_candidates_1)
 	native_window_handle = list(diff)[0].handle   # We assume that there is only one window
 	set_native_window_handle(native_window_handle)
 	return UIApplication(app, native_window_handle)
@@ -1105,8 +1115,10 @@ def focus_on_application(application=None):
 	else:
 		set_native_window_handle(application.native_window_handle)
 		time.sleep(1)
-		win32gui_ShowWindow(application.native_window_handle, SW_RESTORE)
-		win32gui_SetForegroundWindow(application.native_window_handle)
+		if win32gui_IsIconic(application.native_window_handle):
+			win32gui_ShowWindow(application.native_window_handle, SW_RESTORE)
+		win32gui_SetWindowPos(h, HWND_TOPMOST, 0, 0, 0, 0, 3)
+		win32gui_SetWindowPos(h, HWND_NOTOPMOST, 0, 0, 0, 0, 3)
 
 
 def kill_application(application, timeout=10):
