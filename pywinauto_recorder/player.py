@@ -14,6 +14,8 @@ from win32gui import LoadCursor as win32gui_LoadCursor
 from win32gui import GetCursorInfo as win32gui_GetCursorInfo
 from win32gui import MoveWindow as win32gui_MoveWindow
 from win32gui import ShowWindow as win32gui_ShowWindow
+from win32gui import IsIconic as win32gui_IsIconic
+from win32gui import SetWindowPos as win32gui_SetWindowPos
 from win32con import IDC_WAIT, MOUSEEVENTF_MOVE, MOUSEEVENTF_ABSOLUTE, MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP, \
 	MOUSEEVENTF_MIDDLEDOWN, MOUSEEVENTF_MIDDLEUP, MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP, MOUSEEVENTF_WHEEL, \
 	WHEEL_DELTA, SW_RESTORE,HWND_NOTOPMOST, HWND_TOPMOST
@@ -1117,8 +1119,8 @@ def focus_on_application(application=None):
 		time.sleep(1)
 		if win32gui_IsIconic(application.native_window_handle):
 			win32gui_ShowWindow(application.native_window_handle, SW_RESTORE)
-		win32gui_SetWindowPos(h, HWND_TOPMOST, 0, 0, 0, 0, 3)
-		win32gui_SetWindowPos(h, HWND_NOTOPMOST, 0, 0, 0, 0, 3)
+		win32gui_SetWindowPos(application.native_window_handle, HWND_TOPMOST, 0, 0, 0, 0, 3)
+		win32gui_SetWindowPos(application.native_window_handle, HWND_NOTOPMOST, 0, 0, 0, 0, 3)
 
 
 def kill_application(application, timeout=10):
