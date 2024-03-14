@@ -432,7 +432,9 @@ def find_elements(full_element_path=None):
 		return []
 	window_candidates = filter_window_candidates(window_candidates)
 	if len(entry_list) == 1 and len(window_candidates) == 1:
-		return [window_candidates[0]]
+		title, control_type, _, _ = get_entry(entry_list[0])
+		if window_candidates[0].element_info.name == title and window_candidates[0].element_info.control_type == control_type:
+			return [window_candidates[0]]
 
 	candidates = []
 	title, control_type, _, _ = get_entry(entry_list[-1])
