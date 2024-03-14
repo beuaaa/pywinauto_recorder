@@ -24,11 +24,11 @@ from .core import find_elements as not_ttl_cached_find_elements
 from .player import playback
 from cachetools import func
 
-""" """
+
 @func.ttl_cache(ttl=10)
 def find_elements(full_element_path=None):
 	return not_ttl_cached_find_elements(full_element_path=full_element_path)
-""" """
+
 
 __all__ = ['Recorder']
 

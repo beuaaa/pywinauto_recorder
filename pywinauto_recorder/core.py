@@ -5,7 +5,6 @@ from enum import Enum
 import configparser
 import ast
 from pywinauto import Desktop as PywinautoDesktop
-from pywinauto import Application
 from pywinauto.controls.uiawrapper import UIAWrapper
 from pywinauto import findwindows
 # from thefuzz import fuzz
@@ -21,7 +20,6 @@ native_window_handle = None
 
 
 def get_native_window_handle():
-	global native_window_handle
 	return native_window_handle
 
 
