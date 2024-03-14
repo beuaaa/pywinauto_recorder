@@ -6,20 +6,20 @@ Pywinauto_recorder for Windows
 .. _pywinauto_recorder.exe: https://github.com/beuaaa/pywinauto_recorder/releases/download/0.6.7/Pywinauto_recorder_installer.exe
 
 .. image:: https://raw.githubusercontent.com/beuaaa/pywinauto_recorder/master/Images/Download.png?sanitize=true
-            :target:https://github.com/beuaaa/pywinauto_recorder/releases/download/0.6.7/Pywinauto_recorder_installer.exe
-            :width: 200 px
-            :align: center
-            :alt: Download installer
+    :target: https://github.com/beuaaa/pywinauto_recorder/releases/download/0.6.7/Pywinauto_recorder_installer.exe
+    :width: 200 px
+    :align: center
+    :alt: Download installer
 
 - "pywinauto_recorder.py_" is the main source, you will find the Pyhon code downloading the github clone.
 
 .. _pywinauto_recorder.py: https://github.com/beuaaa/pywinauto_recorder/archive/master.zip
 
 .. image:: https://raw.githubusercontent.com/beuaaa/pywinauto_recorder/master/Images/Download.png?sanitize=true
-            :target: https://github.com/beuaaa/pywinauto_recorder/archive/master.zip
-            :width: 200 px
-            :align: center
-            :alt: Download GitHub clone
+    :target: https://github.com/beuaaa/pywinauto_recorder/archive/master.zip
+    :width: 200 px
+    :align: center
+    :alt: Download GitHub clone
 
 Usage
 -----
