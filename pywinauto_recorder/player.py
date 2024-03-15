@@ -503,7 +503,6 @@ def move_window(element_path: Optional[UI_Selector] = None,
 	:return: Pywinauto wrapper of found window
 	:raises FailedSearch: if no element found
 	"""
-
 	window = find(element_path)
 	while window.handle is None:
 		window = window.parent()
