@@ -1,6 +1,6 @@
 import pytest
 import os
-from pywinauto_recorder.player import PlayerSettings, UIPath, load_dictionary, shortcut, \
+from pywinauto_recorder.player import PlayerSettings, UIPath, load_dictionary, shortcut, find_main_windows, \
 	find, move, click, double_click, triple_click, move_window, start_application, focus_on_application, kill_application, connect_application
 from pywinauto_recorder.recorder import Recorder
 import time
@@ -202,4 +202,38 @@ def test_multi_instances():
 	time.sleep(2)
 	kill_application(calculator_1)
 	kill_application(calculator_2)
+
+
+def test_new_window_connection():
+	"""
+	Opens a new application within an application, navigating through UI elements,
+	and then connecting to the new window that opens as a result of a user action.
+
+	Steps:
+	1. Start the application "calc" (calculator).
+	2. Focus on the calculator application.
+	3. Click on the "Open Navigation" button.
+	4. Click on the "Settings" list item.
+	5. Record all main windows before clicking on a UI element.
+	6. Click on the "Send feedback" hyperlink.
+	7. Connect to the Feedback Hub window that opens after excluding previously recorded main windows.
+	8. Focus on the Feedback Hub application.
+	9. Resize the Feedback Hub window to 800x800 pixels.
+	10. Click on the "Close Feedback Hub" button.
+	"""
+	calculator = start_application("calc")
+	focus_on_application(calculator)
+	with UIPath("*"):
+		click("Open Navigation||Button")
+		click("Settings||ListItem")
+		all_main_windows_before_click = find_main_windows('*')
+		click("Send feedback||Hyperlink")
+	feedback_hub = connect_application(exclude_main_windows=all_main_windows_before_click, main_window_uipath="Feedback Hub||Window", timout=10)
+	focus_on_application(feedback_hub)
+	with UIPath("*"):
+		move_window(x=0, y=0, width=800, height=800)
+		click("Close Feedback Hub||Button")
+	kill_application(calculator)
+
+
 

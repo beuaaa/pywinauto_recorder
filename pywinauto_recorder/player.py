@@ -20,7 +20,7 @@ from win32con import IDC_WAIT, MOUSEEVENTF_MOVE, MOUSEEVENTF_ABSOLUTE, MOUSEEVEN
 	MOUSEEVENTF_MIDDLEDOWN, MOUSEEVENTF_MIDDLEUP, MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP, MOUSEEVENTF_WHEEL, \
 	WHEEL_DELTA, SW_RESTORE,HWND_NOTOPMOST, HWND_TOPMOST
 from .core import type_separator, path_separator, get_entry, get_entry_list, find_elements, get_sorted_region, \
-	get_wrapper_path, is_int, is_absolute_path, set_native_window_handle, get_native_window_handle
+	get_wrapper_path, is_int, is_absolute_path, set_native_window_handle, get_native_window_handle, find_window_candidates
 from functools import partial, update_wrapper
 from cachetools import func
 import math
@@ -50,7 +50,7 @@ __all__ = ['PlayerSettings', 'MoveMode', 'ButtonLocation', 'load_dictionary', 's
            'drag_and_drop', 'middle_drag_and_drop', 'right_drag_and_drop', 'menu_click',
            'mouse_wheel', 'send_keys', 'set_combobox', 'set_text', 'exists', 'select_file', 'playback',
            'find_cache_clear', 'UIApplication', 'start_application', 'connect_application', 'focus_on_application',
-           'kill_application']
+           'find_main_windows', 'kill_application']
 
 
 # TODO special_char_array in core for recorder.py and player.py (check when to call escape & unescape)
@@ -1094,32 +1094,55 @@ def connect_application(**kwargs):
 	   :func:`pywinauto.findwindows.find_elements` - the keyword arguments that
 	   are also can be used instead of **process**, **handle** or **path**
 	"""
-	app = pywinauto.Application(backend="win32")
+	if 'exclude_main_windows' in kwargs or 'main_window_uipath' in kwargs:
+		excluded_main_windows = kwargs['exclude_main_windows'] if 'exclude_main_windows' in kwargs else []
+		main_window_uipath = kwargs['main_window_uipath'] if 'main_window_uipath' in kwargs else '*'
+		timeout = kwargs['timeout'] if 'timeout' in kwargs else 20
+		main_windows = []
+		t0 = time.time()
+		t1 = t0
+		while len(main_windows) != 1 and t1-t0 < timeout:
+			main_windows = find_main_windows(main_window_uipath)
+			if main_windows:
+				excluded_handles = [w.handle for w in excluded_main_windows]
+				main_windows = [w for w in main_windows if w.handle not in excluded_handles]
+			time.sleep(1)
+			t1 = time.time()
+		if len(main_windows) == 1:
+			kwargs['handle'] = main_windows[0].handle
+		else:
+			raise FailedSearch("Window not found using args '", kwargs + "'")
+		
+	app = pywinauto.Application(backend="uia")
 	app.connect(**kwargs)
 	top_window = app.top_window().wrapper_object()
 	native_window_handle = top_window.handle
 	return UIApplication(app, native_window_handle)
 
 
-def focus_on_application(application=None):
+def focus_on_application(application_or_window=None):
 	"""
 	Focuses on a specified application by bringing its main window to the foreground.
-	If 'application' is None, it clears the focus, allowing subsequent automation commands
-	to target any application without restrictions.
+	If 'application_or_window' is None, it clears the focus, allowing subsequent automation commands
+	to target any window without restrictions.
 
-	:param application: UIApplication object or None
-	    The UIApplication object representing the application to focus on.
+	:param application_or_window: UIApplication object, UIAWrapper object of a main window or None
+	    The object to focus on the main window.
 	    If None, the focus is cleared.
 	"""
-	if application is None:
+	if application_or_window is None:
 		set_native_window_handle(None)
 	else:
-		set_native_window_handle(application.native_window_handle)
+		set_native_window_handle(application_or_window.native_window_handle)
 		time.sleep(1)
-		if win32gui_IsIconic(application.native_window_handle):
-			win32gui_ShowWindow(application.native_window_handle, SW_RESTORE)
-		win32gui_SetWindowPos(application.native_window_handle, HWND_TOPMOST, 0, 0, 0, 0, 3)
-		win32gui_SetWindowPos(application.native_window_handle, HWND_NOTOPMOST, 0, 0, 0, 0, 3)
+		if win32gui_IsIconic(application_or_window.native_window_handle):
+			win32gui_ShowWindow(application_or_window.native_window_handle, SW_RESTORE)
+		win32gui_SetWindowPos(application_or_window.native_window_handle, HWND_TOPMOST, 0, 0, 0, 0, 3)
+		win32gui_SetWindowPos(application_or_window.native_window_handle, HWND_NOTOPMOST, 0, 0, 0, 0, 3)
+
+
+def find_main_windows(main_window_uipath='*'):
+	return find_window_candidates(main_window_uipath, handle=None)
 
 
 def kill_application(application, timeout=10):

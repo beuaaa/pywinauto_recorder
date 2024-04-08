@@ -302,13 +302,12 @@ def get_sorted_region(elements, min_height=8, max_height=9999, min_width=8, max_
 	return h + 1, w, arrays
 
 
-def find_window_candidates(root_entry):
+def find_window_candidates(root_entry, handle=None):
 	"""
 	It returns a list of windows that match the given root entry
 	
 	:return: A list of window candidates.
 	"""
-	handle = native_window_handle
 	title, control_type, _, _ = get_entry(root_entry)
 	if root_entry == "*":
 		title = None
@@ -319,9 +318,6 @@ def find_window_candidates(root_entry):
 	else:
 		window_candidates = desktop.windows(title=title, control_type=control_type,
 		                                    visible_only=False, enabled_only=False, active_only=False, handle=handle)
-	if not window_candidates:
-		print("Warning: No window '" + title + "' with control type '" + control_type + "' found! ")
-		return None
 	return window_candidates
 
 
@@ -425,8 +421,8 @@ def find_elements(full_element_path=None):
 	:return: The elements found
 	"""
 	entry_list = get_entry_list(full_element_path)
-	window_candidates = find_window_candidates(entry_list[0])
-	if window_candidates is None:
+	window_candidates = find_window_candidates(entry_list[0], handle=native_window_handle)
+	if window_candidates == []:
 		return []
 	window_candidates = filter_window_candidates(window_candidates)
 	if len(entry_list) == 1 and len(window_candidates) == 1:
