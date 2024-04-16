@@ -12,6 +12,7 @@ from win32api import GetSystemMetrics as win32api_GetSystemMetrics
 from win32api import mouse_event as win32api_mouse_event
 from win32gui import LoadCursor as win32gui_LoadCursor
 from win32gui import GetCursorInfo as win32gui_GetCursorInfo
+from win32gui import GetWindowRect as win32gui_GetWindowRect
 from win32gui import MoveWindow as win32gui_MoveWindow
 from win32gui import ShowWindow as win32gui_ShowWindow
 from win32gui import IsIconic as win32gui_IsIconic
@@ -490,16 +491,16 @@ def find_all(
 def move_window(element_path: Optional[UI_Selector] = None,
                 x: Optional[int] = 0,
                 y: Optional[int] = 0,
-                width: Optional[int] = 800,
-                height: Optional[int] = 800):
+                width: Optional[int] = 0,
+                height: Optional[int] = 0):
 	"""
 	Moves and resizes a window
 
 	:param element_path: element path
 	:param x: new x coordinate of the upper left corner of the window
 	:param y: new y coordinate of the upper left corner of the window
-	:param width: new width of the window
-	:param height: new height of the window
+	:param width: new width of the window, if 0 then the with and the height are not modified
+	:param height: new height of the window, if 0 then the with and the height are not modified
 	:return: Pywinauto wrapper of found window
 	:raises FailedSearch: if no element found
 	"""
@@ -507,6 +508,14 @@ def move_window(element_path: Optional[UI_Selector] = None,
 	while window.handle is None:
 		window = window.parent()
 	native_window_handle = window.handle
+	
+	if width == 0 or height == 0:
+		rect = win32gui_GetWindowRect(native_window_handle)
+		x = rect[0]
+		y = rect[1]
+		width = rect[2] - x
+		height = rect[3] - y
+	
 	win32gui_MoveWindow(native_window_handle, x, y, width, height, True)
 	return window
 
@@ -812,6 +821,9 @@ def menu_click(
 			UIPath._path_list = UIPath._regex_list = []
 		mouse_cursor_pos = win32api_GetCursorPos()
 		ws = find_all('*' + path_separator + menu_entry + type_separator + str_menu_item, timeout=timeout)
+		if ws == []:
+			time.sleep(1)
+			ws = find_all('*' + path_separator + menu_entry + type_separator + str_menu_item, timeout=timeout)
 		ws.sort(key=lambda w: distance(w.rectangle().mid_point(), mouse_cursor_pos))
 		w = ws[0]
 		if i == 0:
@@ -1111,7 +1123,7 @@ def connect_application(**kwargs):
 		if len(main_windows) == 1:
 			kwargs['handle'] = main_windows[0].handle
 		else:
-			raise FailedSearch("Window not found using args '", kwargs + "'")
+			raise FailedSearch("Window not found using args '", str(kwargs) + "'")
 		
 	app = pywinauto.Application(backend="uia")
 	app.connect(**kwargs)
