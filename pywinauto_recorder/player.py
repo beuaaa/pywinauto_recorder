@@ -812,7 +812,8 @@ def menu_click(
 		duration = float(duration)/2
 	
 	native_window_handle_before_menu = get_native_window_handle()
-	set_native_window_handle(None)
+	if absolute_path:
+		set_native_window_handle(None)
 	menu_entry_list = menu_path.split(path_separator)
 	str_menu_item = 'MenuItem~Absolute_UIPath' if absolute_path else 'MenuItem'
 	for i, menu_entry in enumerate(menu_entry_list):
@@ -821,6 +822,9 @@ def menu_click(
 			UIPath._path_list = UIPath._regex_list = []
 		mouse_cursor_pos = win32api_GetCursorPos()
 		ws = find_all('*' + path_separator + menu_entry + type_separator + str_menu_item, timeout=timeout)
+		if ws == []:
+			set_native_window_handle(None)
+			ws = find_all('*' + path_separator + menu_entry + type_separator + str_menu_item, timeout=timeout)
 		if ws == []:
 			time.sleep(1)
 			ws = find_all('*' + path_separator + menu_entry + type_separator + str_menu_item, timeout=timeout)
@@ -836,6 +840,7 @@ def menu_click(
 		time.sleep(0.1)  # wait for the menu to open (it is not always instantaneous depending on the animation settings)
 		if i>0:
 			UIPath._path_list, UIPath._regex_list = SAV_UIPath_path_list, SAV_UIPath_regex_list
+		set_native_window_handle(None)
 	set_native_window_handle(native_window_handle_before_menu)
 	return w_to_return
 
