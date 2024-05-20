@@ -812,8 +812,6 @@ def menu_click(
 		duration = float(duration)/2
 	
 	native_window_handle_before_menu = get_native_window_handle()
-	if absolute_path:
-		set_native_window_handle(None)
 	menu_entry_list = menu_path.split(path_separator)
 	str_menu_item = 'MenuItem~Absolute_UIPath' if absolute_path else 'MenuItem'
 	for i, menu_entry in enumerate(menu_entry_list):
