@@ -1072,7 +1072,7 @@ class UIApplication(object):
 
 def start_application(cmd_line, timeout=10, wait_for_idle=True, main_window_uipath=None):
 	"""
-	This function starts an application
+	Starts an application using the specified command line arguments.
 
 	:param cmd_line: The command line to start the application
 	:param timeout: timeout (in seconds)  of the connection process. Default is 10 seconds.
@@ -1104,17 +1104,25 @@ def start_application(cmd_line, timeout=10, wait_for_idle=True, main_window_uipa
 def connect_application(**kwargs):
 	"""Connect to an already running application
 
-	The action is performed according to only one of parameters
+	The action is performed according to only one of parameters:
 
 	:param process: a process ID of the target
 	:param handle: a native window handle of the target
 	:param path: a path used to launch the target
-	:param timeout: a timeout for process start (relevant if path is specified)
-
+	
+	Then the following optional parameters can be used:
+	
+	:param main_window_uipath: The UI path of the main window. This parameter is mandatory if the application has multiple main windows,
+        starts with a splash screen, or has any intermediate windows else it is optional.
+  :param timeout: a timeout (in seconds) for process start (relevant if path is specified)
+  :param exclude_main_windows A list of main windows to exclude from the search. This list could come from `find_main_windows`.
+        All windows in this list will be excluded to find the main window of the application to be connected.
+        
+	:return: Returns a UIApplication object representing the connected application.
+	
 	.. seealso::
-
-	   :func:`pywinauto.findwindows.find_elements` - the keyword arguments that
-	   are also can be used instead of **process**, **handle** or **path**
+		 :func:`pywinauto.findwindows.find_elements` - the keyword arguments that
+		 are also can be used instead of **process**, **handle** or **path**
 	"""
 	if 'exclude_main_windows' in kwargs or 'main_window_uipath' in kwargs:
 		excluded_main_windows = kwargs['exclude_main_windows'] if 'exclude_main_windows' in kwargs else []
@@ -1164,6 +1172,15 @@ def focus_on_application(application_or_window=None):
 
 
 def find_main_windows(main_window_uipath='*'):
+	"""
+	  Finds the main windows matching the specified UI path.
+
+	  :param main_window_uipath: The UI path to search for main windows. Default is '*' to match all windows.
+	  :return: Returns a list of windows matching the specified UI path.
+	  
+	  .. seealso::
+				:func:`connect_application` - Connects to an already running application.
+	  """
 	return find_window_candidates(main_window_uipath, handle=None)
 
 
