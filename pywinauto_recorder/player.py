@@ -511,10 +511,10 @@ def move_window(element_path: Optional[UI_Selector] = None,
 	
 	if width == 0 or height == 0:
 		rect = win32gui_GetWindowRect(native_window_handle)
-		x = rect[0]
-		y = rect[1]
-		width = rect[2] - x
-		height = rect[3] - y
+		x0 = rect[0]
+		y0 = rect[1]
+		width = rect[2] - x0
+		height = rect[3] - y0
 	
 	win32gui_MoveWindow(native_window_handle, x, y, width, height, True)
 	return window
@@ -1070,13 +1070,16 @@ class UIApplication(object):
 		self.native_window_handle = native_window_handle
 
 
-def start_application(cmd_line, timeout=10, wait_for_idle=True):
+def start_application(cmd_line, timeout=10, wait_for_idle=True, main_window_uipath=None):
 	"""
 	This function starts an application
 
 	:param cmd_line: The command line to start the application
-	:param timeout: timeout of the connection process
-	:return: UIApplication object
+	:param timeout: timeout (in seconds)  of the connection process. Default is 10 seconds.
+	:param wait_for_idle: If True, waits for the application o become idle before proceeding. Default is True.
+	:param main_window_uipath: The UI path of the main window. This parameter is mandatory if the application has multiple main windows,
+        starts with a splash screen, or has any intermediate windows else it is optional.
+	:return: UIApplication Returns a UIApplication object representing the started application.
 	"""
 	desktop = pywinauto.Desktop(backend='uia', allow_magic_lookup=False)
 	window_candidates_1 = desktop.windows()
@@ -1089,6 +1092,10 @@ def start_application(cmd_line, timeout=10, wait_for_idle=True):
 		time.sleep(1)
 		window_candidates_2 = desktop.windows()
 		diff = set(window_candidates_2) - set(window_candidates_1)
+	if main_window_uipath:
+		uiapp = connect_application(exclude_main_windows=window_candidates_1, main_window_uipath=main_window_uipath, timout=timeout)
+		set_native_window_handle(uiapp.native_window_handle)
+		return uiapp
 	native_window_handle = list(diff)[0].handle   # We assume that there is only one window
 	set_native_window_handle(native_window_handle)
 	return UIApplication(app, native_window_handle)
