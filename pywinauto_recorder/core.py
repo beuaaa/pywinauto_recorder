@@ -386,7 +386,7 @@ def get_element_info_path(element_info, element_info_top_level_parent=None):
 			path = path_separator + element_info.name + type_separator + element_info.control_type + path
 			element_info = element_info.parent
 			if first_parent:
-				if last_parent_element_info and last_parent_element_info.automation_id == None:     # TODO: Check how it's possible
+				if last_parent_element_info and last_parent_element_info.automation_id in [None, '']:
 					last_parent_element_info, last_parent_element_info_path = None, None
 				if element_info == last_parent_element_info:
 					return last_parent_element_info_path + path
