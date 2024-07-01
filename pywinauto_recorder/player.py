@@ -326,7 +326,7 @@ def _find(
 	elements = []
 	t0 = time.time()
 	while (time.time() - t0) < timeout:
-		while not elements:
+		while not elements and (time.time() - t0) < timeout:
 			if (time.time() - t0) > timeout:
 				msg = "No element found with the UIPath '" + full_element_path + "' after " + str(timeout) + " s of searching."
 				raise FailedSearch(msg)
@@ -1142,6 +1142,9 @@ def connect_application(**kwargs):
 			kwargs['handle'] = main_windows[0].handle
 		else:
 			raise FailedSearch("Window not found using args '", str(kwargs) + "'")
+	
+	kwargs.pop('exclude_main_windows', None)
+	kwargs.pop('main_window_uipath', None)
 		
 	app = pywinauto.Application(backend="uia")
 	app.connect(**kwargs)
