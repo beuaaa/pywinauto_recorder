@@ -813,19 +813,21 @@ def menu_click(
 	
 	native_window_handle_before_menu = get_native_window_handle()
 	menu_entry_list = menu_path.split(path_separator)
-	str_menu_item = 'MenuItem~Absolute_UIPath' if absolute_path else 'MenuItem'
+	str_menu, str_menu_item = '*', 'MenuItem'
+	if absolute_path:
+		str_menu, str_menu_item = 'RegEx: .*||Menu', 'MenuItem~Absolute_UIPath'
 	for i, menu_entry in enumerate(menu_entry_list):
 		if i > 0:
 			SAV_UIPath_path_list, SAV_UIPath_regex_list = UIPath._path_list, UIPath._regex_list
 			UIPath._path_list = UIPath._regex_list = []
 		mouse_cursor_pos = win32api_GetCursorPos()
-		ws = find_all('*' + path_separator + menu_entry + type_separator + str_menu_item, timeout=timeout)
+		ws = find_all(str_menu + path_separator + menu_entry + type_separator + str_menu_item, timeout=timeout)
 		if ws == []:
 			set_native_window_handle(None)
-			ws = find_all('*' + path_separator + menu_entry + type_separator + str_menu_item, timeout=timeout)
+			ws = find_all(str_menu + path_separator + menu_entry + type_separator + str_menu_item, timeout=timeout)
 		if ws == []:
 			time.sleep(1)
-			ws = find_all('*' + path_separator + menu_entry + type_separator + str_menu_item, timeout=timeout)
+			ws = find_all(str_menu + path_separator + menu_entry + type_separator + str_menu_item, timeout=timeout)
 		ws.sort(key=lambda w: distance(w.rectangle().mid_point(), mouse_cursor_pos))
 		w = ws[0]
 		if i == 0:
