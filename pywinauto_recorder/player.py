@@ -326,7 +326,7 @@ def _find(
 	elements = []
 	t0 = time.time()
 	while (time.time() - t0) < timeout:
-		while not elements and (time.time() - t0) < timeout:
+		while not elements:
 			if (time.time() - t0) > timeout:
 				msg = "No element found with the UIPath '" + full_element_path + "' after " + str(timeout) + " s of searching."
 				raise FailedSearch(msg)
