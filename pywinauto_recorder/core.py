@@ -439,12 +439,14 @@ def find_elements(full_element_path=None):
 			eis = findwindows.find_elements(backend="uia", parent=window, top_level_only=False)
 			candidates += filter_with_match_entry_list(window.element_info, eis, entry_list)
 		elif is_regex_entry(entry_list[-1]):
-			eis = findwindows.find_elements(title_re=title, control_type=control_type, backend="uia", parent=window, top_level_only=False)
+			eis = findwindows.find_elements(title_re=title, control_type=control_type, backend="uia",
+											parent=None if len(entry_list)==1 else window, top_level_only=len(entry_list)==1)
 			candidates += filter_with_match_entry_list(window.element_info, eis, entry_list)
 		elif control_type == "OCR_Text":
 				candidates += find_ocr_elements(title, window, entry_list)
 		else:
-			eis = findwindows.find_elements(title=title, control_type=control_type, backend="uia", parent=window, top_level_only=False)
+			eis = findwindows.find_elements(title=title, control_type=control_type, backend="uia",
+											parent=None if len(entry_list)==1 else window, top_level_only=len(entry_list)==1)
 			candidates += filter_with_match_entry_list(window.element_info, eis, entry_list)
 	candidates = [UIAWrapper(ei) for ei in candidates]
 	
