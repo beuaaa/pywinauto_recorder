@@ -2,3 +2,4 @@ Sphinx~=5.0.1
 sphinx_autodoc_typehints~=1.18.3
 docutils<0.18
 sphinx-rtd-theme~=1.0.0
+zipp>=3.19.1 # not directly required, pinned by Snyk to avoid a vulnerability
