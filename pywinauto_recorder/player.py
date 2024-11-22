@@ -1111,11 +1111,11 @@ def connect_application(**kwargs):
 	:param process: a process ID of the target
 	:param handle: a native window handle of the target
 	:param path: a path used to launch the target
+	:param main_window_uipath: The UI path of the main window. This parameter is mandatory if the application has multiple main windows,
+        starts with a splash screen, or has any intermediate windows else it is optional.
 	
 	Then the following optional parameters can be used:
 	
-	:param main_window_uipath: The UI path of the main window. This parameter is mandatory if the application has multiple main windows,
-        starts with a splash screen, or has any intermediate windows else it is optional.
   :param timeout: a timeout (in seconds) for process start (relevant if path is specified)
   :param exclude_main_windows A list of main windows to exclude from the search. This list could come from `find_main_windows`.
         All windows in this list will be excluded to find the main window of the application to be connected.
