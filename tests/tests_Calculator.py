@@ -1,13 +1,32 @@
 import pytest
 import os
 from pywinauto_recorder.player import PlayerSettings, UIPath, load_dictionary, shortcut, find_main_windows, \
-	find, move, click, double_click, triple_click, move_window, start_application, focus_on_application, kill_application, connect_application
+	find, move, click, double_click, triple_click, move_window, FailedSearch, \
+	start_application, focus_on_application, kill_application, connect_application
 from pywinauto_recorder.recorder import Recorder
 import time
 
 ################################################################################################
 #                               Tests using Windows 11 Calculator                              #
 ################################################################################################
+
+
+@pytest.mark.parametrize('start_kill_app', ["calc"], indirect=True)
+def test_uipath_filtering_with_regex_and_index(start_kill_app):
+	with UIPath("Calculator||Window"):
+		with UIPath("Calculator||Window->||Custom->||Group->Number pad||Group"):
+			with pytest.raises(FailedSearch) as exc_info:
+				find("RegEx: .*||Button#[RegEx: .*||Button,0]")
+			assert "11 elements found with the UIPath" in str(exc_info.value), 	f"Not expected message: {exc_info.value}"
+	with UIPath("Calculator||Window"):
+		with UIPath("Calculator||Window->||Custom->||Group->Number pad||Group"):
+			wrapper = find("RegEx: .*||Button#[Seven||Button,0]")
+			assert wrapper.element_info.name == 'Seven'
+			wrapper = find("RegEx: .*||Button#[Seven||Button,1]")
+			assert wrapper.element_info.name == 'Eight'
+			wrapper = find("RegEx: .*||Button#[Seven||Button,2]")
+			assert wrapper.element_info.name == 'Nine'
+
 
 @pytest.mark.parametrize('start_kill_app', ["calc"], indirect=True)
 def test_dictionary(start_kill_app):
