@@ -51,7 +51,7 @@ __all__ = ['PlayerSettings', 'MoveMode', 'ButtonLocation', 'load_dictionary', 's
            'drag_and_drop', 'middle_drag_and_drop', 'right_drag_and_drop', 'menu_click',
            'mouse_wheel', 'send_keys', 'set_combobox', 'set_text', 'exists', 'select_file', 'playback',
            'find_cache_clear', 'UIApplication', 'start_application', 'connect_application', 'focus_on_application',
-           'find_main_windows', 'kill_application']
+           'find_main_windows', 'kill_application', 'FailedSearch']
 
 
 # TODO special_char_array in core for recorder.py and player.py (check when to call escape & unescape)
@@ -351,9 +351,18 @@ def _find(
 			else:
 				full_smart_element_path = UIPath.get_full_path(y_x[0])
 				ref_unique_element = find_elements(full_smart_element_path)
-				if len(ref_unique_element) > 1:
-					msg = "No element found with the UIPath '" + full_smart_element_path + "' in the array line."
-					raise FailedSearch(msg)
+				if len(ref_unique_element) != 1:
+					msg = f"While searching for the UIPath '{full_element_path}' :\n"
+					if len(ref_unique_element) == 0:
+						msg += f"No element found with the UIPath '{full_smart_element_path}'."
+						raise FailedSearch(msg)
+					elif len(ref_unique_element) > 12:
+						msg += f"{len(ref_unique_element)} elements found with the UIPath '{full_smart_element_path}'."
+						raise FailedSearch(msg)
+					else:
+						elements_list = "\n".join(elem.element_info.name + '||' + elem.element_info.control_type for elem in ref_unique_element)
+						msg += f"{len(ref_unique_element) } elements found with the UIPath '{full_smart_element_path}': \n{elements_list}"
+						raise FailedSearch(msg)
 				ref_r = ref_unique_element[0].rectangle()
 				r_y = 0
 				while r_y < nb_y:
