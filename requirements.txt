@@ -1,4 +1,4 @@
-pywinauto
+pywinauto>=0.6.8,<1.0
 overlay_arrows_and_more==0.5.0
 keyboard
 mouse
@@ -7,6 +7,5 @@ setuptools
 pytest
 pywin32
 Pillow
-enum34
 cachetools
 thefuzz
