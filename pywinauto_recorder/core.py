@@ -314,11 +314,9 @@ def find_window_candidates(root_entry, handle=None):
 		title = None
 		control_type = None
 	if is_regex_entry(root_entry):
-		window_candidates = desktop.windows(title_re=title, control_type=control_type,
-		                                    visible_only=False, enabled_only=False, active_only=False, handle=handle)
+		window_candidates = desktop.windows(name_re=title, control_type=control_type, active_only=False, handle=handle)
 	else:
-		window_candidates = desktop.windows(title=title, control_type=control_type,
-		                                    visible_only=False, enabled_only=False, active_only=False, handle=handle)
+		window_candidates = desktop.windows(name=title, control_type=control_type, active_only=False, handle=handle)
 	return window_candidates
 
 
@@ -348,7 +346,7 @@ def find_ocr_elements(ocr_text, window, entry_list):
 	while entry_list[-1] == '*':
 		entry_list = entry_list[:-1]
 		title, control_type, _, _ = get_entry(entry_list[-1])
-	descendants = window.descendants(title=title, control_type=control_type)
+	descendants = window.descendants(name=title, control_type=control_type)
 	candidates = list(filter(lambda e: match_entry_list(get_entry_list(get_wrapper_path(e, window)), entry_list), descendants))
 	ocr_candidates = []
 	if not candidates:
@@ -386,7 +384,7 @@ def get_element_info_path(element_info, element_info_top_level_parent=None):
 			path = path_separator + element_info.name + type_separator + element_info.control_type + path
 			element_info = element_info.parent
 			if first_parent:
-				if last_parent_element_info and last_parent_element_info.automation_id in [None, '']:
+				if last_parent_element_info and last_parent_element_info.auto_id in [None, '']:
 					last_parent_element_info, last_parent_element_info_path = None, None
 				if element_info == last_parent_element_info:
 					return last_parent_element_info_path + path
@@ -436,16 +434,16 @@ def find_elements(full_element_path=None):
 	title, control_type, _, _ = get_entry(entry_list[-1])
 	for window in window_candidates:
 		if entry_list[-1] == '*':
-			eis = findwindows.find_elements(backend="uia", parent=window, top_level_only=False)
+			eis = findwindows.find_elements(backend="uia", parent=window, top_level_only=False, visible=True)
 			candidates += filter_with_match_entry_list(window.element_info, eis, entry_list)
 		elif is_regex_entry(entry_list[-1]):
-			eis = findwindows.find_elements(title_re=title, control_type=control_type, backend="uia",
+			eis = findwindows.find_elements(name_re=title, control_type=control_type, backend="uia", visible=True,
 											parent=None if len(entry_list)==1 else window, top_level_only=len(entry_list)==1)
 			candidates += filter_with_match_entry_list(window.element_info, eis, entry_list)
 		elif control_type == "OCR_Text":
 				candidates += find_ocr_elements(title, window, entry_list)
 		else:
-			eis = findwindows.find_elements(title=title, control_type=control_type, backend="uia",
+			eis = findwindows.find_elements(name=title, control_type=control_type, backend="uia", visible=True,
 											parent=None if len(entry_list)==1 else window, top_level_only=len(entry_list)==1)
 			candidates += filter_with_match_entry_list(window.element_info, eis, entry_list)
 	candidates = [UIAWrapper(ei) for ei in candidates]
