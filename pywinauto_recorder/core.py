@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import re
+import traceback
 from enum import Enum
 import configparser
 import ast
@@ -58,7 +59,7 @@ def get_wrapper_path(wrapper, wrapper_top_level_parent=None):
 		return wrapper.element_info.name + type_separator + wrapper.element_info.control_type + path
 	except Exception as e:
 		traceback.print_exc()
-		print(e.message)
+		print(e)
 		return ''
 
 
@@ -328,7 +329,6 @@ def filter_window_candidates(window_candidates):
 	:param window_candidates: a list of Window objects
 	:return: A list of window candidates that have been filtered.
 	"""
-	global core_settings
 	if core_settings.window_filtering.mode == 'admit_windows':
 		window_candidates = list(filter(
 			lambda w: any(substr in w.element_info.name for substr in core_settings.window_filtering.admit_windows),
