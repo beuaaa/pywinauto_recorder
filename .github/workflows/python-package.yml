@@ -21,9 +21,9 @@ jobs:
         python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.python-version }}
         allow-prereleases: true
@@ -44,8 +44,6 @@ jobs:
         python -m build
         python -m twine check dist/*
     - name: Import smoke test
-      # Expected to fail until the code is migrated to pywinauto 1.0
-      # (ocr_wrapper.py still imports pywinauto.win32defines/win32functions/win32structures).
-      # Remove continue-on-error once step 3 of the migration is done.
-      continue-on-error: true
       run: python -c "import pywinauto_recorder; print('pywinauto_recorder', pywinauto_recorder.__version__)"
+    - name: Pywinauto 1.0 API tests (no application under test)
+      run: python -m pytest -c tests/pytest.ini tests/tests_pywinauto_api.py -v
