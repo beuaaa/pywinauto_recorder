@@ -263,7 +263,7 @@ if __name__ == '__main__':
 	brian.say("Let's open the file that was just created to see what it looks like.")
 	right_click(drag_and_drop_start)
 	click("Context||Menu->*->Edit with Notepad++||MenuItem%(-64,28)")
-	find("RegEx: .* - Notepad\+\+||Window").maximize()
+	find(r"RegEx: .* - Notepad\+\+||Window").maximize()
 	brian.say("You can see that it is an easy to read Python script.")
 
 	send_keys("{PGUP}{VK_HOME}")

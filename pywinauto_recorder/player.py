@@ -189,7 +189,7 @@ def wait_is_ready_try1(wrapper, timeout=120):
 			h_wait_cursor = win32gui_LoadCursor(0, IDC_WAIT)
 			_, h_cursor, _ = win32gui_GetCursorInfo()
 			app = pywinauto.Application(backend='uia', allow_magic_lookup=False)
-			app.connect(process=wrapper.element_info.element.CurrentProcessId)
+			app.connect(pid=wrapper.element_info.process_id)
 			while h_cursor == h_wait_cursor:
 				app.wait_cpu_usage_lower()
 			spec = app.window(handle=wrapper.handle, top_level_only=False)
@@ -774,7 +774,7 @@ def menu_click(
 		
 		from pywinauto_recorder.player import UIPath, find, click, menu_click
 	
-		with UIPath("RegEx: .* - Notepad\+\+$||Window"):
+		with UIPath("RegEx: .* - Notepad\\+\\+$||Window"):
 			find().set_focus()
 			menu_click("Language->P->Python")
 		
@@ -1104,7 +1104,7 @@ def start_application(cmd_line, timeout=10, wait_for_idle=True, main_window_uipa
 		window_candidates_2 = desktop.windows()
 		diff = set(window_candidates_2) - set(window_candidates_1)
 	if main_window_uipath:
-		uiapp = connect_application(exclude_main_windows=window_candidates_1, main_window_uipath=main_window_uipath, timout=timeout)
+		uiapp = connect_application(exclude_main_windows=window_candidates_1, main_window_uipath=main_window_uipath, timeout=timeout)
 		set_native_window_handle(uiapp.native_window_handle)
 		return uiapp
 	native_window_handle = list(diff)[0].handle   # We assume that there is only one window
@@ -1112,12 +1112,44 @@ def start_application(cmd_line, timeout=10, wait_for_idle=True, main_window_uipa
 	return UIApplication(app, native_window_handle)
 
 
+# Search keywords renamed in pywinauto 1.0 (old name -> new name).
+# connect_application() still accepts the old names, so that scripts written
+# for Pywinauto Recorder 0.6 keep working unchanged.
+_PYWINAUTO_RENAMED_KWARGS = {
+	'process': 'pid',
+	'title': 'name',
+	'title_re': 'name_re',
+	'visible_only': 'visible',
+	'enabled_only': 'enabled',
+}
+
+
+def _translate_pywinauto_kwargs(kwargs):
+	"""
+	Returns a copy of kwargs where the search keywords renamed in pywinauto 1.0
+	(process, title, title_re, visible_only, enabled_only) are replaced by their new names.
+	visible_only=False and enabled_only=False mean "no filter", so they are dropped.
+	"""
+	translated = {}
+	for key, value in kwargs.items():
+		new_key = _PYWINAUTO_RENAMED_KWARGS.get(key, key)
+		if new_key in ('visible', 'enabled') and key != new_key:
+			if not value:
+				continue
+			value = True
+		if new_key in translated:
+			old_key = next(k for k in kwargs if _PYWINAUTO_RENAMED_KWARGS.get(k, k) == new_key and k != key)
+			raise ValueError("'{}' and '{}' cannot be used together".format(old_key, key))
+		translated[new_key] = value
+	return translated
+
+
 def connect_application(**kwargs):
 	"""Connect to an already running application
 
 	The action is performed according to only one of parameters:
 
-	:param process: a process ID of the target
+	:param pid: a process ID of the target (``process`` is still accepted)
 	:param handle: a native window handle of the target
 	:param path: a path used to launch the target
 	:param main_window_uipath: The UI path of the main window. This parameter is mandatory if the application has multiple main windows,
@@ -1133,8 +1165,11 @@ def connect_application(**kwargs):
 	
 	.. seealso::
 		 :func:`pywinauto.findwindows.find_elements` - the keyword arguments that
-		 are also can be used instead of **process**, **handle** or **path**
+		 are also can be used instead of **pid**, **handle** or **path**.
+		 The keywords renamed in pywinauto 1.0 (``title``, ``title_re``, ``process``, ``visible_only``,
+		 ``enabled_only``) are still accepted and translated to their new names.
 	"""
+	kwargs = _translate_pywinauto_kwargs(kwargs)
 	if 'exclude_main_windows' in kwargs or 'main_window_uipath' in kwargs:
 		excluded_main_windows = kwargs['exclude_main_windows'] if 'exclude_main_windows' in kwargs else []
 		main_window_uipath = kwargs['main_window_uipath'] if 'main_window_uipath' in kwargs else '*'
@@ -1159,7 +1194,7 @@ def connect_application(**kwargs):
 		
 	app = pywinauto.Application(backend="uia")
 	app.connect(**kwargs)
-	top_window = app.top_window().wrapper_object()
+	top_window = app.top_window().find()
 	native_window_handle = top_window.handle
 	return UIApplication(app, native_window_handle)
 

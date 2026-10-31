@@ -1,37 +1,49 @@
-# This workflow will install Python dependencies, run lint with a variety of Python versions
-# For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
+# Pywinauto Recorder 1.0 - continuous integration (pywinauto 1.0 only)
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
 
 name: Python package
 
 on:
   push:
-    branches: [ master ]
+    branches: [ master, pywinauto-1.0 ]
   pull_request:
-    branches: [ master ]
+    branches: [ master, pywinauto-1.0 ]
+  workflow_dispatch:
 
 jobs:
   build:
 
     runs-on: windows-latest
     strategy:
+      fail-fast: false
       matrix:
-        python-version: [3.7, 3.8, 3.9, 3.10]
+        # Versions are quoted: unquoted, YAML reads 3.10 as the number 3.1
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.python-version }}
-    - name: Install dependencies
+        allow-prereleases: true
+    - name: Install the package and dev tools
       run: |
         python -m pip install --upgrade pip
-        pip install flake8
-        pip install -r requirements.txt
+        pip install -e ".[dev]"
+    - name: Show installed pywinauto version
+      run: python -c "import importlib.metadata as m; print('pywinauto', m.version('pywinauto'))"
     - name: Lint with flake8
       run: |
         # stop the build if there are Python syntax errors or undefined names
         flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
         # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-
+    - name: Build sdist and wheel
+      run: |
+        python -m build
+        python -m twine check dist/*
+    - name: Import smoke test
+      run: python -c "import pywinauto_recorder; print('pywinauto_recorder', pywinauto_recorder.__version__)"
+    - name: Pywinauto 1.0 API tests (no application under test)
+      run: python -m pytest -c tests/pytest.ini tests/tests_pywinauto_api.py -v
