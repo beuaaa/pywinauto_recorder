@@ -1,6 +1,7 @@
 import pytest
 import pywinauto
 import time
+import warnings
 import win32api
 from pywinauto_recorder.core import Strategy
 from pywinauto_recorder.player import find_cache_clear
@@ -33,7 +34,15 @@ def start_kill_app(request):
 	# When the sleep duration is too short, 'app.connect' fails because of a spawned process with the same title.
 	# Pywinauto 0.7.0 should be able to handle this without a sleep.
 	app.connect(path=app_name, timeout=10, visible=True)
-	app.kill(soft=True)
+	with warnings.catch_warnings():
+		# pywinauto 1.0.0b1 bug: Application.kill(soft=True) itself still calls
+		# self.windows(visible_only=True). Ignore only this warning raised inside pywinauto,
+		# pytest.ini keeps turning renamed keywords used by our own code into errors.
+		warnings.filterwarnings(
+			"ignore",
+			message=r'\[pywinauto>=0\.7\.0\] Keyword is renamed: "visible_only=True" -> "visible=True"',
+			category=DeprecationWarning)
+		app.kill(soft=True)
 
 
 @pytest.fixture
