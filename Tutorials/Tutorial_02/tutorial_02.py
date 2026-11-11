@@ -36,7 +36,7 @@ def test():
 	
 	print("\ntest(): ********************************************************")
 	
-	with UIPath(u"RegEx: .* - Google Chrome$||Pane", regex_title=True):
+	with UIPath(u"RegEx: .* - Google Chrome$||Pane"):
 		wrapper = find(u"Google Chrome||Pane->*->||ToolBar->Address and search bar||Edit")
 		wrapper.draw_outline(colour='blue', thickness=9)
 
@@ -50,7 +50,7 @@ if __name__ == '__main__':
 	
 
 	pywinauto.Application().start(r'C:\Program Files\Notepad++\notepad++.exe')
-	with UIPath(r".* - Notepad\+\+$||Window", regex_title=True):
+	with UIPath(r"RegEx: .* - Notepad\+\+$||Window"):
 		#find().set_focus()
 		find().maximize()
 		menu_click("", u"File->New\tCtrl+N")
