@@ -1,3 +1,5 @@
+import warnings
+import pytest
 from pywinauto_recorder.core import get_entry_list, get_entry, match_entry_list
 from pywinauto_recorder.player import UIPath
 
@@ -150,3 +152,25 @@ def test_uipath_restored_after_exception():
 		pass
 	assert UIPath.get_full_path() == ""
 	assert UIPath._stack == []
+
+
+def test_uipath_regex_title_is_deprecated():
+	"""
+	Tests that the parameter 'regex_title' of UIPath, ignored since Pywinauto Recorder 0.6.0,
+	is still accepted but emits a warning, and that it does not change the path.
+	"""
+	with pytest.warns(FutureWarning, match="regex_title"):
+		ui_path = UIPath(".* - Notepad||Window", regex_title=True)
+	with ui_path:
+		assert UIPath.get_full_path("Text Editor||Edit") == ".* - Notepad||Window->Text Editor||Edit"
+	assert UIPath.get_full_path() == ""
+
+
+def test_uipath_without_regex_title_does_not_warn():
+	"""Tests that no warning is emitted when the parameter 'regex_title' is not used."""
+	with warnings.catch_warnings():
+		warnings.simplefilter("error")
+		with UIPath("RegEx: .* - Notepad||Window"):
+			with UIPath("Text Editor||Edit", regex_title=False):
+				assert UIPath.get_full_path() == "RegEx: .* - Notepad||Window->Text Editor||Edit"
+	assert UIPath.get_full_path() == ""

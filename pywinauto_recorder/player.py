@@ -6,6 +6,7 @@ from typing import Optional, Union, NewType
 import time
 import re
 import pathlib
+import warnings
 import pywinauto
 from win32api import GetCursorPos as win32api_GetCursorPos
 from win32api import GetSystemMetrics as win32api_GetSystemMetrics
@@ -249,7 +250,6 @@ class UIPath(object):
 	"""
 	_stack = []
 	_path_list = []
-	_regex_list = []  # UIPath._regex_list must be removed
 	
 	@staticmethod
 	def get_full_path(element_path: Optional[UI_Path] = None) -> UI_Path:
@@ -268,8 +268,14 @@ class UIPath(object):
 			return element_path
 	
 	def __init__(self, relative_path=None, regex_title=False,absolute_path=False):
+		if regex_title:
+			warnings.warn(
+				"The parameter 'regex_title' of UIPath is ignored since Pywinauto Recorder 0.6.0: "
+				"the path is searched as plain text unless it starts with 'RegEx: '. "
+				"Please use the RegEx syntax of UIPath, for example: UIPath(\"RegEx: .* - Notepad||Window\")",
+				FutureWarning, stacklevel=2)
 		self.relative_path = relative_path
-		self.regex_title = regex_title  # UIPath._regex_list must be removed
+		self.regex_title = regex_title  # deprecated and ignored, kept for compatibility
 		self.absolute_path = absolute_path
 	
 	def __enter__(self):
@@ -278,13 +284,11 @@ class UIPath(object):
 			UIPath._path_list = []
 		if self.relative_path:
 			UIPath._path_list.append(self.relative_path)
-			UIPath._regex_list.append(self.regex_title)  # UIPath._regex_list must be removed
 		return self
 	
 	def __exit__(self, type, value, traceback):
 		if self.relative_path:
 			UIPath._path_list = UIPath._path_list[0:-1]
-			UIPath._regex_list = UIPath._regex_list[0:-1]  # UIPath._regex_list must be removed
 		# Only the UIPath that saved the path in __enter__ (absolute_path=True) restores it.
 		# A UIPath nested in it must not: it would restore the outer path too early.
 		if self.absolute_path:
@@ -829,8 +833,8 @@ def menu_click(
 		str_menu, str_menu_item = 'RegEx: .*||Menu', 'MenuItem~Absolute_UIPath'
 	for i, menu_entry in enumerate(menu_entry_list):
 		if i > 0:
-			SAV_UIPath_path_list, SAV_UIPath_regex_list = UIPath._path_list, UIPath._regex_list
-			UIPath._path_list = UIPath._regex_list = []
+			SAV_UIPath_path_list = UIPath._path_list
+			UIPath._path_list = []
 		mouse_cursor_pos = win32api_GetCursorPos()
 		ws = find_all(str_menu + path_separator + menu_entry + type_separator + str_menu_item, timeout=timeout)
 		if ws == []:
@@ -850,7 +854,7 @@ def menu_click(
 		click(item_pos, duration=duration)
 		time.sleep(0.1)  # wait for the menu to open (it is not always instantaneous depending on the animation settings)
 		if i>0:
-			UIPath._path_list, UIPath._regex_list = SAV_UIPath_path_list, SAV_UIPath_regex_list
+			UIPath._path_list = SAV_UIPath_path_list
 		set_native_window_handle(None)
 	set_native_window_handle(native_window_handle_before_menu)
 	return w_to_return
