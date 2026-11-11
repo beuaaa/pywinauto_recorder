@@ -1181,7 +1181,7 @@ def start_application(cmd_line, timeout=10, wait_for_idle=True, main_window_uipa
 	window_candidates_2 = desktop.windows()
 	diff = set(window_candidates_2) - set(window_candidates_1)
 	while not diff:
-		if (time.time() - t0) > timeout:
+		if (time.time() - t0) >= timeout:
 			raise FailedSearch("No new window found " + str(timeout) + " s after starting '" + str(cmd_line) + "'. " +
 			                   "Increase the 'timeout' parameter if the application is slow to start.")
 		time.sleep(1)
