@@ -378,6 +378,12 @@ def _find(
 							return candidates[r_y][y_x[1]]
 					r_y = r_y + 1
 		time.sleep(0.1)
+		# Several elements match the path: search again until the timeout, because it may be transient
+		# (for example a window that is closing while another one is opening).
+		try:
+			elements = find_elements(full_element_path)
+		except Exception:
+			pass  # keep the elements of the previous search
 
 	if len(elements) > 1:
 		message = "There are " + str(len(elements)) + " undiscriminated elements that match the path '" + full_element_path + "':"
