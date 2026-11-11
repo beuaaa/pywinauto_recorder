@@ -46,7 +46,7 @@ else:
 
 directory = get_next_cache_dir()
 if not silent:
-    print("COMPTYPES CACHE FOLDER:", directory)
+    print("COMTYPES CACHE FOLDER:", directory)
     print("First iteration may get folder with restricted rights.")
     print("Second iteration always gets temp cache folder (writable for all).")
 removed = remove_directory(directory, silent)

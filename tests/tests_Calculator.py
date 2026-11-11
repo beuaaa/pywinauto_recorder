@@ -248,7 +248,7 @@ def test_new_window_connection():
 		all_main_windows_before_click = find_main_windows('*')
 		time.sleep(1)  # wait for the animation completion
 		click("Send feedback||Hyperlink")
-	feedback_hub = connect_application(exclude_main_windows=all_main_windows_before_click, main_window_uipath="Feedback Hub||Window", timout=10)
+	feedback_hub = connect_application(exclude_main_windows=all_main_windows_before_click, main_window_uipath="Feedback Hub||Window", timeout=10)
 	focus_on_application(feedback_hub)
 	with UIPath("*"):
 		move_window(x=0, y=0)

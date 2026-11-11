@@ -87,7 +87,7 @@ class PlayerSettings:
 		"""
 		If the duration and timeout arguments are None, set them to the default values.
 		
-		:param typing_duration: The pause time between characters typed
+		:param typing_pause: The pause time between characters typed
 		:param mouse_move_duration: The duration of the mouse movement
 		:param timeout: The maximum duration to wait for the :func:`find` function to find an element before giving up
 		:return: The duration and timeout are being returned.
@@ -201,7 +201,7 @@ def wait_is_ready_try1(wrapper, timeout=120):
 		except Exception:
 			time.sleep(0.1)
 		if (time.time() - t0) > timeout:
-			msg = "Element " + get_wrapper_path(wrapper) + "  was not found after " + str(timeout) + " s of searching."
+			msg = "Element " + get_wrapper_path(wrapper) + " was not found after " + str(timeout) + " s of searching."
 			raise TimeoutError("Time out! " + msg)
 
 
@@ -563,8 +563,8 @@ def move_window(element_path: Optional[UI_Selector] = None,
 	:param element_path: element path
 	:param x: new x coordinate of the upper left corner of the window
 	:param y: new y coordinate of the upper left corner of the window
-	:param width: new width of the window, if 0 then the with and the height are not modified
-	:param height: new height of the window, if 0 then the with and the height are not modified
+	:param width: new width of the window, if 0 then the width and the height are not modified
+	:param height: new height of the window, if 0 then the width and the height are not modified
 	:return: Pywinauto wrapper of found window
 	:raises FailedSearch: if no element found
 	"""
@@ -792,7 +792,7 @@ def drag_and_drop(
 		(if duration is -1 the mouse cursor doesn't move, it just sends WM_CLICK window message,
 		useful for minimized or non-active window).
 	:param mode: move mouse mode: MoveMode.linear, MoveMode.x_first, MoveMode.y_first
-	:param button: mouse button:  ButtonLocation.left, ButtonLocation.middl, ButtonLocation.right
+	:param button: mouse button:  ButtonLocation.left, ButtonLocation.middle, ButtonLocation.right
 	:param timeout: period of time in seconds that will be allowed to find the element
 	:return: Pywinauto wrapper found with element_path2
 	:raises FailedSearch: if the element is not found
@@ -1166,7 +1166,7 @@ def start_application(cmd_line, timeout=10, wait_for_idle=True, main_window_uipa
 	:param cmd_line: The command line to start the application
 	:param timeout: timeout (in seconds)  of the connection process. Default is 10 seconds.
 		It is also the maximum duration to wait for the window of the application to appear.
-	:param wait_for_idle: If True, waits for the application o become idle before proceeding. Default is True.
+	:param wait_for_idle: If True, waits for the application to become idle before proceeding. Default is True.
 	:param main_window_uipath: The UI path of the main window. This parameter is mandatory if the application has multiple main windows,
         starts with a splash screen, or has any intermediate windows else it is optional.
 	:return: UIApplication Returns a UIApplication object representing the started application.
@@ -1242,7 +1242,7 @@ def connect_application(**kwargs):
 	Then the following optional parameters can be used:
 	
   :param timeout: a timeout (in seconds) for process start (relevant if path is specified)
-  :param exclude_main_windows A list of main windows to exclude from the search. This list could come from `find_main_windows`.
+  :param exclude_main_windows: A list of main windows to exclude from the search. This list could come from `find_main_windows`.
         All windows in this list will be excluded to find the main window of the application to be connected.
         
 	:return: Returns a UIApplication object representing the connected application.

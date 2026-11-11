@@ -165,8 +165,8 @@ def _write_in_file(events, relative_coordinate_mode=False):
 def _clean_events(events, remove_first_up=False):
 	""""
 	removes duplicate or useless events
-	removes all the last down events due or not to (CRTL+ALT+r) when ending record mode
-	:param remove_first_up: when True, removes the 2 first up events due to (CRTL+ALT+r) when starting record mode
+	removes all the last down events due or not to (CTRL+ALT+r) when ending record mode
+	:param remove_first_up: when True, removes the 2 first up events due to (CTRL+ALT+r) when starting record mode
 	:param events: the copy of recorded event list
 	"""
 	if remove_first_up:
@@ -643,7 +643,7 @@ class Recorder(Thread):
 				if r == wrapper_rectangle:
 					xx, yy = r.left, r.mid_point()[1]
 					previous_wrapper_path2 = None
-					while xx > 0:  # TODO: limiter la recherche à la fenètre courante
+					while xx > 0:  # TODO: limiter la recherche à la fenêtre courante
 						xx = xx - 9
 						wrapper2 = self.desktop.from_point(xx, yy)
 						if wrapper2 is None:
@@ -703,7 +703,7 @@ class Recorder(Thread):
 		else:
 			self.mode = "Info"
 			
-	def __display_found_elemenet_by_key(self):
+	def __display_found_element_by_key(self):
 		if self.last_element_event:
 			self._copy_count = 2
 			x, y = win32api.GetCursorPos()
@@ -737,7 +737,7 @@ class Recorder(Thread):
 		elif (
 				(e.name, e.event_type) == ('F', 'up') and
 				set([key_to_scan_codes("shift")[0], key_to_scan_codes("ctrl")[0]]).issubset(keyboard._pressed_events)):
-			self.__display_found_elemenet_by_key()
+			self.__display_found_element_by_key()
 		elif (
 				(e.name, e.event_type) == ('D', 'up') and
 				set([key_to_scan_codes("shift")[0], key_to_scan_codes("ctrl")[0]]).issubset(keyboard._pressed_events)):
@@ -746,19 +746,19 @@ class Recorder(Thread):
 			self.event_list.append(e)
 
 
-	# Ne fonctionne pas dans tous les cas car un rectangle pere n'englobe pas forcement un rectangle fils
-	# (par exemple un TreeItem) Mais peut être utilisé en ultime recour
+	# Ne fonctionne pas dans tous les cas car un rectangle père n'englobe pas forcément un rectangle fils
+	# (par exemple un TreeItem) Mais peut être utilisé en ultime recours
 	'''
 	def my_from_point(self, x, y, wrapper=None):
-		def get_children_of_children_whith_empty_rectangle(wrapper_children):
-			children_of_children_whith_empty_rectangle = []
+		def get_children_of_children_with_empty_rectangle(wrapper_children):
+			children_of_children_with_empty_rectangle = []
 			for child in wrapper_children:
 				child_rectangle = child.rectangle()
 				if child_rectangle.width() ==0 or child_rectangle.width()==0:
-					children_of_children_whith_empty_rectangle += child.children()
-			return children_of_children_whith_empty_rectangle
+					children_of_children_with_empty_rectangle += child.children()
+			return children_of_children_with_empty_rectangle
 		def get_children_of_children_not_in_parent_rectangle(wrapper_children):
-			children_of_children_whith_empty_rectangle = []
+			children_of_children_with_empty_rectangle = []
 			for child in wrapper_children:
 				child_rectangle = child.rectangle()
 				grandchildren = child.children()
@@ -775,7 +775,7 @@ class Recorder(Thread):
 			child_rectangle = child.rectangle()
 			if (child_rectangle.left < x < child_rectangle.right) and (child_rectangle.top < y < child_rectangle.bottom):
 				return self.my_from_point(x, y, wrapper=child)
-		for grandchild in get_children_of_children_whith_empty_rectangle(wrapper_children):
+		for grandchild in get_children_of_children_with_empty_rectangle(wrapper_children):
 			child_rectangle = grandchild.rectangle()
 			if (child_rectangle.left < x < child_rectangle.right) and (child_rectangle.top < y < child_rectangle.bottom):
 				return self.my_from_point(x, y, wrapper=grandchild)
@@ -794,7 +794,7 @@ class Recorder(Thread):
 		"""
 		import comtypes.client
 		print("")
-		print("COMPTYPES CACHE FOLDER:", comtypes.client._code_cache._find_gen_dir())
+		print("COMTYPES CACHE FOLDER:", comtypes.client._code_cache._find_gen_dir())
 		
 		dir_path = os.path.dirname(os.path.realpath(__file__))
 		print("PYWINAUTO RECORDER FOLDER:", dir_path)
@@ -1074,7 +1074,7 @@ class Recorder(Thread):
 		This function plays back a string of code or a Python file.
 		
 		:param str_code: The code to be played back
-		:param filename: The name of the file coresponding to the code to be played back
+		:param filename: The name of the file corresponding to the code to be played back
 		"""
 		self.mode = "Play"
 		self.main_overlay.refresh()

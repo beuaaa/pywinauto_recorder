@@ -94,7 +94,7 @@ if __name__ == '__main__':
 	
 	brian.say("Thanks for watching! In the next tutorial, you will see how to make a robust recorded script. See you soon!", wait_until_the_end_of_the_sentence=True)
 
-	#obs.stop_recordi0ng()
+	#obs.stop_recording()
 	#time.sleep(1)
 	#obs.quit()
 	
