@@ -45,5 +45,5 @@ jobs:
         python -m twine check dist/*
     - name: Import smoke test
       run: python -c "import pywinauto_recorder; print('pywinauto_recorder', pywinauto_recorder.__version__)"
-    - name: Pywinauto 1.0 API tests (no application under test)
-      run: python -m pytest -c tests/pytest.ini tests/tests_pywinauto_api.py -v
+    - name: Tests that need no application under test
+      run: python -m pytest -c tests/pytest.ini tests/tests.py tests/tests_pywinauto_api.py -v

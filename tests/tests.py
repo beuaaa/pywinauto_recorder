@@ -1,4 +1,5 @@
 from pywinauto_recorder.core import get_entry_list, get_entry, match_entry_list
+from pywinauto_recorder.player import UIPath
 
 
 ################################################################################################
@@ -76,3 +77,76 @@ def test_match_entry_list():
 	for entry_path in entry_path_set:
 		assert match_entry_list(get_entry_list(entry_path[0]), template_list) == entry_path[1]
 
+
+
+################################################################################################
+#                                       Tests of UIPath                                        #
+################################################################################################
+
+def test_uipath_nested():
+	"""Tests that nested UIPath objects build the full path and restore it when they exit."""
+	assert UIPath.get_full_path() == ""
+	with UIPath("W1||Window"):
+		assert UIPath.get_full_path() == "W1||Window"
+		with UIPath("A||Pane"):
+			assert UIPath.get_full_path("OK||Button") == "W1||Window->A||Pane->OK||Button"
+			with UIPath("B||Group"):
+				assert UIPath.get_full_path("OK||Button") == "W1||Window->A||Pane->B||Group->OK||Button"
+			assert UIPath.get_full_path("OK||Button") == "W1||Window->A||Pane->OK||Button"
+		assert UIPath.get_full_path("OK||Button") == "W1||Window->OK||Button"
+	assert UIPath.get_full_path() == ""
+
+
+def test_uipath_absolute_path_with_nested_uipath():
+	"""
+	Tests that a UIPath nested in a UIPath having absolute_path=True does not restore
+	the path saved by the absolute UIPath when it exits.
+	"""
+	with UIPath("W1||Window"):
+		with UIPath("W2||Window", absolute_path=True):
+			assert UIPath.get_full_path("OK||Button") == "W2||Window->OK||Button"
+			with UIPath("child||Pane"):
+				assert UIPath.get_full_path("OK||Button") == "W2||Window->child||Pane->OK||Button"
+			# The path of the absolute UIPath must still be the current one
+			assert UIPath.get_full_path("Cancel||Button") == "W2||Window->Cancel||Button"
+			with UIPath("other||Pane"):
+				assert UIPath.get_full_path("OK||Button") == "W2||Window->other||Pane->OK||Button"
+			assert UIPath.get_full_path("Cancel||Button") == "W2||Window->Cancel||Button"
+		# The path of the outer UIPath must be restored only when the absolute UIPath exits
+		assert UIPath.get_full_path("X||Button") == "W1||Window->X||Button"
+	assert UIPath.get_full_path() == ""
+
+
+def test_uipath_absolute_path_at_top_level():
+	"""Tests a UIPath having absolute_path=True that is not nested in another UIPath."""
+	with UIPath("W2||Window", absolute_path=True):
+		with UIPath("child||Pane"):
+			assert UIPath.get_full_path("OK||Button") == "W2||Window->child||Pane->OK||Button"
+		assert UIPath.get_full_path("Cancel||Button") == "W2||Window->Cancel||Button"
+	assert UIPath.get_full_path() == ""
+
+
+def test_uipath_nested_absolute_paths():
+	"""Tests two nested UIPath objects having absolute_path=True."""
+	with UIPath("W1||Window"):
+		with UIPath("W2||Window", absolute_path=True):
+			with UIPath("W3||Window", absolute_path=True):
+				with UIPath("child||Pane"):
+					assert UIPath.get_full_path("OK||Button") == "W3||Window->child||Pane->OK||Button"
+				assert UIPath.get_full_path("OK||Button") == "W3||Window->OK||Button"
+			assert UIPath.get_full_path("OK||Button") == "W2||Window->OK||Button"
+		assert UIPath.get_full_path("OK||Button") == "W1||Window->OK||Button"
+	assert UIPath.get_full_path() == ""
+
+
+def test_uipath_restored_after_exception():
+	"""Tests that the path is restored when an exception is raised in nested UIPath blocks."""
+	try:
+		with UIPath("W1||Window"):
+			with UIPath("W2||Window", absolute_path=True):
+				with UIPath("child||Pane"):
+					raise RuntimeError("error raised in the nested UIPath")
+	except RuntimeError:
+		pass
+	assert UIPath.get_full_path() == ""
+	assert UIPath._stack == []
