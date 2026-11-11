@@ -1,7 +1,9 @@
+import io
+import sys
 import time
 import warnings
 import pytest
-from pywinauto_recorder.core import get_entry_list, get_entry, match_entry_list
+from pywinauto_recorder.core import get_entry_list, get_entry, match_entry_list, get_sorted_region
 from pywinauto_recorder import player
 from pywinauto_recorder.player import UIPath, PlayerSettings, FailedSearch, click
 
@@ -236,10 +238,33 @@ def test_click_restores_use_cache_when_it_succeeds(monkeypatch, use_cache):
 #                                        Tests of _find                                        #
 ################################################################################################
 
+class _FakeRectangle:
+	"""Stands for the rectangle of a Pywinauto wrapper."""
+	def __init__(self, left, top, width, height):
+		self.left, self.top, self.right, self.bottom = left, top, left + width, top + height
+
+	def width(self):
+		return self.right - self.left
+
+	def height(self):
+		return self.bottom - self.top
+
+	def mid_point(self):
+		return (self.left + self.right) // 2, (self.top + self.bottom) // 2
+
+
 class _FakeElement:
 	"""Stands for a Pywinauto wrapper returned by 'find_elements' in the tests of '_find'."""
-	def __init__(self, name):
+	def __init__(self, name, left=0, top=0, width=50, height=20, visible=True):
 		self.name = name
+		self._rectangle = _FakeRectangle(left, top, width, height)
+		self._visible = visible
+
+	def rectangle(self):
+		return self._rectangle
+
+	def is_visible(self):
+		return self._visible
 
 
 class _FakeFindElements:
@@ -288,6 +313,15 @@ def test_find_searches_again_when_several_elements_match(fake_find_elements):
 	assert fake.call_count == 3
 
 
+def test_find_uses_the_result_of_the_last_search(fake_find_elements):
+	"""Tests that '_find' returns the element when it becomes the only one at the last search, done at the timeout."""
+	ok = _FakeElement("Window||Window->OK||Button")
+	closing = _FakeElement("Closing window||Window->OK||Button")
+	# Searches at about 0 s, 0.2 s, 0.4 s and 0.5 s (the timeout)
+	fake_find_elements([ok, closing], [ok, closing], [ok, closing], [ok], search_again_pause=0.2)
+	assert player._find("RegEx: .*||Window->OK||Button", timeout=0.5) is ok
+
+
 def test_find_fails_when_several_elements_still_match_after_the_timeout(fake_find_elements):
 	"""Tests that '_find' raises FailedSearch when several elements still match the path after the timeout."""
 	ok_1 = _FakeElement("Window 1||Window->OK||Button")
@@ -326,3 +360,103 @@ def test_find_fails_when_the_elements_disappear_after_matching(fake_find_element
 	fake_find_elements([ok_1, ok_2], [])
 	with pytest.raises(FailedSearch, match="No element found"):
 		player._find("RegEx: .*||Window->OK||Button", timeout=0.3)
+
+
+def _two_rows_of_buttons():
+	"""Returns 4 fake buttons arranged in 2 rows of 2 buttons: [[a, b], [c, d]]."""
+	a = _FakeElement("Window||Window->OK||Button", left=0, top=0)
+	b = _FakeElement("Window||Window->OK||Button", left=100, top=0)
+	c = _FakeElement("Window||Window->OK||Button", left=0, top=40)
+	d = _FakeElement("Window||Window->OK||Button", left=100, top=40)
+	return a, b, c, d
+
+
+def test_find_with_index(fake_find_elements):
+	"""Tests that '_find' returns the element at the row and column of the [] operator."""
+	a, b, c, d = _two_rows_of_buttons()
+	fake_find_elements([d, b, c, a])
+	assert player._find("Window||Window->OK||Button#[0,0]", timeout=2) is a
+	assert player._find("Window||Window->OK||Button#[0,1]", timeout=2) is b
+	assert player._find("Window||Window->OK||Button#[1,0]", timeout=2) is c
+	assert player._find("Window||Window->OK||Button#[1,1]", timeout=2) is d
+
+
+@pytest.mark.parametrize("index", ["#[2,0]", "#[0,2]", "#[7,7]"])
+def test_find_fails_when_the_index_is_out_of_range(fake_find_elements, index):
+	"""
+	Tests that '_find' raises FailedSearch, not IndexError, when the row or the column
+	of the [] operator is out of range after the timeout.
+	"""
+	fake = fake_find_elements(list(_two_rows_of_buttons()))
+	with pytest.raises(FailedSearch) as exc_info:
+		player._find("Window||Window->OK||Button" + index, timeout=0.3)
+	message = str(exc_info.value)
+	assert "out of range" in message
+	assert "Window||Window->OK||Button" + index in message
+	assert "2 row(s)" in message
+	assert fake.call_count > 1  # the search was done again while waiting
+
+
+def test_find_waits_until_the_index_is_in_range(fake_find_elements):
+	"""Tests that '_find' searches again when the index is out of range (a list that is still being filled)."""
+	a, b, c, d = _two_rows_of_buttons()
+	fake = fake_find_elements([a, b], [a, b], [a, b, c, d])
+	assert player._find("Window||Window->OK||Button#[1,0]", timeout=5) is c
+	assert fake.call_count == 3
+
+
+def test_find_fails_when_no_element_is_visible_with_an_index(fake_find_elements):
+	"""Tests that '_find' raises FailedSearch when the [] operator is used and no found element is visible."""
+	hidden_1 = _FakeElement("Window||Window->OK||Button", left=0, visible=False)
+	hidden_2 = _FakeElement("Window||Window->OK||Button", left=100, visible=False)
+	fake_find_elements([hidden_1, hidden_2])
+	with pytest.raises(FailedSearch, match="out of range"):
+		player._find("Window||Window->OK||Button#[0,0]", timeout=0.3)
+
+
+def test_find_fails_when_the_column_is_out_of_range_with_a_reference_element(monkeypatch):
+	"""
+	Tests that '_find' raises FailedSearch, not IndexError, when the column is out of range
+	and the row is given by a reference element: "...#[UIPath of the reference element,column]".
+	"""
+	a, b, c, d = _two_rows_of_buttons()
+	label = _FakeElement("Label||Text", left=200, top=35, height=30)  # on the row of c and d
+
+	def find_elements(full_element_path=None):
+		return [label] if full_element_path == "Label||Text" else [a, b, c, d]
+
+	monkeypatch.setattr(player, "find_elements", find_elements)
+	monkeypatch.setattr(player, "get_wrapper_path", lambda wrapper: wrapper.name)
+	monkeypatch.setattr(player, "_SEARCH_AGAIN_PAUSE", 0.05)
+	assert player._find("Window||Window->OK||Button#[Label||Text,1]", timeout=2) is d
+	with pytest.raises(FailedSearch, match="out of range"):
+		player._find("Window||Window->OK||Button#[Label||Text,5]", timeout=0.3)
+
+
+def test_get_sorted_region_without_visible_element():
+	"""Tests that 'get_sorted_region' returns no row when there is no element or no visible element."""
+	assert get_sorted_region([]) == (0, 0, [])
+	assert get_sorted_region([_FakeElement("OK||Button", visible=False)]) == (0, 0, [])
+
+
+@pytest.mark.parametrize("encoding, expected", [("utf-8", "🔎"), ("cp1252", "?")])
+def test_find_prints_its_progress_whatever_the_encoding_of_stdout(monkeypatch, fake_find_elements, encoding, expected):
+	"""
+	Tests that '_find' does not raise UnicodeEncodeError when the encoding of stdout cannot display
+	the progress symbols (output redirected to a file or a pipe on Windows): ASCII symbols are printed instead.
+	"""
+	ok = _FakeElement("Window||Window->OK||Button")
+	fake_find_elements([ok])
+	stdout = io.TextIOWrapper(io.BytesIO(), encoding=encoding)
+	monkeypatch.setattr(sys, "stdout", stdout)
+	assert player._find("Window||Window->OK||Button", timeout=2) is ok
+	stdout.flush()
+	assert stdout.buffer.getvalue().decode(encoding) == expected
+
+
+def test_find_works_without_stdout(monkeypatch, fake_find_elements):
+	"""Tests that '_find' works when there is no stdout (sys.stdout is None with pythonw.exe or a windowed application)."""
+	ok = _FakeElement("Window||Window->OK||Button")
+	fake_find_elements([ok])
+	monkeypatch.setattr(sys, "stdout", None)
+	assert player._find("Window||Window->OK||Button", timeout=2) is ok
