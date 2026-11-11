@@ -278,7 +278,7 @@ def get_sorted_region(elements, min_height=8, max_height=9999, min_width=8, max_
 	filtered_elements.sort(key=lambda widget: (widget.rectangle().top, widget.rectangle().left))
 	arrays = [[]]
 	
-	if all_height_equal(filtered_elements):
+	if filtered_elements and all_height_equal(filtered_elements):
 		line_tolerance = filtered_elements[0].rectangle().height()
 	
 	h = 0

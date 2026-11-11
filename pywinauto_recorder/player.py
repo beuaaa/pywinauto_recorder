@@ -301,6 +301,32 @@ Region = UIPath
 _SEARCH_AGAIN_PAUSE = 1.0
 """Pause (in seconds) between two searches when several elements match a path without index."""
 
+_PROGRESS_ASCII_SYMBOLS = {"🔎": "?", "🔴": ".", "🟢": "!"}
+"""Symbols printed instead of the search progress symbols when the encoding of stdout cannot display them."""
+
+
+def _print_progress(symbol):
+	"""
+	Prints a search progress symbol.
+
+	The ASCII symbol of _PROGRESS_ASCII_SYMBOLS is printed when the encoding of stdout cannot display the symbol
+	(for example cp1252 when the output is redirected on Windows). Nothing is printed when there is no stdout.
+	"""
+	try:
+		print(symbol, end="", flush=True)
+	except UnicodeEncodeError:
+		print(_PROGRESS_ASCII_SYMBOLS.get(symbol, "?"), end="", flush=True)
+
+
+def _index_out_of_range_message(full_element_path, y_x, candidates):
+	"""Returns the message of the FailedSearch raised when the index of the [] operator is out of range."""
+	if candidates:
+		rows = str(len(candidates)) + " row(s) of " + ", ".join(str(len(row)) for row in candidates) + " element(s)"
+	else:
+		rows = "no row, because none of them is visible"
+	return "The index [" + str(y_x[0]) + "," + str(y_x[1]) + "] of the UIPath '" + full_element_path + \
+		"' is out of range: the elements found are arranged in " + rows + "."
+
 
 def find_cache_clear():
 	"""
@@ -330,12 +356,12 @@ def _find(
 	
 	When the [] operator is used and only one element is found, the row and column indices are not tested and the element is returned.
 	"""
-	print("🔎", end="", file=sys.stdout)
-	sys.stdout.flush()
+	_print_progress("🔎")
 	_, _, y_x, _ = get_entry(get_entry_list(full_element_path)[-1])
 	elements = []
+	index_error_message = None
 	t0 = time.time()
-	while (time.time() - t0) < timeout:
+	while True:
 		while not elements:
 			if (time.time() - t0) > timeout:
 				msg = "No element found with the UIPath '" + full_element_path + "' after " + str(timeout) + " s of searching."
@@ -343,21 +369,23 @@ def _find(
 			try:
 				elements = find_elements(full_element_path)
 				if not elements:
-					print("🔴", end="", file=sys.stdout)
-					sys.stdout.flush()
+					_print_progress("🔴")
 					time.sleep(2.0)
 			except Exception:
-				print("🟢", end="", file=sys.stdout)
-				sys.stdout.flush()
-				pass
+				_print_progress("🟢")
 
 		if len(elements) == 1:
 			return elements[0]
 		
+		index_error_message = None
 		if y_x is not None:
 			nb_y, _, candidates = get_sorted_region(elements)
 			if is_int(y_x[0]):
-				return candidates[int(y_x[0])][int(y_x[1])]
+				try:
+					return candidates[int(y_x[0])][int(y_x[1])]
+				except IndexError:
+					# The search is done again until the timeout: the elements may still be loading
+					index_error_message = _index_out_of_range_message(full_element_path, y_x, candidates)
 			else:
 				full_smart_element_path = UIPath.get_full_path(y_x[0])
 				ref_unique_element = find_elements(full_smart_element_path)
@@ -379,17 +407,25 @@ def _find(
 					for candidate in candidates[r_y]:
 						y_candidate = candidate.rectangle().mid_point()[1]
 						if ref_r.top < y_candidate < ref_r.bottom:
-							return candidates[r_y][y_x[1]]
+							try:
+								return candidates[r_y][y_x[1]]
+							except IndexError:
+								index_error_message = _index_out_of_range_message(full_element_path, y_x, candidates)
+							break
 					r_y = r_y + 1
+		if (time.time() - t0) >= timeout:
+			break
 		# Several elements match the path: search again until the timeout, because it may be transient
 		# (for example a window that is closing while another one is opening).
-		# The pause between two searches is shortened at the end, so that the timeout is respected.
+		# The pause between two searches is shortened at the end, so that the last search is done at the timeout.
 		time.sleep(min(_SEARCH_AGAIN_PAUSE, max(0.0, timeout - (time.time() - t0))))
 		try:
 			elements = find_elements(full_element_path)
 		except Exception:
 			pass  # keep the elements of the previous search
 
+	if index_error_message:
+		raise FailedSearch(index_error_message)
 	if len(elements) > 1:
 		message = "There are " + str(len(elements)) + " undiscriminated elements that match the path '" + full_element_path + "':"
 		for e in elements:
