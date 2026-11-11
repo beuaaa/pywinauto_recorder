@@ -285,7 +285,9 @@ class UIPath(object):
 		if self.relative_path:
 			UIPath._path_list = UIPath._path_list[0:-1]
 			UIPath._regex_list = UIPath._regex_list[0:-1]  # UIPath._regex_list must be removed
-		if UIPath._stack:
+		# Only the UIPath that saved the path in __enter__ (absolute_path=True) restores it.
+		# A UIPath nested in it must not: it would restore the outer path too early.
+		if self.absolute_path:
 			UIPath._path_list = UIPath._stack.pop()
 
 Window = UIPath
