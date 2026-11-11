@@ -1,10 +1,12 @@
+import builtins
 import io
+import pathlib
 import sys
 import time
 import warnings
 import pytest
 from pywinauto_recorder.core import get_entry_list, get_entry, match_entry_list, get_sorted_region
-from pywinauto_recorder import player
+from pywinauto_recorder import core, player
 from pywinauto_recorder.player import UIPath, PlayerSettings, FailedSearch, click
 
 
@@ -255,10 +257,14 @@ class _FakeRectangle:
 
 class _FakeElement:
 	"""Stands for a Pywinauto wrapper returned by 'find_elements' in the tests of '_find'."""
-	def __init__(self, name, left=0, top=0, width=50, height=20, visible=True):
+	def __init__(self, name, left=0, top=0, width=50, height=20, visible=True, parent=None):
 		self.name = name
 		self._rectangle = _FakeRectangle(left, top, width, height)
 		self._visible = visible
+		self._parent = parent
+
+	def parent(self):
+		return self._parent
 
 	def rectangle(self):
 		return self._rectangle
@@ -460,3 +466,333 @@ def test_find_works_without_stdout(monkeypatch, fake_find_elements):
 	fake_find_elements([ok])
 	monkeypatch.setattr(sys, "stdout", None)
 	assert player._find("Window||Window->OK||Button", timeout=2) is ok
+
+
+################################################################################################
+#                           Tests of the other functions of the player                         #
+################################################################################################
+
+@pytest.fixture
+def no_sleep(monkeypatch):
+	"""Replaces 'time.sleep' by a function that does not wait."""
+	monkeypatch.setattr(time, "sleep", lambda seconds: None)
+
+
+@pytest.fixture
+def native_window_handle(monkeypatch):
+	"""Sets the native window handle used by the searches to 1234, and restores it after the test."""
+	monkeypatch.setattr(core, "native_window_handle", 1234)
+	return 1234
+
+
+def _assert_message_is_a_sentence(exception):
+	"""Asserts that the exception was built with one string, not with several arguments displayed as a tuple."""
+	assert len(exception.args) == 1
+	assert isinstance(exception.args[0], str)
+	assert not str(exception).startswith("(")
+
+
+# ---------------------------------------- menu_click ----------------------------------------
+
+class _FakeMenu:
+	"""Replaces 'find_all', 'move', 'click' and the mouse cursor position in the tests of 'menu_click'."""
+	def __init__(self, monkeypatch, items_by_name, cursor_pos=(100, 100)):
+		self.items_by_name = items_by_name
+		self.clicked_positions = []
+		monkeypatch.setattr(player, "win32api_GetCursorPos", lambda: cursor_pos)
+		monkeypatch.setattr(player, "find_all", self.find_all)
+		monkeypatch.setattr(player, "move", lambda *args, **kwargs: None)
+		monkeypatch.setattr(player, "click", lambda position, **kwargs: self.clicked_positions.append(position))
+
+	def find_all(self, element_path=None, timeout=None):
+		for name, items in self.items_by_name.items():
+			if name + "||MenuItem" in element_path:
+				return list(items)
+		return []
+
+
+def _menu_item(name, mid_x, mid_y):
+	"""Returns a fake menu item of 50 x 20 pixels whose middle is (mid_x, mid_y)."""
+	menu = _FakeElement("||Menu", left=0, top=0, width=1000, height=1000)
+	return _FakeElement(name + "||MenuItem", left=mid_x - 25, top=mid_y - 10, width=50, height=20, parent=menu)
+
+
+def test_menu_click_clicks_on_the_nearest_item(monkeypatch, no_sleep, native_window_handle):
+	"""
+	Tests that 'menu_click' clicks on the item that is the nearest to the mouse cursor
+	when several items have the same name: the vertical distance must be taken into account.
+	"""
+	far_below = _menu_item("Open", 100, 500)  # same x as the mouse cursor, but 400 pixels below
+	near = _menu_item("Open", 150, 110)
+	menu = _FakeMenu(monkeypatch, {"Open": [far_below, near]}, cursor_pos=(100, 100))
+	assert player.menu_click("Open") is near
+	assert menu.clicked_positions == [(150, 110)]
+
+
+def test_menu_click_restores_the_path_and_the_window_handle(monkeypatch, no_sleep, native_window_handle):
+	"""Tests that 'menu_click' clicks on each item and restores the current UIPath and the native window handle."""
+	file_item, new_item = _menu_item("File", 20, 10), _menu_item("New", 30, 40)
+	menu = _FakeMenu(monkeypatch, {"File": [file_item], "New": [new_item]})
+	with UIPath("Window||Window"):
+		assert player.menu_click("File->New") is file_item
+		assert UIPath.get_full_path() == "Window||Window"
+	assert menu.clicked_positions == [(20, 10), (30, 40)]
+	assert core.get_native_window_handle() == native_window_handle
+
+
+def test_menu_click_fails_when_a_menu_item_is_not_found(monkeypatch, no_sleep, native_window_handle):
+	"""
+	Tests that 'menu_click' raises FailedSearch, not IndexError, when a menu item is not found,
+	and that it restores the current UIPath and the native window handle.
+	"""
+	_FakeMenu(monkeypatch, {"File": [_menu_item("File", 20, 10)]})
+	with UIPath("Window||Window"):
+		with pytest.raises(FailedSearch, match="New") as exc_info:
+			player.menu_click("File->New")
+		assert UIPath.get_full_path() == "Window||Window"
+	_assert_message_is_a_sentence(exc_info.value)
+	assert core.get_native_window_handle() == native_window_handle
+
+
+# --------------------------------------- drag_and_drop ---------------------------------------
+
+def test_drag_and_drop_releases_the_button_when_the_destination_is_not_found(monkeypatch):
+	"""Tests that 'drag_and_drop' releases the mouse button when the destination element is not found."""
+	mouse_events = []
+
+	def move(element_path, **kwargs):
+		if element_path == "Destination||Pane":
+			raise FailedSearch("No element found")
+
+	monkeypatch.setattr(player, "move", move)
+	monkeypatch.setattr(player, "win32api_mouse_event", lambda event, *args: mouse_events.append(event))
+	with pytest.raises(FailedSearch):
+		player.drag_and_drop("Source||Pane", "Destination||Pane")
+	assert mouse_events == [player.MOUSEEVENTF_LEFTDOWN, player.MOUSEEVENTF_LEFTUP]
+
+
+def test_drag_and_drop_presses_and_releases_the_button(monkeypatch):
+	"""Tests that 'drag_and_drop' presses the button on the source and releases it on the destination."""
+	mouse_events = []
+	destination = _FakeElement("Destination||Pane")
+	monkeypatch.setattr(player, "move", lambda element_path, **kwargs: destination if element_path == "Destination||Pane" else None)
+	monkeypatch.setattr(player, "win32api_mouse_event", lambda event, *args: mouse_events.append(event))
+	assert player.drag_and_drop("Source||Pane", "Destination||Pane", button=player.ButtonLocation.right) is destination
+	assert mouse_events == [player.MOUSEEVENTF_RIGHTDOWN, player.MOUSEEVENTF_RIGHTUP]
+
+
+# ---------------------------------------- select_file ----------------------------------------
+
+class _FakeFileDialog:
+	"""Replaces 'find', the clicks and 'send_keys' in the tests of 'select_file'."""
+	def __init__(self, monkeypatch, current_folder):
+		self.current_folder = current_folder
+		self.sent_keys = []
+		monkeypatch.setattr(player, "find", lambda *args, **kwargs: self)
+		monkeypatch.setattr(player, "click", lambda *args, **kwargs: None)
+		monkeypatch.setattr(player, "double_left_click", lambda *args, **kwargs: None)
+		monkeypatch.setattr(player, "send_keys", lambda str_keys, **kwargs: self.sent_keys.append(str_keys))
+
+	def set_focus(self):
+		pass
+
+	def get_value(self):
+		return self.current_folder
+
+
+def test_select_file_does_not_type_the_folder_when_it_is_the_current_one(monkeypatch):
+	"""Tests that 'select_file' does not type the folder when the file dialog is already in the folder of the file."""
+	dialog = _FakeFileDialog(monkeypatch, current_folder="C:/Users/me/Documents")
+	player.select_file("Open||Window", "C:/Users/me/Documents/file.txt")
+	assert dialog.sent_keys == ["{ENTER}", "file.txt{ENTER}"]
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows paths")
+def test_select_file_compares_the_folders_as_windows_paths(monkeypatch):
+	"""Tests that 'select_file' ignores the case and the kind of slashes when it compares the folders."""
+	dialog = _FakeFileDialog(monkeypatch, current_folder="c:\\users\\me\\documents")
+	player.select_file("Open||Window", "C:/Users/me/Documents/file.txt")
+	assert dialog.sent_keys == ["{ENTER}", "file.txt{ENTER}"]
+
+
+def test_select_file_types_the_folder_when_it_is_not_the_current_one(monkeypatch):
+	"""Tests that 'select_file' types the folder when the file dialog is in another folder."""
+	dialog = _FakeFileDialog(monkeypatch, current_folder="C:/Users/me/Pictures")
+	player.select_file("Open||Window", "C:/Users/me/Documents/file.txt")
+	assert dialog.sent_keys == [str(pathlib.Path("C:/Users/me/Documents")), "{ENTER}", "file.txt{ENTER}"]
+
+
+def test_select_file_types_the_folder_when_slow_path_typing_is_forced(monkeypatch):
+	"""Tests that 'select_file' always types the folder when 'force_slow_path_typing' is True."""
+	dialog = _FakeFileDialog(monkeypatch, current_folder="C:/Users/me/Documents")
+	player.select_file("Open||Window", "C:/Users/me/Documents/file.txt", force_slow_path_typing=True)
+	assert dialog.sent_keys == [str(pathlib.Path("C:/Users/me/Documents")), "{ENTER}", "file.txt{ENTER}"]
+
+
+# ------------------------------------- start_application -------------------------------------
+
+class _FakeWindow:
+	"""Stands for a top level window in the tests of 'start_application'."""
+	def __init__(self, handle):
+		self.handle = handle
+
+
+class _FakePywinauto:
+	"""
+	Replaces the 'pywinauto' module in the tests of 'start_application'.
+	Each call to 'Desktop().windows()' returns the next list of 'windows_lists', the last one is repeated.
+	"""
+	def __init__(self, *windows_lists, max_call_count=5):
+		self.windows_lists = windows_lists
+		self.max_call_count = max_call_count
+		self.call_count = 0
+
+	def Desktop(self, **kwargs):
+		return self
+
+	def Application(self, **kwargs):
+		return self
+
+	def start(self, **kwargs):
+		pass
+
+	def windows(self):
+		self.call_count += 1
+		if self.call_count > self.max_call_count:
+			raise RuntimeError("start_application is waiting for a new window in an endless loop")
+		return list(self.windows_lists[min(self.call_count, len(self.windows_lists)) - 1])
+
+
+def test_start_application_returns_the_new_window(monkeypatch, no_sleep, native_window_handle):
+	"""Tests that 'start_application' returns the application with the handle of the window that appeared."""
+	old_window, new_window = _FakeWindow(1), _FakeWindow(2)
+	monkeypatch.setattr(player, "pywinauto", _FakePywinauto([old_window], [old_window], [old_window, new_window]))
+	application = player.start_application("app.exe")
+	assert application.native_window_handle == 2
+	assert core.get_native_window_handle() == 2
+
+
+def test_start_application_fails_when_no_window_appears(monkeypatch, no_sleep, native_window_handle):
+	"""Tests that 'start_application' raises FailedSearch after the timeout when no new window appears."""
+	monkeypatch.setattr(player, "pywinauto", _FakePywinauto([_FakeWindow(1)]))
+	with pytest.raises(FailedSearch, match="app.exe") as exc_info:
+		player.start_application("app.exe", timeout=0)
+	_assert_message_is_a_sentence(exc_info.value)
+	assert core.get_native_window_handle() == native_window_handle
+
+
+# ------------------------------------- messages of errors -------------------------------------
+
+def test_connect_application_fails_with_a_sentence_when_the_window_is_not_found(monkeypatch, no_sleep):
+	"""Tests the message of the FailedSearch raised by 'connect_application' when the main window is not found."""
+	monkeypatch.setattr(player, "find_main_windows", lambda main_window_uipath="*": [])
+	with pytest.raises(FailedSearch, match="Window not found") as exc_info:
+		player.connect_application(main_window_uipath="Not found||Window", timeout=0)
+	_assert_message_is_a_sentence(exc_info.value)
+	assert "Not found||Window" in str(exc_info.value)
+
+
+def test_wait_is_ready_fails_with_a_sentence_when_the_element_is_never_ready(monkeypatch):
+	"""Tests the message of the TimeoutError raised when an element is never enabled."""
+	class DisabledElement:
+		def is_enabled(self):
+			return False
+
+		def is_visible(self):
+			return True
+
+	monkeypatch.setattr(player, "get_wrapper_path", lambda wrapper: "Window||Window->Disabled||Button")
+	with pytest.raises(TimeoutError, match="Disabled") as exc_info:
+		player.wait_is_ready_try1(DisabledElement(), timeout=0.05)
+	_assert_message_is_a_sentence(exc_info.value)
+
+
+# ------------------------------- find_all, focus_on_application -------------------------------
+
+def test_find_all_returns_an_empty_list_when_no_element_is_found(fake_find_elements, no_sleep):
+	"""Tests that 'find_all' returns an empty list, without raising an exception, when no element is found."""
+	fake_find_elements([])
+	assert player.find_all("Not found||Window->OK||Button", timeout=0.2) == []
+
+
+def test_find_all_returns_all_the_elements(fake_find_elements):
+	"""Tests that 'find_all' returns all the elements that match the path."""
+	ok_1, ok_2 = _FakeElement("Window||Window->OK||Button"), _FakeElement("Window||Window->OK||Button")
+	fake_find_elements([ok_1, ok_2])
+	assert player.find_all("Window||Window->OK||Button", timeout=2) == [ok_1, ok_2]
+
+
+@pytest.fixture
+def fake_window_functions(monkeypatch, no_sleep, native_window_handle):
+	"""Replaces the win32gui functions used by 'focus_on_application'. Returns the handles put in the foreground."""
+	handles = []
+	monkeypatch.setattr(player, "win32gui_IsIconic", lambda handle: False)
+	monkeypatch.setattr(player, "win32gui_ShowWindow", lambda handle, command: None)
+	monkeypatch.setattr(player, "win32gui_SetWindowPos", lambda handle, *args: handles.append(handle))
+	return handles
+
+
+def test_focus_on_application_with_an_application(fake_window_functions):
+	"""Tests 'focus_on_application' with a UIApplication object."""
+	player.focus_on_application(player.UIApplication(app=None, native_window_handle=111))
+	assert core.get_native_window_handle() == 111
+	assert fake_window_functions == [111, 111]
+
+
+def test_focus_on_application_with_a_window(fake_window_functions):
+	"""Tests 'focus_on_application' with the Pywinauto wrapper of a main window, as its documentation allows."""
+	player.focus_on_application(_FakeWindow(handle=222))
+	assert core.get_native_window_handle() == 222
+	assert fake_window_functions == [222, 222]
+
+
+def test_focus_on_application_with_none(fake_window_functions):
+	"""Tests that 'focus_on_application(None)' clears the native window handle used by the searches."""
+	player.focus_on_application(None)
+	assert core.get_native_window_handle() is None
+	assert fake_window_functions == []
+
+
+# ------------------------------------------ playback ------------------------------------------
+
+@pytest.fixture
+def playback_environment(monkeypatch):
+	"""Restores 'sys.path' after 'playback', and counts the prompts 'Press Enter to continue...'."""
+	prompts = []
+	monkeypatch.setattr(sys, "path", list(sys.path))
+	monkeypatch.setattr(builtins, "input", lambda prompt="": prompts.append(prompt))
+	return prompts
+
+
+class _FakeStdin:
+	def __init__(self, interactive):
+		self.interactive = interactive
+
+	def isatty(self):
+		return self.interactive
+
+
+def test_playback_returns_true_when_the_script_succeeds(playback_environment):
+	"""Tests that 'playback' returns True when the script is played back without error."""
+	assert player.playback(str_code="result = 1 + 1") is True
+	assert playback_environment == []
+
+
+@pytest.mark.parametrize("stdin", [_FakeStdin(interactive=False), None])
+def test_playback_does_not_wait_for_enter_when_nobody_can_press_it(monkeypatch, capsys, playback_environment, stdin):
+	"""
+	Tests that 'playback' returns False and prints the error when the script fails, and that it does not
+	wait for the Enter key when the input is not a console (scheduled task, CI, pythonw.exe).
+	"""
+	monkeypatch.setattr(sys, "stdin", stdin)
+	assert player.playback(str_code="raise ValueError('error raised by the script')") is False
+	assert "ValueError: error raised by the script" in capsys.readouterr().err
+	assert playback_environment == []
+
+
+def test_playback_waits_for_enter_in_a_console(monkeypatch, capsys, playback_environment):
+	"""Tests that 'playback' still waits for the Enter key after an error when it is run in a console."""
+	monkeypatch.setattr(sys, "stdin", _FakeStdin(interactive=True))
+	assert player.playback(str_code="raise ValueError('error raised by the script')") is False
+	assert "ValueError: error raised by the script" in capsys.readouterr().err
+	assert playback_environment == ["Press Enter to continue..."]
