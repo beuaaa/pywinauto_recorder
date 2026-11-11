@@ -1,7 +1,8 @@
 import warnings
 import pytest
 from pywinauto_recorder.core import get_entry_list, get_entry, match_entry_list
-from pywinauto_recorder.player import UIPath
+from pywinauto_recorder import player
+from pywinauto_recorder.player import UIPath, PlayerSettings, FailedSearch, click
 
 
 ################################################################################################
@@ -174,3 +175,57 @@ def test_uipath_without_regex_title_does_not_warn():
 			with UIPath("Text Editor||Edit", regex_title=False):
 				assert UIPath.get_full_path() == "RegEx: .* - Notepad||Window->Text Editor||Edit"
 	assert UIPath.get_full_path() == ""
+
+
+################################################################################################
+#                                        Tests of click                                        #
+################################################################################################
+
+class _FakeWrapper:
+	"""Stands for the Pywinauto wrapper returned by 'move' in the tests of 'click'."""
+
+
+@pytest.mark.parametrize("use_cache", [True, False])
+def test_click_restores_use_cache_when_the_search_fails(monkeypatch, use_cache):
+	"""
+	Tests that 'click' restores PlayerSettings.use_cache when the element is not found.
+	'click' disables the cache while it searches the element and waits until it is ready.
+	"""
+	def move_raising_failed_search(*args, **kwargs):
+		assert PlayerSettings.use_cache is False  # the cache is disabled during the search
+		raise FailedSearch("No element found")
+
+	monkeypatch.setattr(PlayerSettings, "use_cache", use_cache)
+	monkeypatch.setattr(player, "move", move_raising_failed_search)
+	with pytest.raises(FailedSearch):
+		click("Not found||Window->OK||Button")
+	assert PlayerSettings.use_cache is use_cache
+
+
+@pytest.mark.parametrize("use_cache", [True, False])
+def test_click_restores_use_cache_when_the_element_is_never_ready(monkeypatch, use_cache):
+	"""Tests that 'click' restores PlayerSettings.use_cache when waiting for the element to be ready times out."""
+	def wait_raising_timeout_error(*args, **kwargs):
+		assert PlayerSettings.use_cache is False
+		raise TimeoutError("Time out!")
+
+	monkeypatch.setattr(PlayerSettings, "use_cache", use_cache)
+	monkeypatch.setattr(player, "move", lambda *args, **kwargs: _FakeWrapper())
+	monkeypatch.setattr(player, "wait_is_ready_try1", wait_raising_timeout_error)
+	with pytest.raises(TimeoutError):
+		click("Window||Window->Disabled||Button")
+	assert PlayerSettings.use_cache is use_cache
+
+
+@pytest.mark.parametrize("use_cache", [True, False])
+def test_click_restores_use_cache_when_it_succeeds(monkeypatch, use_cache):
+	"""Tests that 'click' restores PlayerSettings.use_cache and returns the clicked element when it succeeds."""
+	wrapper = _FakeWrapper()
+	clicks = []
+	monkeypatch.setattr(PlayerSettings, "use_cache", use_cache)
+	monkeypatch.setattr(player, "move", lambda *args, **kwargs: wrapper)
+	monkeypatch.setattr(player, "wait_is_ready_try1", lambda *args, **kwargs: None)
+	monkeypatch.setattr(player, "_win32api_mouse_click", lambda button, click_count: clicks.append((button, click_count)))
+	assert click("Window||Window->OK||Button") is wrapper
+	assert clicks == [(player.ButtonLocation.left, 1)]
+	assert PlayerSettings.use_cache is use_cache
