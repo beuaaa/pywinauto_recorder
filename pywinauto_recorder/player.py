@@ -694,11 +694,14 @@ def click(
 			(element_path is None or isinstance(element_path, str) or isinstance(element_path, pywinauto.base_wrapper.BaseWrapper)):
 				use_cache_old = PlayerSettings.use_cache
 				PlayerSettings.use_cache = False
-				# if isinstance(element_path, pywinauto.base_wrapper.BaseWrapper):
-				#	wrapper = element_path
-				wrapper = move(element_path, duration=duration, mode=mode, timeout=timeout)
-				wait_is_ready_try1(wrapper, timeout=timeout)
-				PlayerSettings.use_cache = use_cache_old
+				try:
+					# if isinstance(element_path, pywinauto.base_wrapper.BaseWrapper):
+					#	wrapper = element_path
+					wrapper = move(element_path, duration=duration, mode=mode, timeout=timeout)
+					wait_is_ready_try1(wrapper, timeout=timeout)
+				finally:
+					# Restore the cache setting even if the element is not found or never ready
+					PlayerSettings.use_cache = use_cache_old
 	else:
 			wrapper = move(element_path, duration=duration, mode=mode, timeout=timeout)
 	_win32api_mouse_click(button, click_count)
