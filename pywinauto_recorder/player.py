@@ -298,6 +298,10 @@ Window = UIPath
 Region = UIPath
 
 
+_SEARCH_AGAIN_PAUSE = 1.0
+"""Pause (in seconds) between two searches when several elements match a path without index."""
+
+
 def find_cache_clear():
 	"""
 	Clears the cache of the :func:`find` function.
@@ -377,9 +381,10 @@ def _find(
 						if ref_r.top < y_candidate < ref_r.bottom:
 							return candidates[r_y][y_x[1]]
 					r_y = r_y + 1
-		time.sleep(0.1)
 		# Several elements match the path: search again until the timeout, because it may be transient
 		# (for example a window that is closing while another one is opening).
+		# The pause between two searches is shortened at the end, so that the timeout is respected.
+		time.sleep(min(_SEARCH_AGAIN_PAUSE, max(0.0, timeout - (time.time() - t0))))
 		try:
 			elements = find_elements(full_element_path)
 		except Exception:

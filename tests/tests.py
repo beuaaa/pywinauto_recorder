@@ -1,3 +1,4 @@
+import time
 import warnings
 import pytest
 from pywinauto_recorder.core import get_entry_list, get_entry, match_entry_list
@@ -258,9 +259,10 @@ class _FakeFindElements:
 @pytest.fixture
 def fake_find_elements(monkeypatch):
 	"""Returns a function that replaces 'find_elements' in the player by a '_FakeFindElements'."""
-	def install(*results):
+	def install(*results, search_again_pause=0.05):
 		fake = _FakeFindElements(*results)
 		monkeypatch.setattr(player, "find_elements", fake)
+		monkeypatch.setattr(player, "_SEARCH_AGAIN_PAUSE", search_again_pause)  # short pause: fast tests
 		monkeypatch.setattr(player, "get_wrapper_path", lambda wrapper: wrapper.name)
 		return fake
 	return install
@@ -297,6 +299,24 @@ def test_find_fails_when_several_elements_still_match_after_the_timeout(fake_fin
 	assert "2 undiscriminated elements" in message
 	assert ok_1.name in message and ok_2.name in message
 	assert fake.call_count > 1  # the search was done again while waiting
+
+
+def test_find_pauses_between_two_searches_when_several_elements_match(fake_find_elements):
+	"""
+	Tests that '_find' pauses between two searches when several elements match the path,
+	and that the default pause is 1 second.
+	"""
+	assert player._SEARCH_AGAIN_PAUSE == 1.0
+	ok_1 = _FakeElement("Window 1||Window->OK||Button")
+	ok_2 = _FakeElement("Window 2||Window->OK||Button")
+	fake = fake_find_elements([ok_1, ok_2], search_again_pause=0.3)
+	t0 = time.time()
+	with pytest.raises(FailedSearch):
+		player._find("RegEx: .*||Window->OK||Button", timeout=1.0)
+	duration = time.time() - t0
+	# Searches at about 0 s, 0.3 s, 0.6 s, 0.9 s and 1.0 s (the last pause is shortened to respect the timeout)
+	assert 2 <= fake.call_count <= 6
+	assert 0.9 <= duration < 2.0
 
 
 def test_find_fails_when_the_elements_disappear_after_matching(fake_find_elements):
