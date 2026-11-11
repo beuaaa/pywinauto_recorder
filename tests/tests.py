@@ -229,3 +229,80 @@ def test_click_restores_use_cache_when_it_succeeds(monkeypatch, use_cache):
 	assert click("Window||Window->OK||Button") is wrapper
 	assert clicks == [(player.ButtonLocation.left, 1)]
 	assert PlayerSettings.use_cache is use_cache
+
+
+################################################################################################
+#                                        Tests of _find                                        #
+################################################################################################
+
+class _FakeElement:
+	"""Stands for a Pywinauto wrapper returned by 'find_elements' in the tests of '_find'."""
+	def __init__(self, name):
+		self.name = name
+
+
+class _FakeFindElements:
+	"""
+	Replaces 'find_elements': each call returns the next list of 'results', the last one is repeated.
+	"""
+	def __init__(self, *results):
+		self.results = list(results)
+		self.call_count = 0
+
+	def __call__(self, full_element_path=None):
+		result = self.results[min(self.call_count, len(self.results) - 1)]
+		self.call_count += 1
+		return list(result)
+
+
+@pytest.fixture
+def fake_find_elements(monkeypatch):
+	"""Returns a function that replaces 'find_elements' in the player by a '_FakeFindElements'."""
+	def install(*results):
+		fake = _FakeFindElements(*results)
+		monkeypatch.setattr(player, "find_elements", fake)
+		monkeypatch.setattr(player, "get_wrapper_path", lambda wrapper: wrapper.name)
+		return fake
+	return install
+
+
+def test_find_returns_a_unique_element_with_a_single_search(fake_find_elements):
+	"""Tests that '_find' returns at once the element when only one element matches the path."""
+	ok = _FakeElement("Window||Window->OK||Button")
+	fake = fake_find_elements([ok])
+	assert player._find("Window||Window->OK||Button", timeout=2) is ok
+	assert fake.call_count == 1
+
+
+def test_find_searches_again_when_several_elements_match(fake_find_elements):
+	"""
+	Tests that '_find' searches again when several elements match a path without index:
+	the element is returned as soon as it is the only one that matches the path.
+	"""
+	ok = _FakeElement("Window||Window->OK||Button")
+	closing = _FakeElement("Closing window||Window->OK||Button")
+	fake = fake_find_elements([ok, closing], [ok, closing], [ok])
+	assert player._find("RegEx: .*||Window->OK||Button", timeout=5) is ok
+	assert fake.call_count == 3
+
+
+def test_find_fails_when_several_elements_still_match_after_the_timeout(fake_find_elements):
+	"""Tests that '_find' raises FailedSearch when several elements still match the path after the timeout."""
+	ok_1 = _FakeElement("Window 1||Window->OK||Button")
+	ok_2 = _FakeElement("Window 2||Window->OK||Button")
+	fake = fake_find_elements([ok_1, ok_2])
+	with pytest.raises(FailedSearch) as exc_info:
+		player._find("RegEx: .*||Window->OK||Button", timeout=0.5)
+	message = str(exc_info.value)
+	assert "2 undiscriminated elements" in message
+	assert ok_1.name in message and ok_2.name in message
+	assert fake.call_count > 1  # the search was done again while waiting
+
+
+def test_find_fails_when_the_elements_disappear_after_matching(fake_find_elements):
+	"""Tests that '_find' raises FailedSearch when the elements that matched the path are no longer found."""
+	ok_1 = _FakeElement("Window 1||Window->OK||Button")
+	ok_2 = _FakeElement("Window 2||Window->OK||Button")
+	fake_find_elements([ok_1, ok_2], [])
+	with pytest.raises(FailedSearch, match="No element found"):
+		player._find("RegEx: .*||Window->OK||Button", timeout=0.3)
