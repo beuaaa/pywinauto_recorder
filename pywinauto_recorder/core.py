@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import re
+import traceback
 from enum import Enum
 import configparser
 import ast
@@ -58,7 +59,7 @@ def get_wrapper_path(wrapper, wrapper_top_level_parent=None):
 		return wrapper.element_info.name + type_separator + wrapper.element_info.control_type + path
 	except Exception as e:
 		traceback.print_exc()
-		print(e.message)
+		print(e)
 		return ''
 
 
@@ -277,7 +278,7 @@ def get_sorted_region(elements, min_height=8, max_height=9999, min_width=8, max_
 	filtered_elements.sort(key=lambda widget: (widget.rectangle().top, widget.rectangle().left))
 	arrays = [[]]
 	
-	if all_height_equal(filtered_elements):
+	if filtered_elements and all_height_equal(filtered_elements):
 		line_tolerance = filtered_elements[0].rectangle().height()
 	
 	h = 0
@@ -328,7 +329,6 @@ def filter_window_candidates(window_candidates):
 	:param window_candidates: a list of Window objects
 	:return: A list of window candidates that have been filtered.
 	"""
-	global core_settings
 	if core_settings.window_filtering.mode == 'admit_windows':
 		window_candidates = list(filter(
 			lambda w: any(substr in w.element_info.name for substr in core_settings.window_filtering.admit_windows),
@@ -415,7 +415,7 @@ def filter_with_match_entry_list(window, descendants, entry_list):
 
 def find_elements(full_element_path=None):
 	"""
-	It returns the elements (UIAWrapper list) that matche the full_element_path
+	It returns the elements (UIAWrapper list) that match the full_element_path
 
 	:param full_element_path: full path of the element(s) to find
 	:return: The elements found
@@ -456,7 +456,7 @@ def find_elements(full_element_path=None):
 		return candidates
 
 
-# The following code should be called in recoder.py because it's useful only when recording
+# The following code should be called in recorder.py because it's useful only when recording
 def read_config_file():
 	"""
 	It reads the configuration file and stores the settings in the global variable `core_settings`

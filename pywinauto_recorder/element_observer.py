@@ -11,7 +11,7 @@ wrapper_old_info_tip = None
 common_path_info_tip = ''
 
 
-def _display_info_tiptool(desktop, info_overlay, screen_width):
+def _display_info_tooltip(desktop, info_overlay, screen_width):
 	global wrapper_old_info_tip
 	global common_path_info_tip
 	tooltip_width = 500
@@ -195,7 +195,7 @@ def task(info_mode_event, info_mode_quit_event):
 	while not info_mode_quit_event.is_set():
 		try:
 			if info_mode_event.is_set():
-					_display_info_tiptool(desktop, info_overlay, screen_width)
+					_display_info_tooltip(desktop, info_overlay, screen_width)
 			else:
 				info_overlay.clear_all()
 				info_overlay.refresh()

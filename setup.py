@@ -46,7 +46,7 @@ setup(
     description='Records/Replays GUI actions',
     long_description=long_description,
     long_description_content_type="text/x-rst",
-    install_requires=['pywinauto', 'keyboard', 'mouse', 'overlay_arrows_and_more', 'enum34', 'pyperclip', 'cachetools', 'thefuzz', 'Pillow'],
+    install_requires=['pywinauto>=0.6.8,<1.0', 'keyboard', 'mouse', 'overlay_arrows_and_more', 'pyperclip', 'cachetools', 'thefuzz', 'Pillow'],
     classifiers=[
         'Development Status :: 5 - Production/Stable',
         'Environment :: Console',
