@@ -556,29 +556,97 @@ def test_menu_click_fails_when_a_menu_item_is_not_found(monkeypatch, no_sleep, n
 
 # --------------------------------------- drag_and_drop ---------------------------------------
 
+class _FakeMouse:
+	"""
+	Replaces 'move', the mouse events, the mouse cursor position and 'time.sleep' in the tests of 'drag_and_drop'.
+	'log' is the sequence of what 'drag_and_drop' did.
+	"""
+	SCREEN_SIZE = (1920, 1080)
+
+	def __init__(self, monkeypatch, positions):
+		self.positions = positions  # {element path: position of the element}
+		self.cursor_pos = (0, 0)
+		self.log = []
+		monkeypatch.setattr(player, "move", self.move)
+		monkeypatch.setattr(player, "win32api_mouse_event", self.mouse_event)
+		monkeypatch.setattr(player, "win32api_GetCursorPos", lambda: self.cursor_pos)
+		monkeypatch.setattr(player, "win32api_GetSystemMetrics", lambda index: self.SCREEN_SIZE[index])
+		monkeypatch.setattr(time, "sleep", lambda seconds: self.log.append(("pause", seconds)))
+
+	def move(self, element_path, duration=None, **kwargs):
+		if element_path not in self.positions:
+			raise FailedSearch("No element found")
+		self.log.append(("move to", element_path))
+		if duration != -1:
+			self.cursor_pos = self.positions[element_path]
+		return element_path
+
+	def mouse_event(self, event, x=0, y=0):
+		if event == player.MOUSEEVENTF_MOVE | player.MOUSEEVENTF_ABSOLUTE:
+			# x and y are normalized absolute coordinates: 0..65535
+			self.cursor_pos = (round(x * (self.SCREEN_SIZE[0] - 1) / 65535), round(y * (self.SCREEN_SIZE[1] - 1) / 65535))
+			self.log.append(("mouse at", self.cursor_pos))
+		else:
+			self.log.append(event)
+
+	def positions_after_the_arrival(self):
+		"""Returns the positions of the mouse cursor set by the mouse events sent after the move to the destination."""
+		return [entry[1] for entry in self.log if isinstance(entry, tuple) and entry[0] == "mouse at"]
+
+
+def test_drag_and_drop_sequence(monkeypatch):
+	"""
+	Tests the sequence of 'drag_and_drop': the button is pressed on the source, then there is a pause, the move to
+	the destination, a small move back and forth on the path that was followed, and a pause before the release.
+	Some applications ignore the drop when the button is released as soon as the mouse arrives on the destination.
+	"""
+	mouse = _FakeMouse(monkeypatch, {"Source||Pane": (100, 100), "Destination||Pane": (300, 100)})
+	pause = player._DRAG_AND_DROP_PAUSE
+	assert pause > 0
+	assert player.drag_and_drop("Source||Pane", "Destination||Pane", duration=0) == "Destination||Pane"
+	assert mouse.log == [
+		("move to", "Source||Pane"),
+		player.MOUSEEVENTF_LEFTDOWN,
+		("pause", pause),
+		("move to", "Destination||Pane"),
+		("mouse at", (298, 100)),
+		("mouse at", (300, 100)),
+		("pause", pause),
+		player.MOUSEEVENTF_LEFTUP]
+
+
+def test_drag_and_drop_moves_back_and_forth_on_the_path(monkeypatch):
+	"""Tests that the small move before the release goes 2 pixels back towards the source, whatever the direction."""
+	mouse = _FakeMouse(monkeypatch, {"Source||Pane": (500, 500), "Destination||Pane": (530, 540)})
+	player.drag_and_drop("Source||Pane", "Destination||Pane", duration=0, button=player.ButtonLocation.right)
+	assert mouse.positions_after_the_arrival() == [(529, 538), (530, 540)]
+	assert mouse.log[1] == player.MOUSEEVENTF_RIGHTDOWN
+	assert mouse.log[-1] == player.MOUSEEVENTF_RIGHTUP
+	assert mouse.cursor_pos == (530, 540)
+
+
+def test_drag_and_drop_does_not_move_back_and_forth_when_the_mouse_does_not_move(monkeypatch):
+	"""
+	Tests that 'drag_and_drop' does not add a move when the destination is the source,
+	or when the duration is -1 (the mouse cursor doesn't move).
+	"""
+	mouse = _FakeMouse(monkeypatch, {"Source||Pane": (100, 100), "Destination||Pane": (100, 100)})
+	player.drag_and_drop("Source||Pane", "Destination||Pane", duration=0)
+	assert mouse.positions_after_the_arrival() == []
+
+	mouse = _FakeMouse(monkeypatch, {"Source||Pane": (100, 100), "Destination||Pane": (300, 100)})
+	player.drag_and_drop("Source||Pane", "Destination||Pane", duration=-1)
+	assert mouse.positions_after_the_arrival() == []
+	assert mouse.log[-1] == player.MOUSEEVENTF_LEFTUP
+
+
 def test_drag_and_drop_releases_the_button_when_the_destination_is_not_found(monkeypatch):
 	"""Tests that 'drag_and_drop' releases the mouse button when the destination element is not found."""
-	mouse_events = []
-
-	def move(element_path, **kwargs):
-		if element_path == "Destination||Pane":
-			raise FailedSearch("No element found")
-
-	monkeypatch.setattr(player, "move", move)
-	monkeypatch.setattr(player, "win32api_mouse_event", lambda event, *args: mouse_events.append(event))
+	mouse = _FakeMouse(monkeypatch, {"Source||Pane": (100, 100)})
 	with pytest.raises(FailedSearch):
-		player.drag_and_drop("Source||Pane", "Destination||Pane")
-	assert mouse_events == [player.MOUSEEVENTF_LEFTDOWN, player.MOUSEEVENTF_LEFTUP]
-
-
-def test_drag_and_drop_presses_and_releases_the_button(monkeypatch):
-	"""Tests that 'drag_and_drop' presses the button on the source and releases it on the destination."""
-	mouse_events = []
-	destination = _FakeElement("Destination||Pane")
-	monkeypatch.setattr(player, "move", lambda element_path, **kwargs: destination if element_path == "Destination||Pane" else None)
-	monkeypatch.setattr(player, "win32api_mouse_event", lambda event, *args: mouse_events.append(event))
-	assert player.drag_and_drop("Source||Pane", "Destination||Pane", button=player.ButtonLocation.right) is destination
-	assert mouse_events == [player.MOUSEEVENTF_RIGHTDOWN, player.MOUSEEVENTF_RIGHTUP]
+		player.drag_and_drop("Source||Pane", "Destination||Pane", duration=0)
+	assert [entry for entry in mouse.log if not isinstance(entry, tuple)] == [player.MOUSEEVENTF_LEFTDOWN, player.MOUSEEVENTF_LEFTUP]
+	assert mouse.log[-1] == player.MOUSEEVENTF_LEFTUP
 
 
 # ---------------------------------------- select_file ----------------------------------------

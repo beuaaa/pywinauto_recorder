@@ -301,6 +301,9 @@ Region = UIPath
 _SEARCH_AGAIN_PAUSE = 1.0
 """Pause (in seconds) between two searches when several elements match a path without index."""
 
+_DRAG_AND_DROP_PAUSE = 0.2
+"""Pause (in seconds) of drag_and_drop after the button is pressed, and before it is released."""
+
 _PROGRESS_ASCII_SYMBOLS = {"🔎": "?", "🔴": ".", "🟢": "!"}
 """Symbols printed instead of the search progress symbols when the encoding of stdout cannot display them."""
 
@@ -617,6 +620,26 @@ def _move(x, y, xd, yd, duration=1, refresh_rate=25):
 	win32api_mouse_event(MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE, nx, ny)
 
 
+def _move_back_and_forth(x_from, y_from, distance=2):
+	"""
+	It moves the mouse cursor 'distance' pixels back towards (x_from, y_from), then forth to its current position.
+	The mouse cursor stays on the straight line between (x_from, y_from) and its current position.
+	Nothing is done if (x_from, y_from) is closer than 'distance' pixels.
+	
+	:param x_from: The x-coordinate of the point the mouse cursor comes from
+	:param y_from: The y-coordinate of the point the mouse cursor comes from
+	:param distance: The distance in pixels of the move
+	"""
+	x, y = win32api_GetCursorPos()
+	length = math.hypot(x_from - x, y_from - y)
+	if length < distance:
+		return
+	x_back = round(x + (x_from - x) * distance / length)
+	y_back = round(y + (y_from - y) * distance / length)
+	_move(x, y, x_back, y_back, duration=0)
+	_move(x_back, y_back, x, y, duration=0)
+
+
 def move(
 		element_path: Optional[UI_Selector] = None,
 		duration: Optional[float] = None,
@@ -797,7 +820,9 @@ def drag_and_drop(
 	:return: Pywinauto wrapper found with element_path2
 	:raises FailedSearch: if the element is not found
 	"""
+	duration = PlayerSettings._apply_settings(mouse_move_duration=duration)["mouse_move_duration"]
 	move(element_path1, duration=duration, mode=mode, timeout=timeout)
+	x_source, y_source = win32api_GetCursorPos()
 	if button == ButtonLocation.left:
 		event_down = MOUSEEVENTF_LEFTDOWN
 		event_up = MOUSEEVENTF_LEFTUP
@@ -809,7 +834,14 @@ def drag_and_drop(
 		event_up = MOUSEEVENTF_RIGHTUP
 	win32api_mouse_event(event_down, 0, 0)
 	try:
+		# The application must take the press into account before the mouse moves
+		time.sleep(_DRAG_AND_DROP_PAUSE)
 		unique_element = move(element_path2, duration=duration, timeout=timeout)
+		# Some applications ignore the drop when the button is released as soon as the mouse arrives on the
+		# destination: they need mouse moves over the destination and some time to take them into account.
+		if duration != -1:
+			_move_back_and_forth(x_source, y_source)
+		time.sleep(_DRAG_AND_DROP_PAUSE)
 	finally:
 		# Release the button even if the destination element is not found
 		win32api_mouse_event(event_up, 0, 0)
