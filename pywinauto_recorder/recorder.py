@@ -817,13 +817,19 @@ class Recorder(Thread):
 		i_strategy = 0
 		self.mode = "Info"
 		#strategy_unique_path_again_done = False
+		previous_loop_error = None
 		while self.mode != "Quit":
 			i = i + 1
+			loop_error = None
 			try:
 				self._loop_t0 = time.time()
 				self.main_overlay.clear_all()
 				cursor_pos = win32api.GetCursorPos()
 				wrapper = self.desktop.from_point(*cursor_pos)
+				#wrapper = self.my_from_point(*cursor_pos)
+				if wrapper is None:
+					time.sleep(0.01)
+					continue
 				
 				""" """
 				window = wrapper
@@ -832,10 +838,6 @@ class Recorder(Thread):
 				set_native_window_handle(window.handle)
 				""" """
 				
-				#wrapper = self.my_from_point(*cursor_pos)
-				if wrapper is None:
-					time.sleep(0.01)
-					continue
 				wrapper_path = get_wrapper_path(wrapper)
 				if not wrapper_path:
 					time.sleep(0.01)
@@ -942,9 +944,15 @@ class Recorder(Thread):
 				time.sleep(0.01)  # main_overlay.clear_all() doit attendre la fin de main_overlay.refresh()
 			except Exception:
 				exc_type, exc_value, exc_traceback = sys.exc_info()
-				print(repr(traceback.format_exception(exc_type, exc_value, exc_traceback)))
+				loop_error = repr(traceback.format_exception(exc_type, exc_value, exc_traceback))
+				if loop_error != previous_loop_error:
+					# An error that is raised again at each loop is printed only once
+					print(loop_error)
 				self.common_path_info_tip = ""
 				self.wrapper_old_info_tip = None
+				time.sleep(0.1)  # same pace as a loop without error: do not loop at full speed
+			finally:
+				previous_loop_error = loop_error
 		if self.event_list:
 			self.stop_recording()
 		mouse.unhook_all()
