@@ -23,7 +23,7 @@ from win32api import GetSystemMetrics, GetCursorPos
 import time
 
 
-def get_AC_line_satus():
+def get_AC_line_status():
 	class SYSTEM_POWER_STATUS(Structure):
 		_fields_ = [
 			('ACLineStatus', wintypes.BYTE),
@@ -377,7 +377,7 @@ def display_splash_screen():
 
 
 if __name__ == '__main__':
-	if not get_AC_line_satus():
+	if not get_AC_line_status():
 		windll.user32.MessageBoxW(0, "Not plugging your laptop in the AC Power can dramatically slow down Pywinauto Recorder.",
 		                                 "AC line status is off!", win32con.MB_OK | win32con.MB_ICONEXCLAMATION)
 		

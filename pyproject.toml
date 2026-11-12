@@ -1,0 +1,69 @@
+[build-system]
+# setuptools 75.3 is the last version available for Python 3.8
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pywinauto_recorder"
+dynamic = ["version"]
+description = "Records/Replays GUI actions"
+readme = { file = "README.rst", content-type = "text/x-rst" }
+requires-python = ">=3.8"
+# Table form of the license: the SPDX form (license = "MIT") requires setuptools>=77, not available for Python 3.8
+license = { text = "MIT" }
+authors = [{ name = "David Pratmarty", email = "david.pratmarty@gmail.com" }]
+keywords = ["pywinauto", "gui", "automation", "testing", "record", "replay", "uiautomation"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Environment :: Win32 (MS Windows)",
+    "Intended Audience :: End Users/Desktop",
+    "Intended Audience :: Developers",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Software Development :: Testing",
+    "Topic :: Software Development :: User Interfaces",
+    "Topic :: Software Development :: Quality Assurance",
+]
+dependencies = [
+    # ">=1.0.0b1" contains a pre-release, so pip accepts the 1.0 betas for this
+    # requirement only. Switch to "pywinauto>=1.0,<2" once pywinauto 1.0 final is out.
+    "pywinauto>=1.0.0b1,<2",
+    "pywin32",
+    "keyboard",
+    "mouse",
+    "overlay_arrows_and_more",
+    "pyperclip",
+    "cachetools",
+    "thefuzz",
+    "Pillow",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "flake8", "build", "twine"]
+
+[project.urls]
+Homepage = "https://github.com/beuaaa/pywinauto_recorder"
+Documentation = "https://pywinauto-recorder.readthedocs.io"
+Source = "https://github.com/beuaaa/pywinauto_recorder"
+Issues = "https://github.com/beuaaa/pywinauto_recorder/issues"
+
+[tool.setuptools]
+packages = ["pywinauto_recorder"]
+
+[tool.setuptools.package-data]
+pywinauto_recorder = ["Icons/*.ico"]
+
+[tool.setuptools.dynamic]
+# Single source of truth for the version: pywinauto_recorder/__init__.py
+# ("__init__" is explicit because the root script pywinauto_recorder.py has the same name as the package)
+# (also read by bin/Make_ALL.bat for the installer).
+version = { attr = "pywinauto_recorder.__init__.__version__" }
