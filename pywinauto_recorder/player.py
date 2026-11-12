@@ -835,7 +835,7 @@ def menu_click(
 		
 		from pywinauto_recorder.player import UIPath, find, click, menu_click
 	
-		with UIPath("RegEx: .* - Notepad\+\+$||Window"):
+		with UIPath("RegEx: .* - Notepad\\+\\+$||Window"):
 			find().set_focus()
 			menu_click("Language->P->Python")
 		
@@ -1188,7 +1188,7 @@ def start_application(cmd_line, timeout=10, wait_for_idle=True, main_window_uipa
 		window_candidates_2 = desktop.windows()
 		diff = set(window_candidates_2) - set(window_candidates_1)
 	if main_window_uipath:
-		uiapp = connect_application(exclude_main_windows=window_candidates_1, main_window_uipath=main_window_uipath, timout=timeout)
+		uiapp = connect_application(exclude_main_windows=window_candidates_1, main_window_uipath=main_window_uipath, timeout=timeout)
 		set_native_window_handle(uiapp.native_window_handle)
 		return uiapp
 	native_window_handle = list(diff)[0].handle   # We assume that there is only one window
