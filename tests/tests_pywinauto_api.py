@@ -78,3 +78,30 @@ def test_element_info_properties_used_by_recorder():
 	descendants = windows[0].descendants(name=UNLIKELY_NAME, control_type="Button")
 	assert descendants == []
 	assert isinstance(core.get_wrapper_path(windows[0]), str)
+
+
+def test_visible_top_windows_uses_the_keywords_of_pywinauto_1_0():
+	"""
+	Tests that the search of the windows by 'start_application' calls pywinauto 1.0 without any renamed keyword.
+	'_visible_top_windows' catches the exceptions, so the warnings are recorded instead of being raised.
+	"""
+	import warnings
+	from pywinauto_recorder import player
+	with warnings.catch_warnings(record=True) as caught:
+		warnings.simplefilter("always")
+		handles = player._visible_top_windows()
+		player._visible_top_windows(title_re=UNLIKELY_NAME)
+	assert not [w for w in caught if "Keyword is renamed" in str(w.message)]
+	assert isinstance(handles, list)
+	assert player._visible_top_windows(title_re=UNLIKELY_NAME) == []
+
+
+def test_candidate_pids_with_the_real_processes():
+	"""Tests '_candidate_pids' with psutil and the process running the tests."""
+	import os
+	import time
+	import psutil
+	from pywinauto_recorder import player
+	me = psutil.Process(os.getpid())
+	pids = player._candidate_pids(me.parent().pid, me.name().lower(), t_start=time.time() - 3600 * 24 * 365)
+	assert os.getpid() in pids

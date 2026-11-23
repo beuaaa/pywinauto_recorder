@@ -5,9 +5,13 @@ from enum import Enum
 from typing import Optional, Union, NewType
 import time
 import re
+import ntpath
 import pathlib
 import warnings
+import psutil
 import pywinauto
+from pywinauto import findwindows
+from win32process import GetWindowThreadProcessId as win32process_GetWindowThreadProcessId
 from win32api import GetCursorPos as win32api_GetCursorPos
 from win32api import GetSystemMetrics as win32api_GetSystemMetrics
 from win32api import mouse_event as win32api_mouse_event
@@ -1191,18 +1195,124 @@ class UIApplication(object):
 		self.native_window_handle = native_window_handle
 
 
-def start_application(cmd_line, timeout=10, wait_for_idle=True, main_window_uipath=None):
-	"""
-	Starts an application using the specified command line arguments.
+_APPLICATION_FRAME_HOST = "applicationframehost.exe"
+"""Process that owns the main windows of the Universal Windows Platform (UWP) applications, like the Calculator."""
 
-	:param cmd_line: The command line to start the application
-	:param timeout: timeout (in seconds)  of the connection process. Default is 10 seconds.
-		It is also the maximum duration to wait for the window of the application to appear.
-	:param wait_for_idle: If True, waits for the application to become idle before proceeding. Default is True.
-	:param main_window_uipath: The UI path of the main window. This parameter is mandatory if the application has multiple main windows,
-        starts with a splash screen, or has any intermediate windows else it is optional.
-	:return: UIApplication Returns a UIApplication object representing the started application.
-	:raises FailedSearch: if no new window appears after the timeout
+
+def _exe_name(cmd_line):
+	"""
+	Returns the lowercase file name of the executable started by a command line, or None if it cannot be found.
+	".exe" is added when the executable is given without extension, like "calc" or "notepad".
+
+	:param cmd_line: The command line that starts the application
+	:return: The lowercase file name of the executable, for example "app.exe"
+	"""
+	m = re.match(r'\s*"([^"]+)"', cmd_line)  # "C:\Program Files\App\app.exe" -x
+	if not m:
+		m = re.match(r'\s*([^"]+?\.exe)(?:\s|$)', cmd_line, re.IGNORECASE)  # C:\Program Files\App\app.exe -x
+	if not m:
+		m = re.match(r'\s*(\S+)', cmd_line)  # notepad file.txt
+	if not m:
+		return None
+	name = ntpath.basename(m.group(1)).lower()  # ntpath: Windows paths, whatever the platform running the tests
+	if not name:
+		return None
+	if not ntpath.splitext(name)[1]:
+		name = name + ".exe"
+	return name
+
+
+def _visible_top_windows(title_re=None):
+	"""
+	Returns the handles of the visible top level windows.
+
+	:param title_re: if it is not None, only the windows whose title matches this regular expression are returned
+	:return: The list of window handles, in the Z order (the top window first)
+	"""
+	criteria = {}
+	if title_re is not None:
+		criteria["name_re"] = title_re
+	try:
+		return findwindows.find_windows(top_level_only=True, visible=True, **criteria)
+	except Exception:
+		return []  # for example a window destroyed during the enumeration
+
+
+def _candidate_pids(launcher_pid, exe_name, t_start):
+	"""
+	Returns the IDs of the processes that may own the windows of an application that has just been started.
+
+	:param launcher_pid: The ID of the process started by the command line
+	:param exe_name: The lowercase file name of the executable started by the command line, or None
+	:param t_start: The time when the application was started
+	:return: The set of the launcher process, its descendants, and the processes of the same executable started
+		after t_start (case of a launcher that starts the real executable and then exits)
+	"""
+	pids = {launcher_pid}
+	try:
+		pids |= {child.pid for child in psutil.Process(launcher_pid).children(recursive=True)}
+	except psutil.Error:
+		pass  # the launcher has already exited
+	if exe_name:
+		for process in psutil.process_iter(["name", "create_time"]):
+			try:
+				if (process.info["name"] or "").lower() == exe_name and process.info["create_time"] >= t_start - 1:
+					pids.add(process.pid)
+			except Exception:
+				pass
+	return pids
+
+
+def _is_running(pid):
+	"""Returns True if the process is running."""
+	try:
+		return psutil.Process(pid).is_running()
+	except psutil.Error:
+		return False
+
+
+def _process_name(pid):
+	"""Returns the lowercase name of the executable of a process, or "" if it is not found."""
+	try:
+		return psutil.Process(pid).name().lower()
+	except psutil.Error:
+		return ""
+
+
+def _new_windows_of_application(launcher_pid, exe_name, t_start, windows_before, title_re=None):
+	"""
+	Returns the handles of the visible top level windows that appeared since the application was started
+	and that belong to it.
+
+	:param launcher_pid: The ID of the process started by the command line
+	:param exe_name: The lowercase file name of the executable started by the command line, or None
+	:param t_start: The time when the application was started
+	:param windows_before: The set of handles of the windows that were visible before the application was started
+	:param title_re: if it is not None, the title of the windows must match this regular expression
+	:return: The list of window handles, in the Z order (the top window first)
+	"""
+	pids = _candidate_pids(launcher_pid, exe_name, t_start)
+	new_windows = []
+	for handle in _visible_top_windows(title_re):
+		if handle in windows_before:
+			continue
+		try:
+			_, pid = win32process_GetWindowThreadProcessId(handle)
+		except Exception:
+			continue  # the window has been destroyed in the meantime
+		new_windows.append((handle, pid))
+	candidates = [handle for handle, pid in new_windows if pid in pids]
+	if not candidates and not _is_running(launcher_pid):
+		# UWP application (the Calculator...): the launcher exits at once, and the main window belongs to
+		# ApplicationFrameHost.exe, a process of the system that is not related to the launcher.
+		candidates = [handle for handle, pid in new_windows if _process_name(pid) == _APPLICATION_FRAME_HOST]
+	return candidates
+
+
+def _start_application_with_main_window_uipath(cmd_line, timeout, wait_for_idle, main_window_uipath):
+	"""
+	Starts an application, waits for a new window, then connects to the main window found with main_window_uipath.
+	See :func:`start_application`.
 	"""
 	desktop = pywinauto.Desktop(backend='uia', allow_magic_lookup=False)
 	window_candidates_1 = desktop.windows()
@@ -1214,16 +1324,60 @@ def start_application(cmd_line, timeout=10, wait_for_idle=True, main_window_uipa
 	diff = set(window_candidates_2) - set(window_candidates_1)
 	while not diff:
 		if (time.time() - t0) >= timeout:
-			raise FailedSearch("No new window found " + str(timeout) + " s after starting '" + str(cmd_line) + "'. " +
+			raise TimeoutError("No new window appeared " + str(timeout) + " s after starting '" + str(cmd_line) + "'. " +
 			                   "Increase the 'timeout' parameter if the application is slow to start.")
 		time.sleep(1)
 		window_candidates_2 = desktop.windows()
 		diff = set(window_candidates_2) - set(window_candidates_1)
+	uiapp = connect_application(exclude_main_windows=window_candidates_1, main_window_uipath=main_window_uipath, timeout=timeout)
+	set_native_window_handle(uiapp.native_window_handle)
+	return uiapp
+
+
+def start_application(cmd_line, timeout=10, wait_for_idle=True, main_window_uipath=None, title_re=None):
+	"""
+	Starts an application using the specified command line arguments.
+
+	The main window of the application is the first visible top level window that appears after the start and that
+	belongs to the application: to the process started by the command line, to one of its descendants, or to a
+	process of the same executable started at the same time (case of a launcher that starts the real executable and
+	then exits). The windows of other applications that appear at the same time are ignored.
+	For a UWP application, like the Calculator, whose launcher exits at once, it is the first new window that belongs
+	to ApplicationFrameHost.exe.
+
+	:param cmd_line: The command line to start the application
+	:param timeout: timeout (in seconds)  of the connection process. Default is 10 seconds.
+		It is also the maximum duration to wait for the window of the application to appear.
+	:param wait_for_idle: If True, waits for the application to become idle before proceeding. Default is True.
+	:param main_window_uipath: The UI path of the main window. This parameter is mandatory if the application has multiple main windows,
+        starts with a splash screen, or has any intermediate windows else it is optional.
+	:param title_re: (optional) regular expression that the title of the main window must match.
+		It is not used when main_window_uipath is given.
+	:return: UIApplication Returns a UIApplication object representing the started application.
+	:raises TimeoutError: if no window of the application appears after the timeout
+	:raises FailedSearch: if main_window_uipath is given and the main window is not found
+	"""
 	if main_window_uipath:
-		uiapp = connect_application(exclude_main_windows=window_candidates_1, main_window_uipath=main_window_uipath, timeout=timeout)
-		set_native_window_handle(uiapp.native_window_handle)
-		return uiapp
-	native_window_handle = list(diff)[0].handle   # We assume that there is only one window
+		return _start_application_with_main_window_uipath(cmd_line, timeout, wait_for_idle, main_window_uipath)
+
+	windows_before = set(_visible_top_windows())
+	t_start = time.time()
+	app = pywinauto.Application(backend="win32")
+	app.start(cmd_line=cmd_line, timeout=timeout, wait_for_idle=wait_for_idle)
+	exe_name = _exe_name(cmd_line)
+
+	deadline = time.time() + timeout
+	while True:
+		candidates = _new_windows_of_application(app.process, exe_name, t_start, windows_before, title_re)
+		if candidates:
+			break
+		if time.time() >= deadline:
+			raise TimeoutError("No window of '" + str(cmd_line) + "' appeared " + str(timeout) + " s after it was started. " +
+			                   "Increase the 'timeout' parameter if the application is slow to start" +
+			                   (", or check the 'title_re' parameter." if title_re is not None else "."))
+		time.sleep(1)
+
+	native_window_handle = candidates[0]
 	set_native_window_handle(native_window_handle)
 	return UIApplication(app, native_window_handle)
 

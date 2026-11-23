@@ -38,6 +38,7 @@ dependencies = [
     # requirement only. Switch to "pywinauto>=1.0,<2" once pywinauto 1.0 final is out.
     "pywinauto>=1.0.0b1,<2",
     "pywin32",
+    "psutil",
     "keyboard",
     "mouse",
     "overlay_arrows_and_more",
