@@ -1,6 +1,7 @@
 import builtins
 import io
 import pathlib
+import re
 import sys
 import time
 import warnings
@@ -699,20 +700,262 @@ def test_select_file_types_the_folder_when_slow_path_typing_is_forced(monkeypatc
 
 # ------------------------------------- start_application -------------------------------------
 
+@pytest.mark.parametrize("cmd_line, exe_name", [
+	('"C:\\Program Files\\App\\app.exe" -x', "app.exe"),
+	("C:\\Program Files\\App\\App.EXE -x", "app.exe"),
+	("notepad.exe file.txt", "notepad.exe"),
+	("calc", "calc.exe"),
+	('"C:\\Tools\\tool" -x', "tool.exe"),
+	('python "C:\\Scripts\\run.exe"', "python.exe"),
+	("", None),
+])
+def test_exe_name(cmd_line, exe_name):
+	"""Tests the name of the executable file found in a command line."""
+	assert player._exe_name(cmd_line) == exe_name
+
+
+class _FakeProcess:
+	"""Stands for a psutil.Process."""
+	def __init__(self, fake_psutil, pid, name, create_time=0.0, parent_pid=None, running=True):
+		self.fake_psutil = fake_psutil
+		self.pid = pid
+		self.info = {"name": name, "create_time": create_time}
+		self.parent_pid = parent_pid
+		self.running = running
+
+	def children(self, recursive=False):
+		children = [p for p in self.fake_psutil.processes.values() if p.parent_pid == self.pid and p.running]
+		if recursive:
+			for child in list(children):
+				children += child.children(recursive=True)
+		return children
+
+	def is_running(self):
+		return self.running
+
+	def name(self):
+		return self.info["name"]
+
+
+class _FakePsutil:
+	"""Replaces the 'psutil' module: 'processes' are the processes of the system, by ID."""
+	class Error(Exception):
+		pass
+
+	class NoSuchProcess(Error):
+		pass
+
+	def __init__(self):
+		self.processes = {}
+
+	def add(self, pid, name, create_time=0.0, parent_pid=None, running=True):
+		self.processes[pid] = _FakeProcess(self, pid, name, create_time, parent_pid, running)
+
+	def Process(self, pid):
+		process = self.processes.get(pid)
+		if process is None or not process.running:
+			raise self.NoSuchProcess(pid)
+		return process
+
+	def process_iter(self, attrs=None):
+		return [p for p in self.processes.values() if p.running]
+
+
+def test_candidate_pids(monkeypatch):
+	"""
+	Tests that the candidate processes are the launcher, its descendants and the processes of the same executable
+	started after the launcher, but not the older processes of this executable nor the other processes.
+	"""
+	fake_psutil = _FakePsutil()
+	fake_psutil.add(100, "launcher.exe", create_time=1000.0)
+	fake_psutil.add(101, "helper.exe", create_time=1000.5, parent_pid=100)
+	fake_psutil.add(102, "worker.exe", create_time=1000.6, parent_pid=101)
+	fake_psutil.add(200, "app.exe", create_time=1001.0)  # started by the launcher, but not its child
+	fake_psutil.add(201, "App.exe", create_time=900.0)  # an older instance of the application
+	fake_psutil.add(300, "other.exe", create_time=1001.0)
+	monkeypatch.setattr(player, "psutil", fake_psutil)
+	assert player._candidate_pids(100, "app.exe", t_start=1000.0) == {100, 101, 102, 200}
+	assert player._candidate_pids(100, None, t_start=1000.0) == {100, 101, 102}
+
+
+def test_candidate_pids_when_the_launcher_has_exited(monkeypatch):
+	"""Tests the candidate processes when the launcher has already exited."""
+	fake_psutil = _FakePsutil()
+	fake_psutil.add(100, "launcher.exe", running=False)
+	fake_psutil.add(200, "app.exe", create_time=1001.0)
+	monkeypatch.setattr(player, "psutil", fake_psutil)
+	assert player._candidate_pids(100, "app.exe", t_start=1000.0) == {100, 200}
+
+
+class _FakeDesktopForStart:
+	"""
+	Replaces pywinauto.Application, findwindows.find_windows, GetWindowThreadProcessId, psutil and time
+	in the tests of 'start_application'.
+	Each search of the windows returns the next list of 'windows_lists' (the last one is repeated). A window is a tuple
+	(handle, pid of the process that owns it, title).
+	"""
+	def __init__(self, monkeypatch, *windows_lists, launcher_pid=100, launcher_running=True):
+		self.windows_lists = windows_lists
+		self.search_count = 0
+		self.find_windows_kwargs = []
+		self.fake_psutil = _FakePsutil()
+		self.fake_psutil.add(launcher_pid, "launcher.exe", create_time=1000.0, running=launcher_running)
+		self.launcher_pid = launcher_pid
+		self.now = 1000.0
+		self.owners = {}
+		self.started_cmd_lines = []
+		monkeypatch.setattr(player, "psutil", self.fake_psutil)
+		monkeypatch.setattr(player, "pywinauto", self)
+		monkeypatch.setattr(player, "findwindows", self)
+		monkeypatch.setattr(player, "win32process_GetWindowThreadProcessId", self.get_window_thread_process_id)
+		monkeypatch.setattr(time, "time", lambda: self.now)
+		monkeypatch.setattr(time, "sleep", self.sleep)
+
+	def sleep(self, seconds):
+		self.now += seconds
+
+	# --- pywinauto.Application
+	def Application(self, backend=None):
+		self.process = None
+		return self
+
+	def start(self, cmd_line=None, **kwargs):
+		self.started_cmd_lines.append(cmd_line)
+		self.process = self.launcher_pid
+
+	# --- findwindows.find_windows
+	def find_windows(self, **kwargs):
+		self.find_windows_kwargs.append(kwargs)
+		assert kwargs.get("top_level_only", True) is True
+		assert kwargs.get("visible", kwargs.get("visible_only")) is True
+		windows = self.windows_lists[min(self.search_count, len(self.windows_lists) - 1)]
+		self.search_count += 1
+		for handle, pid, title in windows:
+			self.owners[handle] = pid
+		title_re = kwargs.get("name_re", kwargs.get("title_re"))
+		return [handle for handle, pid, title in windows if title_re is None or re.match(title_re, title)]
+
+	def get_window_thread_process_id(self, handle):
+		if handle not in self.owners:
+			raise Exception("Invalid window handle")
+		return 1, self.owners[handle]
+
+
+def test_start_application_returns_the_new_window_of_the_application(monkeypatch, native_window_handle):
+	"""
+	Tests that 'start_application' returns the first new window of the started process, and ignores the windows
+	that were already there and the new windows of other applications.
+	"""
+	desktop = _FakeDesktopForStart(
+		monkeypatch,
+		[(1, 100, "Old window of the application"), (2, 300, "Other application")],  # before the start
+		[(1, 100, "Old window of the application"), (2, 300, "Other application")],
+		[(3, 300, "Notification"), (1, 100, "Old window of the application"), (2, 300, "Other application")],
+		[(3, 300, "Notification"), (4, 100, "Application"), (1, 100, "Old window of the application")])
+	application = player.start_application("app.exe -x")
+	assert desktop.started_cmd_lines == ["app.exe -x"]
+	assert application.native_window_handle == 4
+	assert application.app is desktop
+	assert core.get_native_window_handle() == 4
+
+
+def test_start_application_with_a_launcher_that_exits(monkeypatch, native_window_handle):
+	"""
+	Tests 'start_application' with a launcher that starts the real executable then exits:
+	the window of the executable started after the launcher is returned, not the window of an older instance.
+	"""
+	desktop = _FakeDesktopForStart(monkeypatch, [(1, 201, "Old instance")], [(1, 201, "Old instance"), (2, 200, "App")])
+	desktop.fake_psutil.add(201, "app.exe", create_time=900.0)
+	desktop.fake_psutil.add(200, "app.exe", create_time=1000.5)
+	desktop.fake_psutil.processes[100].running = False
+	assert player.start_application('"C:\\Program Files\\App\\app.exe"').native_window_handle == 2
+
+
+def test_start_application_with_a_uwp_application(monkeypatch, native_window_handle):
+	"""
+	Tests 'start_application' with a UWP application like the Calculator: the launcher exits at once and the
+	main window belongs to ApplicationFrameHost.exe, a process of the system that is not related to the launcher.
+	"""
+	desktop = _FakeDesktopForStart(
+		monkeypatch,
+		[(1, 500, "Calculator")],  # a first Calculator, owned by ApplicationFrameHost.exe
+		[(2, 500, "Calculator"), (1, 500, "Calculator")],
+		launcher_running=False)
+	desktop.fake_psutil.add(500, "ApplicationFrameHost.exe", create_time=10.0)
+	assert player.start_application("calc").native_window_handle == 2
+
+
+def test_start_application_ignores_uwp_windows_while_the_launcher_is_running(monkeypatch, native_window_handle):
+	"""
+	Tests that 'start_application' does not take a new window of ApplicationFrameHost.exe while the launcher is still
+	running: it is the window of another UWP application, not the window of the started application.
+	"""
+	desktop = _FakeDesktopForStart(
+		monkeypatch,
+		[],
+		[(1, 500, "Settings")],
+		[(1, 500, "Settings"), (2, 100, "Application")])
+	desktop.fake_psutil.add(500, "ApplicationFrameHost.exe", create_time=10.0)
+	assert player.start_application("app.exe").native_window_handle == 2
+
+
+def test_start_application_with_title_re(monkeypatch, native_window_handle):
+	"""Tests that 'start_application' returns the first new window whose title matches title_re (not the splash screen)."""
+	desktop = _FakeDesktopForStart(
+		monkeypatch,
+		[],
+		[(1, 100, "Splash screen")],
+		[(1, 100, "Splash screen")],
+		[(2, 100, "My App - Document 1"), (1, 100, "Splash screen")])
+	assert player.start_application("app.exe", title_re="My App - .*").native_window_handle == 2
+	assert any(kwargs.get("name_re", kwargs.get("title_re")) == "My App - .*" for kwargs in desktop.find_windows_kwargs)
+
+
+def test_start_application_ignores_a_window_destroyed_during_the_search(monkeypatch, native_window_handle):
+	"""Tests that 'start_application' ignores a window that is destroyed while it is searched."""
+	desktop = _FakeDesktopForStart(monkeypatch, [], [(1, 100, "Destroyed"), (2, 100, "Application")])
+	real_find_windows = desktop.find_windows
+
+	def find_windows(**kwargs):
+		handles = real_find_windows(**kwargs)
+		desktop.owners.pop(1, None)  # window 1 is destroyed before its process is read
+		return handles
+
+	monkeypatch.setattr(player, "findwindows", type("FindWindows", (), {"find_windows": staticmethod(find_windows)}))
+	assert player.start_application("app.exe").native_window_handle == 2
+
+
+def test_start_application_fails_when_no_window_appears(monkeypatch, native_window_handle):
+	"""Tests that 'start_application' raises TimeoutError after the timeout when no window of the application appears."""
+	desktop = _FakeDesktopForStart(monkeypatch, [(1, 300, "Other application")], [(1, 300, "Other application"), (2, 300, "Other")])
+	with pytest.raises(TimeoutError, match="app.exe") as exc_info:
+		player.start_application("app.exe", timeout=3)
+	_assert_message_is_a_sentence(exc_info.value)
+	assert 3.0 <= desktop.now - 1000.0 <= 4.0  # it waited the timeout
+	assert core.get_native_window_handle() == native_window_handle
+
+
+def test_start_application_fails_at_once_when_timeout_is_0(monkeypatch, native_window_handle):
+	"""Tests that 'start_application' searches the window once, then raises TimeoutError, when timeout is 0."""
+	desktop = _FakeDesktopForStart(monkeypatch, [])
+	with pytest.raises(TimeoutError):
+		player.start_application("app.exe", timeout=0)
+	assert desktop.search_count == 2  # the windows before the start, then one search
+
+
 class _FakeWindow:
-	"""Stands for a top level window in the tests of 'start_application'."""
+	"""Stands for a top level window in the test of 'start_application' with main_window_uipath."""
 	def __init__(self, handle):
 		self.handle = handle
 
 
-class _FakePywinauto:
+class _FakePywinautoWithDesktop:
 	"""
-	Replaces the 'pywinauto' module in the tests of 'start_application'.
+	Replaces the 'pywinauto' module in the test of 'start_application' with main_window_uipath.
 	Each call to 'Desktop().windows()' returns the next list of 'windows_lists', the last one is repeated.
 	"""
-	def __init__(self, *windows_lists, max_call_count=5):
+	def __init__(self, *windows_lists):
 		self.windows_lists = windows_lists
-		self.max_call_count = max_call_count
 		self.call_count = 0
 
 	def Desktop(self, **kwargs):
@@ -726,27 +969,35 @@ class _FakePywinauto:
 
 	def windows(self):
 		self.call_count += 1
-		if self.call_count > self.max_call_count:
-			raise RuntimeError("start_application is waiting for a new window in an endless loop")
 		return list(self.windows_lists[min(self.call_count, len(self.windows_lists)) - 1])
 
 
-def test_start_application_returns_the_new_window(monkeypatch, no_sleep, native_window_handle):
-	"""Tests that 'start_application' returns the application with the handle of the window that appeared."""
-	old_window, new_window = _FakeWindow(1), _FakeWindow(2)
-	monkeypatch.setattr(player, "pywinauto", _FakePywinauto([old_window], [old_window], [old_window, new_window]))
-	application = player.start_application("app.exe")
-	assert application.native_window_handle == 2
-	assert core.get_native_window_handle() == 2
+def test_start_application_with_main_window_uipath(monkeypatch, no_sleep, native_window_handle):
+	"""
+	Tests that 'start_application' with main_window_uipath connects to the main window found with this UIPath,
+	excluding the main windows that were there before the start.
+	"""
+	old_window, splash_screen = _FakeWindow(1), _FakeWindow(2)
+	connect_kwargs = []
+
+	def connect_application(**kwargs):
+		connect_kwargs.append(kwargs)
+		return player.UIApplication(app=None, native_window_handle=3)
+
+	monkeypatch.setattr(player, "pywinauto", _FakePywinautoWithDesktop([old_window], [old_window, splash_screen]))
+	monkeypatch.setattr(player, "connect_application", connect_application)
+	application = player.start_application("app.exe", timeout=7, main_window_uipath="App||Window")
+	assert application.native_window_handle == 3
+	assert core.get_native_window_handle() == 3
+	assert connect_kwargs == [{"exclude_main_windows": [old_window], "main_window_uipath": "App||Window", "timeout": 7}]
 
 
-def test_start_application_fails_when_no_window_appears(monkeypatch, no_sleep, native_window_handle):
-	"""Tests that 'start_application' raises FailedSearch after the timeout when no new window appears."""
-	monkeypatch.setattr(player, "pywinauto", _FakePywinauto([_FakeWindow(1)]))
-	with pytest.raises(FailedSearch, match="app.exe") as exc_info:
-		player.start_application("app.exe", timeout=0)
+def test_start_application_with_main_window_uipath_fails_when_no_window_appears(monkeypatch, no_sleep, native_window_handle):
+	"""Tests that 'start_application' with main_window_uipath raises TimeoutError when no new window appears."""
+	monkeypatch.setattr(player, "pywinauto", _FakePywinautoWithDesktop([_FakeWindow(1)]))
+	with pytest.raises(TimeoutError, match="app.exe") as exc_info:
+		player.start_application("app.exe", timeout=0, main_window_uipath="App||Window")
 	_assert_message_is_a_sentence(exc_info.value)
-	assert core.get_native_window_handle() == native_window_handle
 
 
 # ------------------------------------- messages of errors -------------------------------------

@@ -9,3 +9,4 @@ pywin32
 Pillow
 cachetools
 thefuzz
+psutil
