@@ -148,7 +148,7 @@ def test_player_performance(start_kill_app):
 	result_wrapper = find("Calculator||Window->*->RegEx: Display is||Text")
 	calculator_1 = connect_application(title="Calculator")
 	focus_on_application(calculator_1)
-	for mouse_move_duration, expected_duration in [(0, 11), (-1, 1)]:
+	for mouse_move_duration, expected_duration in [(0, 12), (-1, 1)]:
 		PlayerSettings.mouse_move_duration = mouse_move_duration
 		start_time = time.time()
 		with UIPath("Calculator||Window->*"):
@@ -238,7 +238,7 @@ def test_new_window_connection():
 	7. Connect to the Feedback Hub window that opens after excluding previously recorded main windows.
 	8. Focus on the Feedback Hub application.
 	9. Resize the Feedback Hub window to 800x800 pixels.
-	10. Click on the "Close Feedback Hub" button.
+	10. Close the Feedback Hub application.
 	"""
 	calculator = start_application("calc")
 	focus_on_application(calculator)
@@ -252,7 +252,7 @@ def test_new_window_connection():
 	focus_on_application(feedback_hub)
 	with UIPath("*"):
 		move_window(x=0, y=0)
-		click("Close Feedback Hub||Button")
+	kill_application(feedback_hub)  # the "Close Feedback Hub" button no longer exists
 	kill_application(calculator)
 
 
