@@ -1,5 +1,3 @@
-from asyncore import close_all
-
 import pytest
 import os
 from pywinauto_recorder.player import PlayerSettings, UIPath, load_dictionary, shortcut, find_main_windows, \
