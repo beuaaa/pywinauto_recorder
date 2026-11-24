@@ -240,7 +240,7 @@ def test_new_window_connection():
 	7. Connect to the Feedback Hub window that opens after excluding previously recorded main windows.
 	8. Focus on the Feedback Hub application.
 	9. Resize the Feedback Hub window to 800x800 pixels.
-	10. Click on the "Close Feedback Hub" button.
+	10. Close the Feedback Hub application.
 	"""
 	calculator = start_application("calc")
 	focus_on_application(calculator)
@@ -254,7 +254,7 @@ def test_new_window_connection():
 	focus_on_application(feedback_hub)
 	with UIPath("*"):
 		move_window(x=0, y=0)
-		#click("Close Feedback Hub||Button")
+	kill_application(feedback_hub)  # the "Close Feedback Hub" button no longer exists
 	kill_application(calculator)
 
 
