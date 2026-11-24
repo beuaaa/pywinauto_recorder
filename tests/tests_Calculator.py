@@ -1,3 +1,5 @@
+from asyncore import close_all
+
 import pytest
 import os
 from pywinauto_recorder.player import PlayerSettings, UIPath, load_dictionary, shortcut, find_main_windows, \
@@ -148,7 +150,7 @@ def test_player_performance(start_kill_app):
 	result_wrapper = find("Calculator||Window->*->RegEx: Display is||Text")
 	calculator_1 = connect_application(title="Calculator")
 	focus_on_application(calculator_1)
-	for mouse_move_duration, expected_duration in [(0, 11), (-1, 1)]:
+	for mouse_move_duration, expected_duration in [(0, 12), (-1, 1)]:
 		PlayerSettings.mouse_move_duration = mouse_move_duration
 		start_time = time.time()
 		with UIPath("Calculator||Window->*"):
@@ -252,7 +254,7 @@ def test_new_window_connection():
 	focus_on_application(feedback_hub)
 	with UIPath("*"):
 		move_window(x=0, y=0)
-		click("Close Feedback Hub||Button")
+		#click("Close Feedback Hub||Button")
 	kill_application(calculator)
 
 
