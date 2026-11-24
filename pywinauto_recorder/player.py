@@ -5,8 +5,13 @@ from enum import Enum
 from typing import Optional, Union, NewType
 import time
 import re
+import ntpath
 import pathlib
+import warnings
+import psutil
 import pywinauto
+from pywinauto import findwindows
+from win32process import GetWindowThreadProcessId as win32process_GetWindowThreadProcessId
 from win32api import GetCursorPos as win32api_GetCursorPos
 from win32api import GetSystemMetrics as win32api_GetSystemMetrics
 from win32api import mouse_event as win32api_mouse_event
@@ -86,7 +91,7 @@ class PlayerSettings:
 		"""
 		If the duration and timeout arguments are None, set them to the default values.
 		
-		:param typing_duration: The pause time between characters typed
+		:param typing_pause: The pause time between characters typed
 		:param mouse_move_duration: The duration of the mouse movement
 		:param timeout: The maximum duration to wait for the :func:`find` function to find an element before giving up
 		:return: The duration and timeout are being returned.
@@ -200,8 +205,8 @@ def wait_is_ready_try1(wrapper, timeout=120):
 		except Exception:
 			time.sleep(0.1)
 		if (time.time() - t0) > timeout:
-			msg = "Element " + get_wrapper_path(wrapper) + "  was not found after " + str(timeout) + " s of searching."
-			raise TimeoutError("Time out! ", msg)
+			msg = "Element " + get_wrapper_path(wrapper) + " was not found after " + str(timeout) + " s of searching."
+			raise TimeoutError("Time out! " + msg)
 
 
 class UIPath(object):
@@ -249,7 +254,6 @@ class UIPath(object):
 	"""
 	_stack = []
 	_path_list = []
-	_regex_list = []  # UIPath._regex_list must be removed
 	
 	@staticmethod
 	def get_full_path(element_path: Optional[UI_Path] = None) -> UI_Path:
@@ -268,8 +272,14 @@ class UIPath(object):
 			return element_path
 	
 	def __init__(self, relative_path=None, regex_title=False,absolute_path=False):
+		if regex_title:
+			warnings.warn(
+				"The parameter 'regex_title' of UIPath is ignored since Pywinauto Recorder 0.6.0: "
+				"the path is searched as plain text unless it starts with 'RegEx: '. "
+				"Please use the RegEx syntax of UIPath, for example: UIPath(\"RegEx: .* - Notepad||Window\")",
+				FutureWarning, stacklevel=2)
 		self.relative_path = relative_path
-		self.regex_title = regex_title  # UIPath._regex_list must be removed
+		self.regex_title = regex_title  # deprecated and ignored, kept for compatibility
 		self.absolute_path = absolute_path
 	
 	def __enter__(self):
@@ -278,18 +288,51 @@ class UIPath(object):
 			UIPath._path_list = []
 		if self.relative_path:
 			UIPath._path_list.append(self.relative_path)
-			UIPath._regex_list.append(self.regex_title)  # UIPath._regex_list must be removed
 		return self
 	
 	def __exit__(self, type, value, traceback):
 		if self.relative_path:
 			UIPath._path_list = UIPath._path_list[0:-1]
-			UIPath._regex_list = UIPath._regex_list[0:-1]  # UIPath._regex_list must be removed
-		if UIPath._stack:
+		# Only the UIPath that saved the path in __enter__ (absolute_path=True) restores it.
+		# A UIPath nested in it must not: it would restore the outer path too early.
+		if self.absolute_path:
 			UIPath._path_list = UIPath._stack.pop()
 
 Window = UIPath
 Region = UIPath
+
+
+_SEARCH_AGAIN_PAUSE = 1.0
+"""Pause (in seconds) between two searches when several elements match a path without index."""
+
+_DRAG_AND_DROP_PAUSE = 0.2
+"""Pause (in seconds) of drag_and_drop after the button is pressed, and before it is released."""
+
+_PROGRESS_ASCII_SYMBOLS = {"🔎": "?", "🔴": ".", "🟢": "!"}
+"""Symbols printed instead of the search progress symbols when the encoding of stdout cannot display them."""
+
+
+def _print_progress(symbol):
+	"""
+	Prints a search progress symbol.
+
+	The ASCII symbol of _PROGRESS_ASCII_SYMBOLS is printed when the encoding of stdout cannot display the symbol
+	(for example cp1252 when the output is redirected on Windows). Nothing is printed when there is no stdout.
+	"""
+	try:
+		print(symbol, end="", flush=True)
+	except UnicodeEncodeError:
+		print(_PROGRESS_ASCII_SYMBOLS.get(symbol, "?"), end="", flush=True)
+
+
+def _index_out_of_range_message(full_element_path, y_x, candidates):
+	"""Returns the message of the FailedSearch raised when the index of the [] operator is out of range."""
+	if candidates:
+		rows = str(len(candidates)) + " row(s) of " + ", ".join(str(len(row)) for row in candidates) + " element(s)"
+	else:
+		rows = "no row, because none of them is visible"
+	return "The index [" + str(y_x[0]) + "," + str(y_x[1]) + "] of the UIPath '" + full_element_path + \
+		"' is out of range: the elements found are arranged in " + rows + "."
 
 
 def find_cache_clear():
@@ -320,12 +363,12 @@ def _find(
 	
 	When the [] operator is used and only one element is found, the row and column indices are not tested and the element is returned.
 	"""
-	print("🔎", end="", file=sys.stdout)
-	sys.stdout.flush()
+	_print_progress("🔎")
 	_, _, y_x, _ = get_entry(get_entry_list(full_element_path)[-1])
 	elements = []
+	index_error_message = None
 	t0 = time.time()
-	while (time.time() - t0) < timeout:
+	while True:
 		while not elements:
 			if (time.time() - t0) > timeout:
 				msg = "No element found with the UIPath '" + full_element_path + "' after " + str(timeout) + " s of searching."
@@ -333,21 +376,23 @@ def _find(
 			try:
 				elements = find_elements(full_element_path)
 				if not elements:
-					print("🔴", end="", file=sys.stdout)
-					sys.stdout.flush()
+					_print_progress("🔴")
 					time.sleep(2.0)
 			except Exception:
-				print("🟢", end="", file=sys.stdout)
-				sys.stdout.flush()
-				pass
+				_print_progress("🟢")
 
 		if len(elements) == 1:
 			return elements[0]
 		
+		index_error_message = None
 		if y_x is not None:
 			nb_y, _, candidates = get_sorted_region(elements)
 			if is_int(y_x[0]):
-				return candidates[int(y_x[0])][int(y_x[1])]
+				try:
+					return candidates[int(y_x[0])][int(y_x[1])]
+				except IndexError:
+					# The search is done again until the timeout: the elements may still be loading
+					index_error_message = _index_out_of_range_message(full_element_path, y_x, candidates)
 			else:
 				full_smart_element_path = UIPath.get_full_path(y_x[0])
 				ref_unique_element = find_elements(full_smart_element_path)
@@ -369,10 +414,25 @@ def _find(
 					for candidate in candidates[r_y]:
 						y_candidate = candidate.rectangle().mid_point()[1]
 						if ref_r.top < y_candidate < ref_r.bottom:
-							return candidates[r_y][y_x[1]]
+							try:
+								return candidates[r_y][y_x[1]]
+							except IndexError:
+								index_error_message = _index_out_of_range_message(full_element_path, y_x, candidates)
+							break
 					r_y = r_y + 1
-		time.sleep(0.1)
+		if (time.time() - t0) >= timeout:
+			break
+		# Several elements match the path: search again until the timeout, because it may be transient
+		# (for example a window that is closing while another one is opening).
+		# The pause between two searches is shortened at the end, so that the last search is done at the timeout.
+		time.sleep(min(_SEARCH_AGAIN_PAUSE, max(0.0, timeout - (time.time() - t0))))
+		try:
+			elements = find_elements(full_element_path)
+		except Exception:
+			pass  # keep the elements of the previous search
 
+	if index_error_message:
+		raise FailedSearch(index_error_message)
 	if len(elements) > 1:
 		message = "There are " + str(len(elements)) + " undiscriminated elements that match the path '" + full_element_path + "':"
 		for e in elements:
@@ -381,7 +441,7 @@ def _find(
 			else:
 				message += "\n" + get_wrapper_path(e)
 		raise FailedSearch(message)
-	raise FailedSearch("Unique element not found using path '", full_element_path + "'")
+	raise FailedSearch("Unique element not found using path '" + full_element_path + "'")
 
 
 def find(
@@ -448,7 +508,7 @@ def find(
 
 def find_all(
 		element_path: Optional[UI_Selector] = None,
-		timeout: Optional[float] = None) -> PYWINAUTO_Wrapper:
+		timeout: Optional[float] = None) -> list:
 	"""
 	Finds all elements matching element_path.
 
@@ -471,9 +531,11 @@ def find_all(
 	
 	
 	:param element_path: element path
-	:param timeout: period of time in seconds that will be allowed to find the element
-	:return: Pywinauto wrapper list of found elements
-	:raises FailedSearch: if no element found
+	:param timeout: period of time in seconds that will be allowed to find the elements
+	:return: Pywinauto wrapper list of found elements. The list is empty if no element is found after the timeout:
+		unlike the :func:`find` function, no exception is raised.
+		When the [] operator is used in element_path, the result is the one of the :func:`find` function:
+		the Pywinauto wrapper of the element, or a FailedSearch exception if it is not found.
 	"""
 	timeout = PlayerSettings._apply_settings(timeout=timeout)["timeout"]
 	if element_path is None or isinstance(element_path, str):
@@ -508,8 +570,8 @@ def move_window(element_path: Optional[UI_Selector] = None,
 	:param element_path: element path
 	:param x: new x coordinate of the upper left corner of the window
 	:param y: new y coordinate of the upper left corner of the window
-	:param width: new width of the window, if 0 then the with and the height are not modified
-	:param height: new height of the window, if 0 then the with and the height are not modified
+	:param width: new width of the window, if 0 then the width and the height are not modified
+	:param height: new height of the window, if 0 then the width and the height are not modified
 	:return: Pywinauto wrapper of found window
 	:raises FailedSearch: if no element found
 	"""
@@ -560,6 +622,26 @@ def _move(x, y, xd, yd, duration=1, refresh_rate=25):
 	nx = round(xd * 65535 / x_max)
 	ny = round(yd * 65535 / y_max)
 	win32api_mouse_event(MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE, nx, ny)
+
+
+def _move_back_and_forth(x_from, y_from, distance=2):
+	"""
+	It moves the mouse cursor 'distance' pixels back towards (x_from, y_from), then forth to its current position.
+	The mouse cursor stays on the straight line between (x_from, y_from) and its current position.
+	Nothing is done if (x_from, y_from) is closer than 'distance' pixels.
+	
+	:param x_from: The x-coordinate of the point the mouse cursor comes from
+	:param y_from: The y-coordinate of the point the mouse cursor comes from
+	:param distance: The distance in pixels of the move
+	"""
+	x, y = win32api_GetCursorPos()
+	length = math.hypot(x_from - x, y_from - y)
+	if length < distance:
+		return
+	x_back = round(x + (x_from - x) * distance / length)
+	y_back = round(y + (y_from - y) * distance / length)
+	_move(x, y, x_back, y_back, duration=0)
+	_move(x_back, y_back, x, y, duration=0)
 
 
 def move(
@@ -688,11 +770,14 @@ def click(
 			(element_path is None or isinstance(element_path, str) or isinstance(element_path, pywinauto.base_wrapper.BaseWrapper)):
 				use_cache_old = PlayerSettings.use_cache
 				PlayerSettings.use_cache = False
-				# if isinstance(element_path, pywinauto.base_wrapper.BaseWrapper):
-				#	wrapper = element_path
-				wrapper = move(element_path, duration=duration, mode=mode, timeout=timeout)
-				wait_is_ready_try1(wrapper, timeout=timeout)
-				PlayerSettings.use_cache = use_cache_old
+				try:
+					# if isinstance(element_path, pywinauto.base_wrapper.BaseWrapper):
+					#	wrapper = element_path
+					wrapper = move(element_path, duration=duration, mode=mode, timeout=timeout)
+					wait_is_ready_try1(wrapper, timeout=timeout)
+				finally:
+					# Restore the cache setting even if the element is not found or never ready
+					PlayerSettings.use_cache = use_cache_old
 	else:
 			wrapper = move(element_path, duration=duration, mode=mode, timeout=timeout)
 	_win32api_mouse_click(button, click_count)
@@ -734,12 +819,14 @@ def drag_and_drop(
 		(if duration is -1 the mouse cursor doesn't move, it just sends WM_CLICK window message,
 		useful for minimized or non-active window).
 	:param mode: move mouse mode: MoveMode.linear, MoveMode.x_first, MoveMode.y_first
-	:param button: mouse button:  ButtonLocation.left, ButtonLocation.middl, ButtonLocation.right
+	:param button: mouse button:  ButtonLocation.left, ButtonLocation.middle, ButtonLocation.right
 	:param timeout: period of time in seconds that will be allowed to find the element
 	:return: Pywinauto wrapper found with element_path2
 	:raises FailedSearch: if the element is not found
 	"""
+	duration = PlayerSettings._apply_settings(mouse_move_duration=duration)["mouse_move_duration"]
 	move(element_path1, duration=duration, mode=mode, timeout=timeout)
+	x_source, y_source = win32api_GetCursorPos()
 	if button == ButtonLocation.left:
 		event_down = MOUSEEVENTF_LEFTDOWN
 		event_up = MOUSEEVENTF_LEFTUP
@@ -750,8 +837,18 @@ def drag_and_drop(
 		event_down = MOUSEEVENTF_RIGHTDOWN
 		event_up = MOUSEEVENTF_RIGHTUP
 	win32api_mouse_event(event_down, 0, 0)
-	unique_element = move(element_path2, duration=duration, timeout=timeout)
-	win32api_mouse_event(event_up, 0, 0)
+	try:
+		# The application must take the press into account before the mouse moves
+		time.sleep(_DRAG_AND_DROP_PAUSE)
+		unique_element = move(element_path2, duration=duration, timeout=timeout)
+		# Some applications ignore the drop when the button is released as soon as the mouse arrives on the
+		# destination: they need mouse moves over the destination and some time to take them into account.
+		if duration != -1:
+			_move_back_and_forth(x_source, y_source)
+		time.sleep(_DRAG_AND_DROP_PAUSE)
+	finally:
+		# Release the button even if the destination element is not found
+		win32api_mouse_event(event_up, 0, 0)
 	return unique_element
 
 
@@ -774,7 +871,7 @@ def menu_click(
 		
 		from pywinauto_recorder.player import UIPath, find, click, menu_click
 	
-		with UIPath("RegEx: .* - Notepad\+\+$||Window"):
+		with UIPath("RegEx: .* - Notepad\\+\\+$||Window"):
 			find().set_focus()
 			menu_click("Language->P->Python")
 		
@@ -815,42 +912,50 @@ def menu_click(
 		return x, y
 	
 	def distance(pt_1, pt_2):
-		return math.hypot(pt_2[0] - pt_1[0], pt_2[1] - pt_2[1])
+		return math.hypot(pt_2[0] - pt_1[0], pt_2[1] - pt_1[1])
 	
 	if duration not in [None, -1]:
 		duration = float(duration)/2
 	
 	native_window_handle_before_menu = get_native_window_handle()
+	path_list_before_menu = UIPath._path_list
 	menu_entry_list = menu_path.split(path_separator)
 	str_menu, str_menu_item = '*', 'MenuItem'
 	if absolute_path:
 		str_menu, str_menu_item = 'RegEx: .*||Menu', 'MenuItem~Absolute_UIPath'
-	for i, menu_entry in enumerate(menu_entry_list):
-		if i > 0:
-			SAV_UIPath_path_list, SAV_UIPath_regex_list = UIPath._path_list, UIPath._regex_list
-			UIPath._path_list = UIPath._regex_list = []
-		mouse_cursor_pos = win32api_GetCursorPos()
-		ws = find_all(str_menu + path_separator + menu_entry + type_separator + str_menu_item, timeout=timeout)
-		if ws == []:
+	try:
+		for i, menu_entry in enumerate(menu_entry_list):
+			if i > 0:
+				UIPath._path_list = []
+			mouse_cursor_pos = win32api_GetCursorPos()
+			menu_item_path = str_menu + path_separator + menu_entry + type_separator + str_menu_item
+			ws = find_all(menu_item_path, timeout=timeout)
+			if ws == []:
+				set_native_window_handle(None)
+				ws = find_all(menu_item_path, timeout=timeout)
+			if ws == []:
+				time.sleep(1)
+				ws = find_all(menu_item_path, timeout=timeout)
+			if not ws:
+				raise FailedSearch("No menu item found with the UIPath '" + UIPath.get_full_path(menu_item_path) +
+				                   "' while clicking on the menu '" + menu_path + "'.")
+			ws.sort(key=lambda w: distance(w.rectangle().mid_point(), mouse_cursor_pos))
+			w = ws[0]
+			if i == 0:
+				w_to_return= w
+			item_pos = w.rectangle().mid_point()
+			r = w.parent().rectangle()
+			nearest_p_point = nearest_perimeter_point(r, mouse_cursor_pos)
+			move(nearest_p_point, duration=duration)
+			click(item_pos, duration=duration)
+			time.sleep(0.1)  # wait for the menu to open (it is not always instantaneous depending on the animation settings)
+			if i>0:
+				UIPath._path_list = path_list_before_menu
 			set_native_window_handle(None)
-			ws = find_all(str_menu + path_separator + menu_entry + type_separator + str_menu_item, timeout=timeout)
-		if ws == []:
-			time.sleep(1)
-			ws = find_all(str_menu + path_separator + menu_entry + type_separator + str_menu_item, timeout=timeout)
-		ws.sort(key=lambda w: distance(w.rectangle().mid_point(), mouse_cursor_pos))
-		w = ws[0]
-		if i == 0:
-			w_to_return= w
-		item_pos = w.rectangle().mid_point()
-		r = w.parent().rectangle()
-		nearest_p_point = nearest_perimeter_point(r, mouse_cursor_pos)
-		move(nearest_p_point, duration=duration)
-		click(item_pos, duration=duration)
-		time.sleep(0.1)  # wait for the menu to open (it is not always instantaneous depending on the animation settings)
-		if i>0:
-			UIPath._path_list, UIPath._regex_list = SAV_UIPath_path_list, SAV_UIPath_regex_list
-		set_native_window_handle(None)
-	set_native_window_handle(native_window_handle_before_menu)
+	finally:
+		# Restore the current UIPath and the native window handle, even if a menu item is not found
+		UIPath._path_list = path_list_before_menu
+		set_native_window_handle(native_window_handle_before_menu)
 	return w_to_return
 
 
@@ -1028,7 +1133,8 @@ def select_file(
 				#	_cached_find.cache.pop(_cached_find.cache_key("*->Address||ComboBox->Address||Edit"), None)
 				old_folder = find("*->Address||ComboBox->Address||Edit").get_value()
 			
-	if force_slow_path_typing or old_folder != folder:
+	# The folders are compared as paths: 'old_folder' is a string and 'folder' is a pathlib.Path
+	if force_slow_path_typing or not old_folder or pathlib.Path(old_folder) != folder:
 		send_keys(str(folder))
 	send_keys("{ENTER}")
 	with UIPath(window_path):
@@ -1040,8 +1146,13 @@ def playback(str_code='', filename=''):
 	"""
 	This function plays back a string of code or a Python file.
 
+	If the played back code raises an exception, the error is printed. Then, when the function is run in a console,
+	it waits for the Enter key so that the error can be read. It does not wait when nobody can press the key
+	(input redirected: scheduled task, continuous integration...).
+
 	:param str_code: The Python code to be played back
 	:param filename: The name of the file corresponding to the Python code to be played back
+	:return: True if the code is played back without error, False otherwise
 	"""
 	from ctypes import windll
 	import traceback
@@ -1058,6 +1169,7 @@ def playback(str_code='', filename=''):
 		sys.path.append(script_dir)
 		compiled_code = compile(str_code, filename, 'exec')
 		exec(compiled_code)
+		return True
 	except Exception:
 		windll.user32.ShowWindow(windll.kernel32.GetConsoleWindow(), 3)
 		exc_type, exc_value, exc_traceback = sys.exc_info()
@@ -1072,7 +1184,9 @@ def playback(str_code='', filename=''):
 		
 		for line in output[d_line:]:
 			print(line, file=sys.stderr, end='')
-		input("Press Enter to continue...")
+		if sys.stdin is not None and sys.stdin.isatty():
+			input("Press Enter to continue...")
+		return False
 
 
 class UIApplication(object):
@@ -1081,33 +1195,189 @@ class UIApplication(object):
 		self.native_window_handle = native_window_handle
 
 
-def start_application(cmd_line, timeout=10, wait_for_idle=True, main_window_uipath=None):
-	"""
-	Starts an application using the specified command line arguments.
+_APPLICATION_FRAME_HOST = "applicationframehost.exe"
+"""Process that owns the main windows of the Universal Windows Platform (UWP) applications, like the Calculator."""
 
-	:param cmd_line: The command line to start the application
-	:param timeout: timeout (in seconds)  of the connection process. Default is 10 seconds.
-	:param wait_for_idle: If True, waits for the application o become idle before proceeding. Default is True.
-	:param main_window_uipath: The UI path of the main window. This parameter is mandatory if the application has multiple main windows,
-        starts with a splash screen, or has any intermediate windows else it is optional.
-	:return: UIApplication Returns a UIApplication object representing the started application.
+
+def _exe_name(cmd_line):
+	"""
+	Returns the lowercase file name of the executable started by a command line, or None if it cannot be found.
+	".exe" is added when the executable is given without extension, like "calc" or "notepad".
+
+	:param cmd_line: The command line that starts the application
+	:return: The lowercase file name of the executable, for example "app.exe"
+	"""
+	m = re.match(r'\s*"([^"]+)"', cmd_line)  # "C:\Program Files\App\app.exe" -x
+	if not m:
+		m = re.match(r'\s*([^"]+?\.exe)(?:\s|$)', cmd_line, re.IGNORECASE)  # C:\Program Files\App\app.exe -x
+	if not m:
+		m = re.match(r'\s*(\S+)', cmd_line)  # notepad file.txt
+	if not m:
+		return None
+	name = ntpath.basename(m.group(1)).lower()  # ntpath: Windows paths, whatever the platform running the tests
+	if not name:
+		return None
+	if not ntpath.splitext(name)[1]:
+		name = name + ".exe"
+	return name
+
+
+def _visible_top_windows(title_re=None):
+	"""
+	Returns the handles of the visible top level windows.
+
+	:param title_re: if it is not None, only the windows whose title matches this regular expression are returned
+	:return: The list of window handles, in the Z order (the top window first)
+	"""
+	criteria = {}
+	if title_re is not None:
+		criteria["title_re"] = title_re
+	try:
+		return findwindows.find_windows(top_level_only=True, visible_only=True, **criteria)
+	except Exception:
+		return []  # for example a window destroyed during the enumeration
+
+
+def _candidate_pids(launcher_pid, exe_name, t_start):
+	"""
+	Returns the IDs of the processes that may own the windows of an application that has just been started.
+
+	:param launcher_pid: The ID of the process started by the command line
+	:param exe_name: The lowercase file name of the executable started by the command line, or None
+	:param t_start: The time when the application was started
+	:return: The set of the launcher process, its descendants, and the processes of the same executable started
+		after t_start (case of a launcher that starts the real executable and then exits)
+	"""
+	pids = {launcher_pid}
+	try:
+		pids |= {child.pid for child in psutil.Process(launcher_pid).children(recursive=True)}
+	except psutil.Error:
+		pass  # the launcher has already exited
+	if exe_name:
+		for process in psutil.process_iter(["name", "create_time"]):
+			try:
+				if (process.info["name"] or "").lower() == exe_name and process.info["create_time"] >= t_start - 1:
+					pids.add(process.pid)
+			except Exception:
+				pass
+	return pids
+
+
+def _is_running(pid):
+	"""Returns True if the process is running."""
+	try:
+		return psutil.Process(pid).is_running()
+	except psutil.Error:
+		return False
+
+
+def _process_name(pid):
+	"""Returns the lowercase name of the executable of a process, or "" if it is not found."""
+	try:
+		return psutil.Process(pid).name().lower()
+	except psutil.Error:
+		return ""
+
+
+def _new_windows_of_application(launcher_pid, exe_name, t_start, windows_before, title_re=None):
+	"""
+	Returns the handles of the visible top level windows that appeared since the application was started
+	and that belong to it.
+
+	:param launcher_pid: The ID of the process started by the command line
+	:param exe_name: The lowercase file name of the executable started by the command line, or None
+	:param t_start: The time when the application was started
+	:param windows_before: The set of handles of the windows that were visible before the application was started
+	:param title_re: if it is not None, the title of the windows must match this regular expression
+	:return: The list of window handles, in the Z order (the top window first)
+	"""
+	pids = _candidate_pids(launcher_pid, exe_name, t_start)
+	new_windows = []
+	for handle in _visible_top_windows(title_re):
+		if handle in windows_before:
+			continue
+		try:
+			_, pid = win32process_GetWindowThreadProcessId(handle)
+		except Exception:
+			continue  # the window has been destroyed in the meantime
+		new_windows.append((handle, pid))
+	candidates = [handle for handle, pid in new_windows if pid in pids]
+	if not candidates and not _is_running(launcher_pid):
+		# UWP application (the Calculator...): the launcher exits at once, and the main window belongs to
+		# ApplicationFrameHost.exe, a process of the system that is not related to the launcher.
+		candidates = [handle for handle, pid in new_windows if _process_name(pid) == _APPLICATION_FRAME_HOST]
+	return candidates
+
+
+def _start_application_with_main_window_uipath(cmd_line, timeout, wait_for_idle, main_window_uipath):
+	"""
+	Starts an application, waits for a new window, then connects to the main window found with main_window_uipath.
+	See :func:`start_application`.
 	"""
 	desktop = pywinauto.Desktop(backend='uia', allow_magic_lookup=False)
 	window_candidates_1 = desktop.windows()
 	app = pywinauto.Application(backend="win32")
 	app.start(cmd_line=cmd_line, timeout=timeout, wait_for_idle=wait_for_idle)
+	t0 = time.time()
 	time.sleep(2)
 	window_candidates_2 = desktop.windows()
 	diff = set(window_candidates_2) - set(window_candidates_1)
 	while not diff:
+		if (time.time() - t0) >= timeout:
+			raise TimeoutError("No new window appeared " + str(timeout) + " s after starting '" + str(cmd_line) + "'. " +
+			                   "Increase the 'timeout' parameter if the application is slow to start.")
 		time.sleep(1)
 		window_candidates_2 = desktop.windows()
 		diff = set(window_candidates_2) - set(window_candidates_1)
+	uiapp = connect_application(exclude_main_windows=window_candidates_1, main_window_uipath=main_window_uipath, timeout=timeout)
+	set_native_window_handle(uiapp.native_window_handle)
+	return uiapp
+
+
+def start_application(cmd_line, timeout=10, wait_for_idle=True, main_window_uipath=None, title_re=None):
+	"""
+	Starts an application using the specified command line arguments.
+
+	The main window of the application is the first visible top level window that appears after the start and that
+	belongs to the application: to the process started by the command line, to one of its descendants, or to a
+	process of the same executable started at the same time (case of a launcher that starts the real executable and
+	then exits). The windows of other applications that appear at the same time are ignored.
+	For a UWP application, like the Calculator, whose launcher exits at once, it is the first new window that belongs
+	to ApplicationFrameHost.exe.
+
+	:param cmd_line: The command line to start the application
+	:param timeout: timeout (in seconds)  of the connection process. Default is 10 seconds.
+		It is also the maximum duration to wait for the window of the application to appear.
+	:param wait_for_idle: If True, waits for the application to become idle before proceeding. Default is True.
+	:param main_window_uipath: The UI path of the main window. This parameter is mandatory if the application has multiple main windows,
+        starts with a splash screen, or has any intermediate windows else it is optional.
+	:param title_re: (optional) regular expression that the title of the main window must match.
+		It is not used when main_window_uipath is given.
+	:return: UIApplication Returns a UIApplication object representing the started application.
+	:raises TimeoutError: if no window of the application appears after the timeout
+	:raises FailedSearch: if main_window_uipath is given and the main window is not found
+	"""
 	if main_window_uipath:
-		uiapp = connect_application(exclude_main_windows=window_candidates_1, main_window_uipath=main_window_uipath, timout=timeout)
-		set_native_window_handle(uiapp.native_window_handle)
-		return uiapp
-	native_window_handle = list(diff)[0].handle   # We assume that there is only one window
+		return _start_application_with_main_window_uipath(cmd_line, timeout, wait_for_idle, main_window_uipath)
+
+	windows_before = set(_visible_top_windows())
+	t_start = time.time()
+	app = pywinauto.Application(backend="win32")
+	app.start(cmd_line=cmd_line, timeout=timeout, wait_for_idle=wait_for_idle)
+	exe_name = _exe_name(cmd_line)
+
+	deadline = time.time() + timeout
+	while True:
+		candidates = _new_windows_of_application(app.process, exe_name, t_start, windows_before, title_re)
+		if candidates:
+			break
+		if time.time() >= deadline:
+			raise TimeoutError("No window of '" + str(cmd_line) + "' appeared " + str(timeout) + " s after it was started. " +
+			                   "Increase the 'timeout' parameter if the application is slow to start" +
+			                   (", or check the 'title_re' parameter." if title_re is not None else "."))
+		time.sleep(1)
+
+	native_window_handle = candidates[0]
 	set_native_window_handle(native_window_handle)
 	return UIApplication(app, native_window_handle)
 
@@ -1126,7 +1396,7 @@ def connect_application(**kwargs):
 	Then the following optional parameters can be used:
 	
   :param timeout: a timeout (in seconds) for process start (relevant if path is specified)
-  :param exclude_main_windows A list of main windows to exclude from the search. This list could come from `find_main_windows`.
+  :param exclude_main_windows: A list of main windows to exclude from the search. This list could come from `find_main_windows`.
         All windows in this list will be excluded to find the main window of the application to be connected.
         
 	:return: Returns a UIApplication object representing the connected application.
@@ -1152,7 +1422,7 @@ def connect_application(**kwargs):
 		if len(main_windows) == 1:
 			kwargs['handle'] = main_windows[0].handle
 		else:
-			raise FailedSearch("Window not found using args '", str(kwargs) + "'")
+			raise FailedSearch("Window not found using args '" + str(kwargs) + "'")
 	
 	kwargs.pop('exclude_main_windows', None)
 	kwargs.pop('main_window_uipath', None)
@@ -1177,12 +1447,16 @@ def focus_on_application(application_or_window=None):
 	if application_or_window is None:
 		set_native_window_handle(None)
 	else:
-		set_native_window_handle(application_or_window.native_window_handle)
+		if hasattr(application_or_window, "native_window_handle"):
+			native_window_handle = application_or_window.native_window_handle  # UIApplication object
+		else:
+			native_window_handle = application_or_window.handle  # UIAWrapper object of a main window
+		set_native_window_handle(native_window_handle)
 		time.sleep(1)
-		if win32gui_IsIconic(application_or_window.native_window_handle):
-			win32gui_ShowWindow(application_or_window.native_window_handle, SW_RESTORE)
-		win32gui_SetWindowPos(application_or_window.native_window_handle, HWND_TOPMOST, 0, 0, 0, 0, 3)
-		win32gui_SetWindowPos(application_or_window.native_window_handle, HWND_NOTOPMOST, 0, 0, 0, 0, 3)
+		if win32gui_IsIconic(native_window_handle):
+			win32gui_ShowWindow(native_window_handle, SW_RESTORE)
+		win32gui_SetWindowPos(native_window_handle, HWND_TOPMOST, 0, 0, 0, 0, 3)
+		win32gui_SetWindowPos(native_window_handle, HWND_NOTOPMOST, 0, 0, 0, 0, 3)
 
 
 def find_main_windows(main_window_uipath='*'):

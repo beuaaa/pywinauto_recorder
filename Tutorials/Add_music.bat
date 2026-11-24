@@ -5,7 +5,7 @@ D:\ffmpeg\bin\ffmpeg -y -i "concat:R:\temp\low_music.mp3|R:\temp\low_music.mp3|R
 
 REM convert mp4 to mkv
 D:\ffmpeg\bin\ffmpeg -y -i Tutorial_01\result\video.mp4 -codec copy R:\temp\input.mkv
-REM mix mp3 with already exixting audio
+REM mix mp3 with already existing audio
 D:\ffmpeg\bin\ffmpeg -y -i R:\temp\input.mkv -i R:\temp\low_music_x2.mp3 -filter_complex "[0:a][1:a]amerge=inputs=2[a]" -map 0:v -map "[a]" -c:v copy -c:a libvorbis -ac 2 -shortest R:\temp\output.mkv
 
 REM Add audio track

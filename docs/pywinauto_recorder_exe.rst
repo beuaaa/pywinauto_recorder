@@ -11,7 +11,7 @@ Pywinauto_recorder for Windows
     :align: center
     :alt: Download installer
 
-- "pywinauto_recorder.py_" is the main source, you will find the Pyhon code downloading the github clone.
+- "pywinauto_recorder.py_" is the main source, you will find the Python code downloading the github clone.
 
 .. _pywinauto_recorder.py: https://github.com/beuaaa/pywinauto_recorder/archive/master.zip
 

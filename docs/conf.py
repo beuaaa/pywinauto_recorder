@@ -13,7 +13,7 @@ extensions = ['sphinx.ext.autodoc',
               'sphinx.ext.viewcode'
               ]
 
-autodoc_mock_imports = ["pywinauto", "win32api", "win32gui", "win32con", "threading", "overlay_arrows_and_more",
+autodoc_mock_imports = ["pywinauto", "win32api", "win32gui", "win32con", "win32process", "psutil", "threading", "overlay_arrows_and_more",
                         "keyboard", "mouse", "collections", "pyperclip", "codecs", "pytest", "os", "time", "PIL",
                         "cachetools", "thefuzz", "easyocr", "numpy", "OCRWrapper"]
 
