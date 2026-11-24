@@ -165,8 +165,8 @@ def _write_in_file(events, relative_coordinate_mode=False):
 def _clean_events(events, remove_first_up=False):
 	""""
 	removes duplicate or useless events
-	removes all the last down events due or not to (CRTL+ALT+r) when ending record mode
-	:param remove_first_up: when True, removes the 2 first up events due to (CRTL+ALT+r) when starting record mode
+	removes all the last down events due or not to (CTRL+ALT+r) when ending record mode
+	:param remove_first_up: when True, removes the 2 first up events due to (CTRL+ALT+r) when starting record mode
 	:param events: the copy of recorded event list
 	"""
 	if remove_first_up:
@@ -643,7 +643,7 @@ class Recorder(Thread):
 				if r == wrapper_rectangle:
 					xx, yy = r.left, r.mid_point()[1]
 					previous_wrapper_path2 = None
-					while xx > 0:  # TODO: limiter la recherche à la fenètre courante
+					while xx > 0:  # TODO: limiter la recherche à la fenêtre courante
 						xx = xx - 9
 						wrapper2 = self.desktop.from_point(xx, yy)
 						if wrapper2 is None:
@@ -703,7 +703,7 @@ class Recorder(Thread):
 		else:
 			self.mode = "Info"
 			
-	def __display_found_elemenet_by_key(self):
+	def __display_found_element_by_key(self):
 		if self.last_element_event:
 			self._copy_count = 2
 			x, y = win32api.GetCursorPos()
@@ -737,7 +737,7 @@ class Recorder(Thread):
 		elif (
 				(e.name, e.event_type) == ('F', 'up') and
 				set([key_to_scan_codes("shift")[0], key_to_scan_codes("ctrl")[0]]).issubset(keyboard._pressed_events)):
-			self.__display_found_elemenet_by_key()
+			self.__display_found_element_by_key()
 		elif (
 				(e.name, e.event_type) == ('D', 'up') and
 				set([key_to_scan_codes("shift")[0], key_to_scan_codes("ctrl")[0]]).issubset(keyboard._pressed_events)):
@@ -746,19 +746,19 @@ class Recorder(Thread):
 			self.event_list.append(e)
 
 
-	# Ne fonctionne pas dans tous les cas car un rectangle pere n'englobe pas forcement un rectangle fils
-	# (par exemple un TreeItem) Mais peut être utilisé en ultime recour
+	# Ne fonctionne pas dans tous les cas car un rectangle père n'englobe pas forcément un rectangle fils
+	# (par exemple un TreeItem) Mais peut être utilisé en ultime recours
 	'''
 	def my_from_point(self, x, y, wrapper=None):
-		def get_children_of_children_whith_empty_rectangle(wrapper_children):
-			children_of_children_whith_empty_rectangle = []
+		def get_children_of_children_with_empty_rectangle(wrapper_children):
+			children_of_children_with_empty_rectangle = []
 			for child in wrapper_children:
 				child_rectangle = child.rectangle()
 				if child_rectangle.width() ==0 or child_rectangle.width()==0:
-					children_of_children_whith_empty_rectangle += child.children()
-			return children_of_children_whith_empty_rectangle
+					children_of_children_with_empty_rectangle += child.children()
+			return children_of_children_with_empty_rectangle
 		def get_children_of_children_not_in_parent_rectangle(wrapper_children):
-			children_of_children_whith_empty_rectangle = []
+			children_of_children_with_empty_rectangle = []
 			for child in wrapper_children:
 				child_rectangle = child.rectangle()
 				grandchildren = child.children()
@@ -775,7 +775,7 @@ class Recorder(Thread):
 			child_rectangle = child.rectangle()
 			if (child_rectangle.left < x < child_rectangle.right) and (child_rectangle.top < y < child_rectangle.bottom):
 				return self.my_from_point(x, y, wrapper=child)
-		for grandchild in get_children_of_children_whith_empty_rectangle(wrapper_children):
+		for grandchild in get_children_of_children_with_empty_rectangle(wrapper_children):
 			child_rectangle = grandchild.rectangle()
 			if (child_rectangle.left < x < child_rectangle.right) and (child_rectangle.top < y < child_rectangle.bottom):
 				return self.my_from_point(x, y, wrapper=grandchild)
@@ -794,7 +794,7 @@ class Recorder(Thread):
 		"""
 		import comtypes.client
 		print("")
-		print("COMPTYPES CACHE FOLDER:", comtypes.client._code_cache._find_gen_dir())
+		print("COMTYPES CACHE FOLDER:", comtypes.client._code_cache._find_gen_dir())
 		
 		dir_path = os.path.dirname(os.path.realpath(__file__))
 		print("PYWINAUTO RECORDER FOLDER:", dir_path)
@@ -817,13 +817,19 @@ class Recorder(Thread):
 		i_strategy = 0
 		self.mode = "Info"
 		#strategy_unique_path_again_done = False
+		previous_loop_error = None
 		while self.mode != "Quit":
 			i = i + 1
+			loop_error = None
 			try:
 				self._loop_t0 = time.time()
 				self.main_overlay.clear_all()
 				cursor_pos = win32api.GetCursorPos()
 				wrapper = self.desktop.from_point(*cursor_pos)
+				#wrapper = self.my_from_point(*cursor_pos)
+				if wrapper is None:
+					time.sleep(0.01)
+					continue
 				
 				""" """
 				window = wrapper
@@ -832,10 +838,6 @@ class Recorder(Thread):
 				set_native_window_handle(window.handle)
 				""" """
 				
-				#wrapper = self.my_from_point(*cursor_pos)
-				if wrapper is None:
-					time.sleep(0.01)
-					continue
 				wrapper_path = get_wrapper_path(wrapper)
 				if not wrapper_path:
 					time.sleep(0.01)
@@ -942,9 +944,15 @@ class Recorder(Thread):
 				time.sleep(0.01)  # main_overlay.clear_all() doit attendre la fin de main_overlay.refresh()
 			except Exception:
 				exc_type, exc_value, exc_traceback = sys.exc_info()
-				print(repr(traceback.format_exception(exc_type, exc_value, exc_traceback)))
+				loop_error = repr(traceback.format_exception(exc_type, exc_value, exc_traceback))
+				if loop_error != previous_loop_error:
+					# An error that is raised again at each loop is printed only once
+					print(loop_error)
 				self.common_path_info_tip = ""
 				self.wrapper_old_info_tip = None
+				time.sleep(0.1)  # same pace as a loop without error: do not loop at full speed
+			finally:
+				previous_loop_error = loop_error
 		if self.event_list:
 			self.stop_recording()
 		mouse.unhook_all()
@@ -1074,7 +1082,7 @@ class Recorder(Thread):
 		This function plays back a string of code or a Python file.
 		
 		:param str_code: The code to be played back
-		:param filename: The name of the file coresponding to the code to be played back
+		:param filename: The name of the file corresponding to the code to be played back
 		"""
 		self.mode = "Play"
 		self.main_overlay.refresh()

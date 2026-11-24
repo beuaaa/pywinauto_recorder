@@ -8,8 +8,8 @@ def find_all_ocr(wrapper, allowlist=None, mag_ratio=2, width_ths=0.5, contrast_t
 
 r'''
 from pywinauto import mouse
-from pywinauto.win32structures import RECT
-from pywinauto import win32defines, win32structures, win32functions
+from pywinauto.windows.win32structures import RECT
+from pywinauto.windows import win32defines, win32structures, win32functions
 import ctypes
 import time
 import traceback

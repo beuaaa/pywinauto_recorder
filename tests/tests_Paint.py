@@ -95,7 +95,7 @@ def test_recorder_mouse_move(start_kill_app):
 					data += line
 	print(data)
 	
-	# Now the lines are overed in white using the previously recorded drag and drops
+	# Now the lines are covered in white using the previously recorded drag and drops
 	compiled_code = compile(data, '<string>', 'exec')
 	eval(compiled_code)
 	os.remove(recorded_file)
