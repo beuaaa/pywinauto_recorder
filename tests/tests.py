@@ -1115,3 +1115,19 @@ def test_playback_waits_for_enter_in_a_console(monkeypatch, capsys, playback_env
 	assert player.playback(str_code="raise ValueError('error raised by the script')") is False
 	assert "ValueError: error raised by the script" in capsys.readouterr().err
 	assert playback_environment == ["Press Enter to continue..."]
+
+
+################################################################################################
+#                                   Tests of bin/VersionInfo.rc                                #
+################################################################################################
+
+def test_version_info_rc_has_the_version_of_the_package():
+	"""
+	Tests that bin/VersionInfo.rc gives the version of the package, read the same way as in pywinauto_recorder.py.
+	pywinauto_recorder.py reads this file on the 'master' branch to tell the users that a new version is available.
+	"""
+	import pywinauto_recorder
+	version_info = pathlib.Path(pywinauto_recorder.__file__).resolve().parent.parent / "bin" / "VersionInfo.rc"
+	line = version_info.read_bytes().decode('utf-8')
+	latest_version = line.split('ProductVersion')[1].split('"')[2]
+	assert latest_version == pywinauto_recorder.__version__
