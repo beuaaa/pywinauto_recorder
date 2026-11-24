@@ -5,7 +5,8 @@ name: Upload Python Package
 
 on:
   release:
-    types: [created]
+    # 'published' also fires when a draft release is published ('created' does not fire for drafts)
+    types: [published]
   workflow_dispatch:
 
 jobs:
