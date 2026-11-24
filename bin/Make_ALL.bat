@@ -39,6 +39,10 @@ set OPTIONS=%OPTIONS% --include-data-dir=..\pywinauto_recorder\Icons=Icons
 REM Packages that Pywinauto Recorder does not need (formerly deleted after the build)
 set OPTIONS=%OPTIONS% --nofollow-import-to=numpy --nofollow-import-to=PIL --nofollow-import-to=tkinter
 set OPTIONS=%OPTIONS% --nofollow-import-to=certifi --nofollow-import-to=win32com
+REM comtypes imports some of its modules by name (importlib) when it generates the COM code, and this
+REM generated code imports other comtypes modules: Nuitka cannot see these imports, so the whole
+REM comtypes package is included, except its tests ("No module named 'comtypes.stream'" otherwise)
+set OPTIONS=%OPTIONS% --include-package=comtypes --nofollow-import-to=comtypes.test
 REM Installer: per-user install without administrator rights, like the former NSIS script
 set OPTIONS=%OPTIONS% --windows-create-installer --windows-installer-output=Pywinauto_recorder_installer.exe
 set OPTIONS=%OPTIONS% --windows-installer-mode=user
