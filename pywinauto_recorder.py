@@ -179,8 +179,11 @@ class SysTrayIcon(object):
 		                  win32con.WM_USER + 20, hicon, self.hover_text)
 		win32gui.Shell_NotifyIcon(message, self.notify_id)
 
+	# The handlers of the messages return 0, the result of the window procedure: recent versions of pywin32 refuse None,
+	# and print "WNDPROC return value cannot be converted to LRESULT"
 	def restart(self, hwnd, msg, wparam, lparam):
 		self.refresh_icon()
+		return 0
 
 	def destroy(self, hwnd, msg, wparam, lparam):
 		print("destroy--->")
@@ -190,6 +193,7 @@ class SysTrayIcon(object):
 		win32gui.Shell_NotifyIcon(win32gui.NIM_DELETE, nid)
 		win32gui.PostQuitMessage(0)  # Terminate the app.
 		print("<----destroy")
+		return 0
 
 	def notify(self, hwnd, msg, wparam, lparam):
 		if lparam == win32con.WM_LBUTTONDBLCLK:
@@ -285,6 +289,7 @@ class SysTrayIcon(object):
 		id = win32gui.LOWORD(wparam)
 		self.execute_menu_option(id)
 		print("<---command")
+		return 0
 
 	def execute_menu_option(self, id):
 		menu_action = self.menu_actions_by_id[id]

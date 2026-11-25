@@ -1131,3 +1131,39 @@ def test_version_info_rc_has_the_version_of_the_package():
 	line = version_info.read_bytes().decode('utf-8')
 	latest_version = line.split('ProductVersion')[1].split('"')[2]
 	assert latest_version == pywinauto_recorder.__version__
+
+
+def test_tray_icon_message_handlers_return_an_int(monkeypatch):
+	"""
+	Tests that the handlers of the messages of the tray icon return an int: the result of the window procedure. Before,
+	restart, destroy and command returned None, which recent versions of pywin32 refuse: "WNDPROC return value cannot be
+	converted to LRESULT" was printed, twice when quitting for example.
+	"""
+	import importlib.util
+	import os
+	import types
+	launcher_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "pywinauto_recorder.py")
+	spec = importlib.util.spec_from_file_location("pywinauto_recorder_launcher", launcher_path)
+	launcher = importlib.util.module_from_spec(spec)
+	spec.loader.exec_module(launcher)
+	calls = []
+	monkeypatch.setattr(launcher, "win32gui", types.SimpleNamespace(
+		NIM_DELETE=2, LOWORD=lambda value: value & 0xFFFF,
+		Shell_NotifyIcon=lambda message, nid: calls.append("Shell_NotifyIcon"),
+		PostQuitMessage=lambda exit_code: calls.append("PostQuitMessage")))
+	tray = object.__new__(launcher.SysTrayIcon)
+	tray.hwnd = 42
+	tray.on_quit = lambda tray_: calls.append("on_quit")
+	tray.menu_actions_by_id = {1024: lambda tray_: calls.append("action")}
+	tray.default_menu_index = 1  # FIRST_ID + 1 = 1024
+	tray.refresh_icon = lambda: calls.append("refresh_icon")
+	tray.show_menu = lambda: calls.append("show_menu")
+	results = [
+		tray.restart(42, 0, 0, 0),
+		tray.command(42, 0, 1024, 0),
+		tray.notify(42, 0, 0, launcher.win32con.WM_LBUTTONDBLCLK),
+		tray.notify(42, 0, 0, launcher.win32con.WM_RBUTTONUP),
+		tray.destroy(42, 0, 0, 0)]
+	assert all(isinstance(result, int) for result in results), results
+	assert calls == ["refresh_icon", "action", "action", "show_menu", "on_quit", "Shell_NotifyIcon", "PostQuitMessage"]
+
