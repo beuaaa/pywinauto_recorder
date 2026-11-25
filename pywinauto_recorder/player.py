@@ -381,57 +381,13 @@ def _find(
 	index_error_message = None
 	t0 = time.time()
 	while True:
-		while not elements:
-			if (time.time() - t0) > timeout:
-				msg = "No element found with the UIPath '" + full_element_path + "' after " + str(timeout) + " s of searching."
-				raise FailedSearch(msg)
-			try:
-				elements = find_elements(full_element_path)
-				if not elements:
-					_print_progress("🔴")
-					time.sleep(2.0)
-			except Exception:
-				_print_progress("🟢")
-
+		if not elements:
+			elements = _wait_for_elements(full_element_path, timeout, t0)
 		if len(elements) == 1:
 			return elements[0]
-		
-		index_error_message = None
-		if y_x is not None:
-			nb_y, _, candidates = get_sorted_region(elements)
-			if is_int(y_x[0]):
-				try:
-					return candidates[int(y_x[0])][int(y_x[1])]
-				except IndexError:
-					# The search is done again until the timeout: the elements may still be loading
-					index_error_message = _index_out_of_range_message(full_element_path, y_x, candidates)
-			else:
-				full_smart_element_path = UIPath.get_full_path(y_x[0])
-				ref_unique_element = find_elements(full_smart_element_path)
-				if len(ref_unique_element) != 1:
-					msg = f"While searching for the UIPath '{full_element_path}' :\n"
-					if len(ref_unique_element) == 0:
-						msg += f"No element found with the UIPath '{full_smart_element_path}'."
-						raise FailedSearch(msg)
-					elif len(ref_unique_element) > 12:
-						msg += f"{len(ref_unique_element)} elements found with the UIPath '{full_smart_element_path}'."
-						raise FailedSearch(msg)
-					else:
-						elements_list = "\n".join(elem.element_info.name + '||' + elem.element_info.control_type for elem in ref_unique_element)
-						msg += f"{len(ref_unique_element) } elements found with the UIPath '{full_smart_element_path}': \n{elements_list}"
-						raise FailedSearch(msg)
-				ref_r = ref_unique_element[0].rectangle()
-				r_y = 0
-				while r_y < nb_y:
-					for candidate in candidates[r_y]:
-						y_candidate = candidate.rectangle().mid_point()[1]
-						if ref_r.top < y_candidate < ref_r.bottom:
-							try:
-								return candidates[r_y][y_x[1]]
-							except IndexError:
-								index_error_message = _index_out_of_range_message(full_element_path, y_x, candidates)
-							break
-					r_y = r_y + 1
+		element, index_error_message = _find_element_at_index(full_element_path, y_x, elements)
+		if element is not None:
+			return element
 		if (time.time() - t0) >= timeout:
 			break
 		# Several elements match the path: search again until the timeout, because it may be transient
@@ -439,9 +395,101 @@ def _find(
 		# The pause between two searches is shortened at the end, so that the last search is done at the timeout.
 		time.sleep(min(_SEARCH_AGAIN_PAUSE, max(0.0, timeout - (time.time() - t0))))
 		elements = _find_elements_or(full_element_path, elements)  # the previous elements if the search fails
+	raise _failed_search(full_element_path, elements, index_error_message)
 
+
+def _wait_for_elements(full_element_path, timeout, t0):
+	"""
+	Searches the elements of full_element_path until at least one is found.
+
+	:param full_element_path: The full path of the elements
+	:param timeout: The maximum duration of the search, in seconds
+	:param t0: The time when the search started
+	:return: The elements found
+	:raises FailedSearch: if no element is found after the timeout
+	"""
+	elements = []
+	while not elements:
+		if (time.time() - t0) > timeout:
+			msg = "No element found with the UIPath '" + full_element_path + "' after " + str(timeout) + " s of searching."
+			raise FailedSearch(msg)
+		try:
+			elements = find_elements(full_element_path)
+			if not elements:
+				_print_progress("🔴")
+				time.sleep(2.0)
+		except Exception:
+			_print_progress("🟢")
+	return elements
+
+
+def _find_element_at_index(full_element_path, y_x, elements):
+	"""
+	Returns the element designated by the [] operator of the path, among the elements that match the path.
+
+	:param full_element_path: The full path of the elements
+	:param y_x: The indices of the [] operator: [row, column], or [path of a reference element, column].
+		None if the path has no [] operator.
+	:param elements: The elements that match the path
+	:return: The element, or None if it is not found, and the message of the error if an index is out of range
+	:raises FailedSearch: if the reference element is not found, or is not unique
+	"""
+	if y_x is None:
+		return None, None
+	nb_y, _, candidates = get_sorted_region(elements)
+	if is_int(y_x[0]):
+		try:
+			return candidates[int(y_x[0])][int(y_x[1])], None
+		except IndexError:
+			# The search is done again until the timeout: the elements may still be loading
+			return None, _index_out_of_range_message(full_element_path, y_x, candidates)
+	ref_r = _find_reference_element(full_element_path, UIPath.get_full_path(y_x[0])).rectangle()
+	index_error_message = None
+	for r_y in range(nb_y):
+		for candidate in candidates[r_y]:
+			y_candidate = candidate.rectangle().mid_point()[1]
+			if ref_r.top < y_candidate < ref_r.bottom:
+				try:
+					return candidates[r_y][y_x[1]], None
+				except IndexError:
+					index_error_message = _index_out_of_range_message(full_element_path, y_x, candidates)
+				break
+	return None, index_error_message
+
+
+def _find_reference_element(full_element_path, full_smart_element_path):
+	"""
+	Returns the reference element of the [] operator of a path: the element in the same row as the searched element.
+
+	:param full_element_path: The full path of the searched element
+	:param full_smart_element_path: The full path of the reference element
+	:return: The reference element
+	:raises FailedSearch: if the reference element is not found, or is not unique
+	"""
+	ref_unique_element = find_elements(full_smart_element_path)
+	if len(ref_unique_element) == 1:
+		return ref_unique_element[0]
+	msg = f"While searching for the UIPath '{full_element_path}' :\n"
+	if len(ref_unique_element) == 0:
+		msg += f"No element found with the UIPath '{full_smart_element_path}'."
+	elif len(ref_unique_element) > 12:
+		msg += f"{len(ref_unique_element)} elements found with the UIPath '{full_smart_element_path}'."
+	else:
+		elements_list = "\n".join(elem.element_info.name + '||' + elem.element_info.control_type for elem in ref_unique_element)
+		msg += f"{len(ref_unique_element) } elements found with the UIPath '{full_smart_element_path}': \n{elements_list}"
+	raise FailedSearch(msg)
+
+
+def _failed_search(full_element_path, elements, index_error_message):
+	"""
+	Returns the FailedSearch exception raised when a unique element is not found after the timeout.
+
+	:param full_element_path: The full path of the searched element
+	:param elements: The elements that match the path
+	:param index_error_message: The message of the error if an index of the [] operator is out of range, or None
+	"""
 	if index_error_message:
-		raise FailedSearch(index_error_message)
+		return FailedSearch(index_error_message)
 	if len(elements) > 1:
 		message = "There are " + str(len(elements)) + " undiscriminated elements that match the path '" + full_element_path + "':"
 		for e in elements:
@@ -449,8 +497,8 @@ def _find(
 				message += "\n" + str(e.result)
 			else:
 				message += "\n" + get_wrapper_path(e)
-		raise FailedSearch(message)
-	raise FailedSearch("Unique element not found using path '" + full_element_path + "'")
+		return FailedSearch(message)
+	return FailedSearch("Unique element not found using path '" + full_element_path + "'")
 
 
 def find(
@@ -864,6 +912,55 @@ middle_drag_and_drop = wrapped_partial(drag_and_drop, button=ButtonLocation.midd
 right_drag_and_drop = wrapped_partial(drag_and_drop, button=ButtonLocation.right)
 
 
+def _nearest_perimeter_point(rect, point):
+	"""Returns the point of the rectangle that is the nearest to a point: the point itself if it is in the rectangle."""
+	x1, y1, x2, y2 = rect.left, rect.top, rect.right, rect.bottom
+	x, y = point
+	if x1 <= x <= x2 and y1 <= y <= y2:
+		return point
+	if x < x1:
+		x = x1
+	elif x > x2:
+		x = x2
+	if y < y1:
+		y = y1
+	elif y > y2:
+		y = y2
+	return x, y
+
+
+def _distance(pt_1, pt_2):
+	"""Returns the distance between two points."""
+	return math.hypot(pt_2[0] - pt_1[0], pt_2[1] - pt_1[1])
+
+
+def _find_menu_items(menu_item_path, menu_path, timeout):
+	"""
+	Finds the items of an open menu that match menu_item_path.
+
+	When no item is found, the search is done again in all the windows (a menu can be a top level window), then again
+	1 s later (the menu may still be opening).
+
+	:param menu_item_path: The path of the items
+	:param menu_path: The path of the menu given to menu_click, for the message of the error
+	:param timeout: The maximum duration of each search, in seconds
+	:return: The items found
+	:raises FailedSearch: if no item is found
+	"""
+	ws = find_all(menu_item_path, timeout=timeout)
+	if ws == []:
+		set_native_window_handle(None)
+		ws = find_all(menu_item_path, timeout=timeout)
+	if ws == []:
+		time.sleep(1)
+		ws = find_all(menu_item_path, timeout=timeout)
+	if not ws:
+		raise FailedSearch(
+			"No menu item found with the UIPath '" + UIPath.get_full_path(menu_item_path) +
+			"' while clicking on the menu '" + menu_path + "'.")
+	return ws
+
+
 def menu_click(
 		menu_path: str,
 		duration: Optional[float] = None,
@@ -903,24 +1000,6 @@ def menu_click(
 	:return: Pywinauto wrapper of the first clicked item
 	:raises FailedSearch: if an element is not found
 	"""
-	def nearest_perimeter_point(rect, point):
-		x1, y1, x2, y2 = rect.left, rect.top, rect.right, rect.bottom
-		x, y = point
-		if x1 <= x <= x2 and y1 <= y <= y2:
-			return point
-		if x < x1:
-			x = x1
-		elif x > x2:
-			x = x2
-		if y < y1:
-			y = y1
-		elif y > y2:
-			y = y2
-		return x, y
-	
-	def distance(pt_1, pt_2):
-		return math.hypot(pt_2[0] - pt_1[0], pt_2[1] - pt_1[1])
-	
 	if duration not in [None, -1]:
 		duration = float(duration)/2
 	
@@ -936,24 +1015,14 @@ def menu_click(
 				UIPath._path_list = []
 			mouse_cursor_pos = win32api_GetCursorPos()
 			menu_item_path = str_menu + path_separator + menu_entry + type_separator + str_menu_item
-			ws = find_all(menu_item_path, timeout=timeout)
-			if ws == []:
-				set_native_window_handle(None)
-				ws = find_all(menu_item_path, timeout=timeout)
-			if ws == []:
-				time.sleep(1)
-				ws = find_all(menu_item_path, timeout=timeout)
-			if not ws:
-				raise FailedSearch(
-					"No menu item found with the UIPath '" + UIPath.get_full_path(menu_item_path) +
-					"' while clicking on the menu '" + menu_path + "'.")
-			ws.sort(key=lambda w: distance(w.rectangle().mid_point(), mouse_cursor_pos))
+			ws = _find_menu_items(menu_item_path, menu_path, timeout)
+			ws.sort(key=lambda w: _distance(w.rectangle().mid_point(), mouse_cursor_pos))
 			w = ws[0]
 			if i == 0:
-				w_to_return= w
+				w_to_return = w
 			item_pos = w.rectangle().mid_point()
 			r = w.parent().rectangle()
-			nearest_p_point = nearest_perimeter_point(r, mouse_cursor_pos)
+			nearest_p_point = _nearest_perimeter_point(r, mouse_cursor_pos)
 			move(nearest_p_point, duration=duration)
 			click(item_pos, duration=duration)
 			time.sleep(0.1)  # wait for the menu to open (it is not always instantaneous depending on the animation settings)

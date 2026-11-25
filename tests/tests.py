@@ -1218,3 +1218,39 @@ def test_version_info_rc_has_the_version_of_the_package():
 	line = version_info.read_bytes().decode('utf-8')
 	latest_version = line.split('ProductVersion')[1].split('"')[2]
 	assert latest_version == pywinauto_recorder.__version__
+
+
+@pytest.mark.parametrize("point, expected", [((50, 50), (50, 50)), ((-10, 50), (0, 50)), ((150, 250), (100, 200))])
+def test_nearest_perimeter_point(point, expected):
+	"""Tests the point of a rectangle that is the nearest to a point, where menu_click moves the mouse cursor."""
+	rectangle = types.SimpleNamespace(left=0, top=0, right=100, bottom=200)
+	assert player._nearest_perimeter_point(rectangle, point) == expected
+
+
+def test_find_elements_or_when_the_search_fails(monkeypatch):
+	"""Tests that _find_elements_or returns the default value when the search raises an exception."""
+	def find_elements(path):
+		raise RuntimeError("element vanished")
+
+	monkeypatch.setattr(player, "find_elements", find_elements)
+	previous_elements = ["element"]
+	assert player._find_elements_or("Window||Window->OK||Button", previous_elements) is previous_elements
+
+
+def test_is_instance_started_after_when_the_information_is_not_available():
+	"""Tests a process whose creation time cannot be read (access denied): it is not a candidate."""
+	process = types.SimpleNamespace(info={"name": "app.exe", "create_time": None})
+	assert player._is_instance_started_after(process, "app.exe", 1000.0) is False
+	process.info["create_time"] = 1000.5
+	assert player._is_instance_started_after(process, "app.exe", 1000.0) is True
+
+
+def test_window_process_id_of_a_destroyed_window(monkeypatch):
+	"""Tests that the process of a window destroyed in the meantime is None."""
+	def get_window_thread_process_id(handle):
+		raise Exception("Invalid window handle")
+
+	monkeypatch.setattr(player, "win32process_GetWindowThreadProcessId", get_window_thread_process_id)
+	assert player._window_process_id(42) is None
+	monkeypatch.setattr(player, "win32process_GetWindowThreadProcessId", lambda handle: (1, 300))
+	assert player._window_process_id(42) == 300

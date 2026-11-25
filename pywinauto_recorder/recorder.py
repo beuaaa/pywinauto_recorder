@@ -90,80 +90,129 @@ def _relative_coordinates(dx, dy, relative_coordinate_mode):
 	return ''
 
 
+_USER_EVENT_TYPES = (DragAndDropEvent, ClickEvent, FindEvent, MenuEvent)
+"""The events of the user interface elements: the UIPath of the next lines of the script depends on their paths."""
+
+_SCRIPT_EVENT_TYPES = (SendKeysEvent, MouseWheelEvent) + _USER_EVENT_TYPES
+"""The events written in the scripts."""
+
+
 def _write_in_file(events, relative_coordinate_mode=False):
+	"""
+	Writes the script that replays the events in a new file of the folder "Pywinauto recorder" of the home folder.
+
+	The script is also copied to the clipboard.
+
+	:param events: The processed events of the recording
+	:param relative_coordinate_mode: True if the relative coordinates of the clicks are written
+	:return: The path of the file
+	"""
 	from pathlib import Path
 	home_dir = Path.home() / 'Pywinauto recorder'
 	home_dir.mkdir(parents=True, exist_ok=True)
 	record_file_name = home_dir / Path('recorded ' + time.asctime().replace(':', '_') + '.py')
 	print('Recording in file: ' + str(record_file_name.absolute()))
+	script = _get_script(events, relative_coordinate_mode)
+	with codecs.open(record_file_name, "w", encoding=sys.getdefaultencoding()) as f:
+		f.write(script)
+	pyperclip.copy(script)
+	return record_file_name
+
+
+def _get_script(events, relative_coordinate_mode=False):
+	"""
+	Returns the Python script that replays the events.
+
+	The paths of consecutive events in the same window, or in the same region, are written relatively to UIPath blocks.
+
+	:param events: The processed events of the recording
+	:param relative_coordinate_mode: True if the relative coordinates of the clicks are written
+	:return: The Python script
+	"""
 	script = "# encoding: {}\n\n".format(sys.getdefaultencoding())
 	script += "from pywinauto_recorder.player import *\n\n"
 	common_path = ''
 	common_window = ''
 	common_region = ''
-	i = 0
-	while i < len(events):
-		e_i = events[i]
-		if type(e_i) in (DragAndDropEvent, ClickEvent, FindEvent, MenuEvent):
-			if e_i.path != common_path:
-				new_common_path = _find_new_common_path_in_next_user_events(events, i)
-				if new_common_path != common_path:
-					common_path = new_common_path
-					entry_list = get_entry_list(common_path)
-					e_i_window = entry_list[0]
-					if e_i_window != common_window:
-						common_window = e_i_window
-						script += '\nwith UIPath(u"' + _escape_special_char(common_window) + '"):\n'
-					e_i_region = path_separator.join(entry_list[1:])
-					if e_i_region != common_region and e_i_region:
-						common_region = e_i_region
-						script += '\twith UIPath(u"' + _escape_special_char(common_region) + '"):\n'
-					else:
-						common_region = ''
-		if type(e_i) in (SendKeysEvent, MouseWheelEvent, DragAndDropEvent, ClickEvent, FindEvent, MenuEvent):
+	for i, e_i in enumerate(events):
+		if isinstance(e_i, _USER_EVENT_TYPES) and e_i.path != common_path:
+			new_common_path = _find_new_common_path_in_next_user_events(events, i)
+			if new_common_path != common_path:
+				common_path = new_common_path
+				uipath_lines, common_window, common_region = _get_uipath_lines(common_path, common_window, common_region)
+				script += uipath_lines
+		if isinstance(e_i, _SCRIPT_EVENT_TYPES):
 			if common_window:
 				script += '\t'
 				if common_region:
 					script += '\t'
-			if isinstance(e_i, SendKeysEvent):
-				script += 'send_keys(' + e_i.line + ')\n'
-			elif isinstance(e_i, MouseWheelEvent):
-				script += 'mouse_wheel(' + str(e_i.delta) + ')\n'
-			elif isinstance(e_i, DragAndDropEvent):
-				p1, p2 = e_i.path, e_i.path2
-				if common_path:
-					p1 = _get_relative_path(common_path, p1)
-					p2 = _get_relative_path(common_path, p2)
-				script += 'drag_and_drop(u"' + _escape_special_char(p1)
-				script += _relative_coordinates(e_i.dx1, e_i.dy1, relative_coordinate_mode)
-				script += '", u"' + _escape_special_char(p2)
-				script += _relative_coordinates(e_i.dx2, e_i.dy2, relative_coordinate_mode)
-				script += '")\n'
-			elif isinstance(e_i, ClickEvent):
-				p = e_i.path
-				if common_path:
-					p = _get_relative_path(common_path, p)
-				str_c = ['', '', 'double_', 'triple_']
-				if e_i.button == 'left':
-					script += str_c[e_i.click_count] + 'click(u"' + _escape_special_char(p)
-				else:
-					script += str_c[e_i.click_count] + e_i.button + '_click(u"' + _escape_special_char(p)
-				script += _relative_coordinates(e_i.dx, e_i.dy, relative_coordinate_mode)
-				script += '")\n'
-			elif isinstance(e_i, FindEvent):
-				p = e_i.path
-				if common_path:
-					p = _get_relative_path(common_path, p)
-				script += 'wrapper = find(u"' + _escape_special_char(p)
-				script += _relative_coordinates(e_i.dx, e_i.dy, relative_coordinate_mode)
-				script += '")\n'
-			elif isinstance(e_i, MenuEvent):
-				script += 'menu_click(u"' + _escape_special_char(e_i.menu_path) + '")\n'
-		i += 1
-	with codecs.open(record_file_name, "w", encoding=sys.getdefaultencoding()) as f:
-		f.write(script)
-	pyperclip.copy(script)
-	return record_file_name
+			script += _get_script_line(e_i, common_path, relative_coordinate_mode)
+	return script
+
+
+def _get_uipath_lines(common_path, common_window, common_region):
+	"""
+	Returns the "with UIPath(...)" lines written when the common path of the next events changes.
+
+	:param common_path: The new common path
+	:param common_window: The window of the UIPath block of the previous events, or ''
+	:param common_region: The region of the UIPath block of the previous events, or ''
+	:return: The lines, the window and the region of the UIPath blocks of the next events
+	"""
+	lines = ''
+	entry_list = get_entry_list(common_path)
+	if entry_list[0] != common_window:
+		common_window = entry_list[0]
+		lines += '\nwith UIPath(u"' + _escape_special_char(common_window) + '"):\n'
+	region = path_separator.join(entry_list[1:])
+	if region != common_region and region:
+		common_region = region
+		lines += '\twith UIPath(u"' + _escape_special_char(common_region) + '"):\n'
+	else:
+		common_region = ''
+	return lines, common_window, common_region
+
+
+def _get_element_argument(path, dx, dy, common_path, relative_coordinate_mode):
+	"""
+	Returns the path of an element written in the script: relative to common_path, followed by the relative coordinates.
+
+	:param path: The full path of the element
+	:param dx: The horizontal relative coordinate of the click (see _relative_coordinates)
+	:param dy: The vertical relative coordinate of the click (see _relative_coordinates)
+	:param common_path: The common path of the UIPath blocks, or ''
+	:param relative_coordinate_mode: True if the relative coordinates are written
+	:return: The text written between the quotes of the argument
+	"""
+	if common_path:
+		path = _get_relative_path(common_path, path)
+	return _escape_special_char(path) + _relative_coordinates(dx, dy, relative_coordinate_mode)
+
+
+def _get_script_line(event, common_path, relative_coordinate_mode):
+	"""
+	Returns the line of the script that replays an event.
+
+	:param event: An event of a type of _SCRIPT_EVENT_TYPES
+	:param common_path: The common path of the UIPath blocks, or ''
+	:param relative_coordinate_mode: True if the relative coordinates are written
+	:return: The line, without its indentation
+	"""
+	if isinstance(event, SendKeysEvent):
+		return 'send_keys(' + event.line + ')\n'
+	if isinstance(event, MouseWheelEvent):
+		return 'mouse_wheel(' + str(event.delta) + ')\n'
+	if isinstance(event, MenuEvent):
+		return 'menu_click(u"' + _escape_special_char(event.menu_path) + '")\n'
+	if isinstance(event, DragAndDropEvent):
+		return 'drag_and_drop(u"' + \
+			_get_element_argument(event.path, event.dx1, event.dy1, common_path, relative_coordinate_mode) + '", u"' + \
+			_get_element_argument(event.path2, event.dx2, event.dy2, common_path, relative_coordinate_mode) + '")\n'
+	argument = _get_element_argument(event.path, event.dx, event.dy, common_path, relative_coordinate_mode)
+	if isinstance(event, ClickEvent):
+		button = '' if event.button == 'left' else event.button + '_'
+		return ['', '', 'double_', 'triple_'][event.click_count] + button + 'click(u"' + argument + '")\n'
+	return 'wrapper = find(u"' + argument + '")\n'  # FindEvent
 
 
 def _clean_events(events, remove_first_up=False):
@@ -261,44 +310,73 @@ def _process_wheel_events(events, i):
 	events[i] = MouseWheelEvent(delta=delta)
 
 
-def _process_drag_and_drop_or_click_events(events, i):
-	i0 = i - 1
-	while i0 >= 0:
-		if isinstance(events[i0], ElementEvent):
-			element_event_before_button_up = events[i0]
-			break
-		i0 = i0 - 1
-	while i0 >= 0:
-		if isinstance(events[i0], mouse.MoveEvent):
-			move_event_end = events[i0]
-			break
-		i0 = i0 - 1
-	i0 = i - 1
+def _find_previous_event(events, i, event_type):
+	"""
+	Searches the last event of type event_type in events[:i + 1].
+
+	:return: The index of the event and the event, or -1 and None if there is none
+	"""
+	while i >= 0:
+		if isinstance(events[i], event_type):
+			return i, events[i]
+		i = i - 1
+	return -1, None
+
+
+def _find_button_down(events, i, move_event_end):
+	"""
+	Searches the press of the mouse button released by events[i], and counts the clicks.
+
+	:param events: The events of the recording
+	:param i: The index of a release of a mouse button
+	:param move_event_end: The last mouse move before the release
+	:return: The index of the press (-1 if it is not found), True if the mouse moved while the button was pressed,
+		and the number of clicks (2 or 3 for a double or triple click)
+	"""
 	drag_and_drop = False
 	click_count = 0
+	i0 = i - 1
 	while i0 >= 0:
-		if isinstance(events[i0], mouse.MoveEvent):
-			if events[i0].x != move_event_end.x or events[i0].y != move_event_end.y:
+		event = events[i0]
+		if isinstance(event, mouse.MoveEvent):
+			if event.x != move_event_end.x or event.y != move_event_end.y:
 				drag_and_drop = True
-		elif isinstance(events[i0], mouse.ButtonEvent) and events[i0].event_type in ('down', 'double'):
+		elif isinstance(event, mouse.ButtonEvent) and event.event_type in ('down', 'double'):
 			click_count = click_count + 1
-			if events[i0].event_type == 'down' or click_count == 3:
-				i1 = i0
-				break
+			if event.event_type == 'down' or click_count == 3:
+				return i0, drag_and_drop, click_count
 		i0 = i0 - 1
-	element_event_before_button_down = None
-	while i0 >= 0:
-		if isinstance(events[i0], ElementEvent):
-			element_event_before_button_down = events[i0]
-			break
-		i0 = i0 - 1
+	return -1, drag_and_drop, click_count
+
+
+def _remove_mouse_and_element_events(events, i1, i):
+	"""
+	Removes the mouse button, mouse move and element events from events[i1] to events[i - 1].
+
+	:return: The new index of the event of index i
+	"""
+	removed = [i0 for i0 in range(max(i1, 0), i) if isinstance(events[i0], (mouse.ButtonEvent, mouse.MoveEvent, ElementEvent))]
+	for i0 in reversed(removed):
+		del events[i0]
+	return i - len(removed)
+
+
+def _process_drag_and_drop_or_click_events(events, i):
+	"""
+	Replaces the release of a mouse button, events[i], by a ClickEvent or a DragAndDropEvent.
+
+	The mouse button, mouse move and element events from the press to the release of the button are removed.
+
+	:param events: The events of the recording
+	:param i: The index of a release of a mouse button
+	:return: The new index of the ClickEvent or of the DragAndDropEvent
+	"""
+	i0, element_event_before_button_up = _find_previous_event(events, i - 1, ElementEvent)
+	_, move_event_end = _find_previous_event(events, i0, mouse.MoveEvent)
+	i1, drag_and_drop, click_count = _find_button_down(events, i, move_event_end)
+	i0, element_event_before_button_down = _find_previous_event(events, i1, ElementEvent)
 	if drag_and_drop:
-		move_event_start = None
-		while i0 >= 0:
-			if isinstance(events[i0], mouse.MoveEvent):
-				move_event_start = events[i0]
-				break
-			i0 = i0 - 1
+		_, move_event_start = _find_previous_event(events, i0, mouse.MoveEvent)
 		dx1, dy1 = _compute_dx_dy(move_event_start.x, move_event_start.y, element_event_before_button_down.rectangle)
 		dx2, dy2 = _compute_dx_dy(move_event_end.x, move_event_end.y, element_event_before_button_up.rectangle)
 		events[i] = DragAndDropEvent(
@@ -310,16 +388,7 @@ def _process_drag_and_drop_or_click_events(events, i):
 		events[i] = ClickEvent(
 			button=up_event.button, click_count=click_count,
 			path=element_event_before_button_down.path, dx=dx, dy=dy, time=up_event.time)
-	i_processed_events = []
-	i0 = i - 1
-	while i0 >= i1:
-		if type(events[i0]) in (mouse.ButtonEvent, mouse.MoveEvent, ElementEvent):
-			i_processed_events.append(i0)
-		i0 = i0 - 1
-	for i_p_e in sorted(i_processed_events, reverse=True):
-		del events[i_p_e]
-		i = i - 1
-	return i
+	return _remove_mouse_and_element_events(events, i1, i)
 
 
 def _get_relative_path(common_path, path):
@@ -611,6 +680,61 @@ def keyboard_hooks_work(timeout=KEYBOARD_HOOKS_CHECK_TIMEOUT, interval=0.2):
 		keyboard.unhook(hooked)
 
 
+def _top_level_window(wrapper):
+	"""Returns the top level window of an element: the element itself, or its ancestor whose parent is the desktop."""
+	window = wrapper
+	while window.parent() is not None and window.parent().parent() is not None:
+		window = window.parent()
+	return window
+
+
+def _is_cursor_in(rectangle):
+	"""Returns True if the mouse cursor is inside the rectangle, and not on its border."""
+	x, y = win32api.GetCursorPos()
+	return rectangle.left < x < rectangle.right and rectangle.top < y < rectangle.bottom
+
+
+class _ElementSearch:
+	"""
+	The state of the search of a unique path of the element under the mouse cursor, kept from a loop of the recorder to
+	the next one.
+
+	The strategies are tried one after the other, a strategy at each loop, while the mouse cursor stays on the same
+	element and no unique path is found. The strategy Strategy.array_1d is used only in Smart mode.
+	"""
+
+	STRATEGIES = (Strategy.unique_path, Strategy.array_2d, Strategy.array_1d)
+
+	def __init__(self):
+		"""Creates the state of a search that starts with the first strategy."""
+		self.elements = []
+		self.previous_wrapper_path = None
+		self.unique_wrapper_path = None
+		self.i_strategy = 0
+
+	def next_strategy(self, wrapper_path, smart_mode):
+		"""
+		Returns the strategy of the search of a unique path of the element of path wrapper_path.
+
+		The elements of path wrapper_path are searched again when the element under the mouse cursor changes.
+
+		:param wrapper_path: The path of the element under the mouse cursor
+		:param smart_mode: True if the Smart mode is active
+		:return: The strategy
+		"""
+		if wrapper_path == self.previous_wrapper_path:
+			if (self.unique_wrapper_path is None) or (self.STRATEGIES[self.i_strategy] == Strategy.array_2d):
+				self.i_strategy = min(self.i_strategy + 1, len(self.STRATEGIES) - 1)
+				if (not smart_mode) and (self.STRATEGIES[self.i_strategy] == Strategy.array_1d):
+					self.i_strategy = 1
+		else:
+			self.i_strategy = 0
+			self.previous_wrapper_path = wrapper_path
+			self.elements = find_elements(wrapper_path)
+		self.unique_wrapper_path = None
+		return self.STRATEGIES[self.i_strategy]
+
+
 class RecorderMode(str, Enum):
 	"""
 	The modes of the recorder.
@@ -805,7 +929,10 @@ class Recorder(Thread):
 
 	def run(self):
 		"""
-		The function is called in a loop, and it tries to find the unique element under the mouse cursor.
+		The loop of the recorder: it searches a unique path of the element under the mouse cursor, and displays it.
+
+		It stops when the mode of the recorder is "Quit". An error in a loop is printed (only once if it is raised again
+		at each loop), and the next loop starts 0.1 s later.
 		"""
 		import comtypes.client
 		print("")
@@ -820,139 +947,17 @@ class Recorder(Thread):
 			print(
 				"Warning: the keyboard hooks do not work. The keyboard shortcuts and the recording of the keyboard are "
 				"not available: use the menu of the tray icon, or restart Pywinauto Recorder.")
-		elements = []
-		i = 0
-		previous_wrapper_path = None
-		unique_wrapper_path = None
-		strategies = [Strategy.unique_path, Strategy.array_2d, Strategy.array_1d]
-		i_strategy = 0
+		search = _ElementSearch()
 		if self.mode == RecorderMode.INITIALIZING:
 			# a replay of a file, or quit(), may have set the mode while the recorder was initializing
 			self.mode = RecorderMode.INFO
-		#strategy_unique_path_again_done = False
+		i = 0
 		previous_loop_error = None
 		while self.mode != RecorderMode.QUIT:
 			i = i + 1
 			loop_error = None
 			try:
-				self._loop_t0 = time.time()
-				self.main_overlay.clear_all()
-				cursor_pos = win32api.GetCursorPos()
-				wrapper = self.desktop.from_point(*cursor_pos)
-				#wrapper = self.my_from_point(*cursor_pos)
-				if wrapper is None:
-					time.sleep(0.01)
-					continue
-
-				window = wrapper
-				while window.parent() is not None and window.parent().parent() is not None:
-					window = window.parent()
-				set_native_window_handle(window.handle)
-
-				wrapper_path = get_wrapper_path(wrapper)
-				if not wrapper_path:
-					time.sleep(0.01)
-					continue
-				if wrapper_path == previous_wrapper_path:
-					if (unique_wrapper_path is None) or (strategies[i_strategy] == Strategy.array_2d):
-						i_strategy = i_strategy + 1
-						if (not self.smart_mode) and (strategies[i_strategy] == Strategy.array_1d):
-							i_strategy = 1
-						if i_strategy >= len(strategies):
-							i_strategy = len(strategies) - 1
-				else:
-					# strategy_unique_path_again_done = False
-					i_strategy = 0
-					previous_wrapper_path = wrapper_path
-					elements = find_elements(wrapper_path)
-				#if wrapper_path == previous_wrapper_path and unique_wrapper_path:
-				#	strategy = Strategy.unique_path_again
-				# else:
-				#	strategy = strategies[i_strategy]
-				strategy = strategies[i_strategy]
-				unique_wrapper_path = None
-				# *** ----> this block of code must start a new while iteration if mouse cursor is outside wrapper rectangle
-				# => add tests to leave if mouse cursor is outside wrapper rectangle
-				wrapper_rectangle = wrapper.rectangle()
-				
-				#if strategy in [Strategy.unique_path, Strategy.unique_path_again]:
-				if strategy is Strategy.unique_path:
-					x_new, y_new = win32api.GetCursorPos()
-					if not ((wrapper_rectangle.left < x_new < wrapper_rectangle.right) and (
-							wrapper_rectangle.top < y_new < wrapper_rectangle.bottom)):
-						i_strategy = 0
-						continue
-					if len(elements)==1:
-						unique_wrapper_path = wrapper_path
-						self.__overlay_add_bold_rectangle(wrapper_rectangle, color=(0, 255, 0))
-					else:
-						for e in elements:
-							self.__overlay_add_bold_rectangle(e.rectangle(), color=(255, 0, 0))
-
-				if strategy == Strategy.array_1d and elements:
-					x_new, y_new = win32api.GetCursorPos()
-					if not ((wrapper_rectangle.left < x_new < wrapper_rectangle.right) and (
-							wrapper_rectangle.top < y_new < wrapper_rectangle.bottom)):
-						i_strategy = 0
-						continue
-					unique_array_1d = self.__find_unique_element_array_1d(wrapper.rectangle(), elements)
-					if unique_array_1d is not None:
-						unique_wrapper_path = wrapper_path + unique_array_1d
-					else:
-						strategy = Strategy.array_2d
-				if strategy == Strategy.array_2d and elements:
-					x_new, y_new = win32api.GetCursorPos()
-					if not ((wrapper_rectangle.left < x_new < wrapper_rectangle.right) and (
-							wrapper_rectangle.top < y_new < wrapper_rectangle.bottom)):
-						i_strategy = 0
-						continue
-					unique_array_2d = self.__find_unique_element_array_2d(wrapper.rectangle(), elements)
-					if unique_array_2d is not None:
-						unique_wrapper_path = wrapper_path + unique_array_2d
-				# <----- ***
-				if unique_wrapper_path is not None:
-					#self.last_element_event = ElementEvent(strategy, wrapper.rectangle(), unique_wrapper_path)
-					self.last_element_event = ElementEvent(strategy, wrapper_rectangle, unique_wrapper_path)
-					if self.event_list and self.mode == RecorderMode.RECORD:
-						self.event_list.append(self.last_element_event)
-				nb_icons = 0
-				if self.mode == RecorderMode.RECORD:
-					_overlay_add_mode_icon(self.main_overlay, IconSet.hicon_record, 10, 10)
-					nb_icons += 1
-				elif self.mode == RecorderMode.STOP:
-					self.element_info_tooltip.hide()
-					self.main_overlay.clear_all()
-					_overlay_add_mode_icon(self.main_overlay, IconSet.hicon_stop, 10, 10)
-					self.main_overlay.refresh()
-					while self.mode == RecorderMode.STOP:
-						time.sleep(0.1)
-				elif self.mode == RecorderMode.PLAY:
-					self.element_info_tooltip.hide()
-					self.main_overlay.clear_all()
-					_overlay_add_mode_icon(self.main_overlay, IconSet.hicon_play, 10, 10)
-					self.main_overlay.refresh()
-					while self.mode == RecorderMode.PLAY:
-						time.sleep(1.0)
-				if self.mode in (RecorderMode.RECORD, RecorderMode.INFO):
-					_overlay_add_progress_icon(self.main_overlay, i, 10 + 60 * nb_icons, 10)
-					nb_icons += 1
-				if self.mode == RecorderMode.INFO:
-					self.element_info_tooltip.show()
-				if self.smart_mode:
-					_overlay_add_mode_icon(self.main_overlay, IconSet.hicon_light_on, 10 + 60 * nb_icons, 10)
-					nb_icons += 1
-				if self._copy_count > 0:
-					_overlay_add_mode_icon(self.main_overlay, IconSet.hicon_clipboard, 10 + 60 * nb_icons, 10)
-					nb_icons += 1
-					self._copy_count = self._copy_count - 1
-				
-				self.main_overlay.refresh()
-				
-				loop_duration = time.time() - self._loop_t0
-				while loop_duration < 0.1:
-					time.sleep(0.01)
-					loop_duration = time.time() - self._loop_t0
-				time.sleep(0.01)  # main_overlay.clear_all() doit attendre la fin de main_overlay.refresh()
+				self.__loop(search, i)
 			except Exception:
 				exc_type, exc_value, exc_traceback = sys.exc_info()
 				loop_error = repr(traceback.format_exception(exc_type, exc_value, exc_traceback))
@@ -968,6 +973,123 @@ class Recorder(Thread):
 		keyboard.unhook_all()
 		self.main_overlay.quit()
 		print("Run end")
+
+	def __loop(self, search, i):
+		"""
+		A loop of the recorder: it searches a unique path of the element under the mouse cursor, and displays it.
+
+		The loop lasts at least 0.1 s. It ends at once, without displaying anything, when there is no element under the
+		mouse cursor, or when the mouse cursor leaves the element during the search.
+
+		:param search: The state of the search, kept from a loop to the next one
+		:param i: The number of the loop, displayed by the progress icon
+		"""
+		self._loop_t0 = time.time()
+		self.main_overlay.clear_all()
+		wrapper = self.desktop.from_point(*win32api.GetCursorPos())
+		if wrapper is None:
+			time.sleep(0.01)
+			return
+		set_native_window_handle(_top_level_window(wrapper).handle)
+		wrapper_path = get_wrapper_path(wrapper)
+		if not wrapper_path:
+			time.sleep(0.01)
+			return
+		strategy = search.next_strategy(wrapper_path, self.smart_mode)
+		wrapper_rectangle = wrapper.rectangle()
+		strategy, unique_wrapper_path = self.__search_unique_path(
+			search.elements, strategy, wrapper, wrapper_path, wrapper_rectangle)
+		if strategy is None:
+			search.i_strategy = 0  # the mouse cursor left the element: the search starts again with the first strategy
+			return
+		search.unique_wrapper_path = unique_wrapper_path
+		if unique_wrapper_path is not None:
+			self.last_element_event = ElementEvent(strategy, wrapper_rectangle, unique_wrapper_path)
+			if self.event_list and self.mode == RecorderMode.RECORD:
+				self.event_list.append(self.last_element_event)
+		self.__display_mode_icons(i)
+		self.main_overlay.refresh()
+		
+		loop_duration = time.time() - self._loop_t0
+		while loop_duration < 0.1:
+			time.sleep(0.01)
+			loop_duration = time.time() - self._loop_t0
+		time.sleep(0.01)  # main_overlay.clear_all() doit attendre la fin de main_overlay.refresh()
+
+	def __search_unique_path(self, elements, strategy, wrapper, wrapper_path, wrapper_rectangle):
+		"""
+		Searches a unique path of the element under the mouse cursor with a strategy, and displays the elements found.
+
+		:param elements: The elements found with wrapper_path
+		:param strategy: The strategy of the search
+		:param wrapper: The element under the mouse cursor
+		:param wrapper_path: The path of the element
+		:param wrapper_rectangle: The rectangle of the element
+		:return: The strategy that was used, and the unique path, or None if it is not found.
+			(None, None) if the mouse cursor left the element.
+		"""
+		unique_wrapper_path = None
+		if strategy is Strategy.unique_path:
+			if not _is_cursor_in(wrapper_rectangle):
+				return None, None
+			if len(elements) == 1:
+				unique_wrapper_path = wrapper_path
+				self.__overlay_add_bold_rectangle(wrapper_rectangle, color=(0, 255, 0))
+			else:
+				for e in elements:
+					self.__overlay_add_bold_rectangle(e.rectangle(), color=(255, 0, 0))
+		if strategy == Strategy.array_1d and elements:
+			if not _is_cursor_in(wrapper_rectangle):
+				return None, None
+			unique_array_1d = self.__find_unique_element_array_1d(wrapper.rectangle(), elements)
+			if unique_array_1d is not None:
+				unique_wrapper_path = wrapper_path + unique_array_1d
+			else:
+				strategy = Strategy.array_2d
+		if strategy == Strategy.array_2d and elements:
+			if not _is_cursor_in(wrapper_rectangle):
+				return None, None
+			unique_array_2d = self.__find_unique_element_array_2d(wrapper.rectangle(), elements)
+			if unique_array_2d is not None:
+				unique_wrapper_path = wrapper_path + unique_array_2d
+		return strategy, unique_wrapper_path
+
+	def __display_mode_icons(self, i):
+		"""
+		Displays the icons of the modes of the recorder, and waits while the recorder is stopped or replays a script.
+
+		:param i: The number of the loop, displayed by the progress icon
+		"""
+		nb_icons = 0
+		if self.mode == RecorderMode.RECORD:
+			_overlay_add_mode_icon(self.main_overlay, IconSet.hicon_record, 10, 10)
+			nb_icons += 1
+		elif self.mode == RecorderMode.STOP:
+			self.element_info_tooltip.hide()
+			self.main_overlay.clear_all()
+			_overlay_add_mode_icon(self.main_overlay, IconSet.hicon_stop, 10, 10)
+			self.main_overlay.refresh()
+			while self.mode == RecorderMode.STOP:
+				time.sleep(0.1)
+		elif self.mode == RecorderMode.PLAY:
+			self.element_info_tooltip.hide()
+			self.main_overlay.clear_all()
+			_overlay_add_mode_icon(self.main_overlay, IconSet.hicon_play, 10, 10)
+			self.main_overlay.refresh()
+			while self.mode == RecorderMode.PLAY:
+				time.sleep(1.0)
+		if self.mode in (RecorderMode.RECORD, RecorderMode.INFO):
+			_overlay_add_progress_icon(self.main_overlay, i, 10 + 60 * nb_icons, 10)
+			nb_icons += 1
+		if self.mode == RecorderMode.INFO:
+			self.element_info_tooltip.show()
+		if self.smart_mode:
+			_overlay_add_mode_icon(self.main_overlay, IconSet.hicon_light_on, 10 + 60 * nb_icons, 10)
+			nb_icons += 1
+		if self._copy_count > 0:
+			_overlay_add_mode_icon(self.main_overlay, IconSet.hicon_clipboard, 10 + 60 * nb_icons, 10)
+			nb_icons += 1
+			self._copy_count = self._copy_count - 1
 
 	@property
 	def process_menu_click_mode(self):

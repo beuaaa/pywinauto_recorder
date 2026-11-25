@@ -1227,3 +1227,174 @@ def test_element_info_tooltip_process_stopped_just_after_its_start(monkeypatch):
 	quit_event.set()
 	element_observer.task(threading.Event(), quit_event)
 	assert overlays[0].calls == ["clear_all", "refresh"]
+
+
+################################################################################################
+#                   Recorded script and search of the element under the cursor                 #
+################################################################################################
+
+class _Rectangle(tuple):
+	"""Replaces the rectangle of an element: (left, top, right, bottom)."""
+
+	left = property(lambda self: self[0])
+	top = property(lambda self: self[1])
+	right = property(lambda self: self[2])
+	bottom = property(lambda self: self[3])
+
+	def mid_point(self):
+		"""Returns the center of the rectangle."""
+		return (self.left + self.right) // 2, (self.top + self.bottom) // 2
+
+	def width(self):
+		"""Returns the width of the rectangle."""
+		return self.right - self.left
+
+	def height(self):
+		"""Returns the height of the rectangle."""
+		return self.bottom - self.top
+
+
+@pytest.mark.parametrize("dx, dy, relative_coordinate_mode, expected", [
+	(0.5, -0.25, True, "%(50.00,-25.00)"),
+	(0.5, -0.25, False, ""),
+	(0.00004, 0.5, True, ""),  # rounded to 0.00
+	(0.0, 0.5, True, ""),
+])
+def test_relative_coordinates(dx, dy, relative_coordinate_mode, expected):
+	"""Tests the relative coordinates written after the path of an element in the recorded scripts."""
+	assert recorder._relative_coordinates(dx, dy, relative_coordinate_mode) == expected
+
+
+def test_get_script():
+	"""Tests the script written for each type of event, and the UIPath blocks of the window and of the region."""
+	events = [
+		recorder.ClickEvent("left", 1, "Calculator||Window->Number pad||Group->One||Button", 0.5, -0.25, 1.0),
+		recorder.ClickEvent("left", 2, "Calculator||Window->Number pad||Group->Two||Button", 0.0, 0.0, 2.0),
+		recorder.ClickEvent("right", 1, "Calculator||Window->Number pad||Group->Three||Button", 0.0, 0.0, 3.0),
+		recorder.SendKeysEvent('"123"'),
+		recorder.MouseWheelEvent(-2),
+		recorder.FindEvent("Calculator||Window->Display||Text", 0.1, 0.2, 4.0),
+		recorder.DragAndDropEvent(
+			"Untitled - Paint||Window->Canvas||Pane", -0.5, -0.5, "Untitled - Paint||Window->Canvas||Pane", 0.5, 0.5),
+		recorder.MenuEvent("Untitled - Paint||Window", "File->Save as")]
+	assert recorder._get_script(events, relative_coordinate_mode=True) == (
+		"# encoding: " + sys.getdefaultencoding() + "\n\n"
+		"from pywinauto_recorder.player import *\n\n\n"
+		'with UIPath(u"Calculator||Window"):\n'
+		'\twith UIPath(u"Number pad||Group"):\n'
+		'\t\tclick(u"One||Button%(50.00,-25.00)")\n'
+		'\t\tdouble_click(u"Two||Button")\n'
+		'\t\tright_click(u"Three||Button")\n'
+		'\t\tsend_keys("123")\n'
+		'\t\tmouse_wheel(-2)\n'
+		'\twrapper = find(u"Display||Text%(10.00,20.00)")\n\n'
+		'with UIPath(u"Untitled - Paint||Window"):\n'
+		'\tdrag_and_drop(u"Canvas||Pane%(-50.00,-50.00)", u"Canvas||Pane%(50.00,50.00)")\n'
+		'\tmenu_click(u"File->Save as")\n')
+
+
+def test_process_events_click():
+	"""Tests that the press and the release of a mouse button become a ClickEvent, at the place of the release."""
+	rectangle = _Rectangle((0, 0, 102, 42))
+	events = [
+		recorder.mouse.MoveEvent(10, 10, 0.0), recorder.ElementEvent(None, rectangle, "W||Window->A||Button"),
+		recorder.mouse.ButtonEvent("down", "left", 1.0), recorder.mouse.ButtonEvent("up", "left", 1.1)]
+	recorder._process_events(events)
+	assert events[2:] == [recorder.ClickEvent("left", 1, "W||Window->A||Button", -0.82, -0.55, 1.1)]
+	assert len(events) == 3
+
+
+def test_process_events_double_click():
+	"""Tests that a double click becomes a single ClickEvent, with 2 clicks."""
+	rectangle = _Rectangle((0, 0, 102, 42))
+	events = [
+		recorder.mouse.MoveEvent(51, 21, 0.0), recorder.ElementEvent(None, rectangle, "W||Window->A||Button"),
+		recorder.mouse.ButtonEvent("down", "left", 1.0), recorder.mouse.ButtonEvent("up", "left", 1.1),
+		recorder.mouse.ButtonEvent("double", "left", 1.2), recorder.mouse.ButtonEvent("up", "left", 1.3)]
+	recorder._process_events(events)
+	assert events[2:] == [recorder.ClickEvent("left", 2, "W||Window->A||Button", 0.0, 0.0, 1.3)]
+
+
+def test_process_events_drag_and_drop():
+	"""Tests that a mouse move while the button is pressed makes a DragAndDropEvent, from an element to another one."""
+	events = [
+		recorder.mouse.MoveEvent(10, 10, 0.0),
+		recorder.ElementEvent(None, _Rectangle((0, 0, 102, 42)), "W||Window->A||Button"),
+		recorder.mouse.ButtonEvent("down", "left", 1.0),
+		recorder.mouse.MoveEvent(150, 20, 1.2), recorder.mouse.MoveEvent(250, 21, 1.3),
+		recorder.ElementEvent(None, _Rectangle((200, 0, 302, 42)), "W||Window->B||Button"),
+		recorder.mouse.ButtonEvent("up", "left", 1.4)]
+	recorder._process_events(events)
+	assert events[2:] == [
+		recorder.DragAndDropEvent("W||Window->A||Button", -0.82, -0.55, "W||Window->B||Button", -0.02, 0.0)]
+
+
+def _strategies(monkeypatch, smart_modes, unique_wrapper_path=None):
+	"""Returns the strategies of a search of the same element, with the Smart mode given for each loop."""
+	monkeypatch.setattr(recorder, "find_elements", lambda path: ["element 1", "element 2"])
+	search = recorder._ElementSearch()
+	strategies = []
+	for smart_mode in smart_modes:
+		strategies.append(search.next_strategy("W||Window->B||Button", smart_mode).name)
+		search.unique_wrapper_path = unique_wrapper_path
+	return strategies
+
+
+def test_element_search_strategies(monkeypatch):
+	"""Tests the strategies tried while the mouse cursor stays on the same element and no unique path is found."""
+	assert _strategies(monkeypatch, [False] * 4) == ["unique_path", "array_2d", "array_2d", "array_2d"]
+	assert _strategies(monkeypatch, [True] * 4) == ["unique_path", "array_2d", "array_1d", "array_1d"]
+
+
+def test_element_search_when_the_smart_mode_is_switched_off(monkeypatch):
+	"""Tests that the search goes back to array_2d. Before, the loop of the recorder raised an IndexError."""
+	assert _strategies(monkeypatch, [True, True, True, False, False]) == [
+		"unique_path", "array_2d", "array_1d", "array_2d", "array_2d"]
+
+
+def test_element_search_keeps_a_unique_path(monkeypatch):
+	"""Tests that the strategy does not change when a unique path is found."""
+	assert _strategies(monkeypatch, [True] * 3, unique_wrapper_path="W||Window->B||Button") == ["unique_path"] * 3
+
+
+def test_element_search_starts_again_on_another_element(monkeypatch):
+	"""Tests that the search starts again with the first strategy, and searches the elements, on another element."""
+	searched_paths = []
+	monkeypatch.setattr(recorder, "find_elements", lambda path: searched_paths.append(path) or ["a", "b"])
+	search = recorder._ElementSearch()
+	assert search.next_strategy("W||Window->A||Button", False) == recorder.Strategy.unique_path
+	assert search.next_strategy("W||Window->A||Button", False) == recorder.Strategy.array_2d
+	assert search.next_strategy("W||Window->B||Button", False) == recorder.Strategy.unique_path
+	assert searched_paths == ["W||Window->A||Button", "W||Window->B||Button"]
+	assert search.elements == ["a", "b"]
+
+
+@pytest.mark.parametrize("text, char_width, expected", [
+	("", 7.8, 25),
+	("a\nb", 7.8, 25 + 16),
+	("x" * 100, 6.8, 25 + 16),  # wrapped once: the tooltip is 500 pixels wide
+	("x" * 100 + "\n" + "y" * 10, 6.8, 25 + 16 + 16),
+])
+def test_text_height_of_the_tooltip(text, char_width, expected):
+	"""Tests the height of a box of the tooltip: a line more for each line break, and for each wrapped line."""
+	from pywinauto_recorder import element_observer
+	assert element_observer._text_height(text, char_width, 25) == expected
+
+
+def test_tooltip_information_of_an_edit_box():
+	"""Tests the text of an edit box in the tooltip, and that the tooltip works when it cannot be read."""
+	from pywinauto_recorder import element_observer
+
+	class FakeEdit:
+		def __init__(self, text):
+			self.text = text
+
+		def text_block(self):
+			if self.text is None:
+				raise RuntimeError("UI Automation error")
+			return self.text
+
+	assert element_observer._add_type_info("info\n", FakeEdit("Hello"), "Name", "Edit") == (
+		"info\n\nwrapper.text_block(): Hello\n")
+	assert element_observer._add_type_info("info\n", FakeEdit("Name"), "Name", "Edit") == "info\n"
+	assert element_observer._add_type_info("info\n", FakeEdit(None), "Name", "Edit") == "info\n"
