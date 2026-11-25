@@ -9,6 +9,9 @@ or with pywinauto_recorder.py, the launcher compiled by Nuitka into pywinauto_re
 
 from ctypes import wintypes, windll, Structure, POINTER, pointer, c_ubyte
 import argparse
+import functools
+import re
+import urllib.request
 import overlay_arrows_and_more as oaam
 from pathlib import Path
 import os
@@ -22,7 +25,7 @@ import pyperclip
 import threading
 import webbrowser
 from .recorder import Recorder, RecorderMode, IconSet, _overlay_add_mode_icon, _overlay_add_progress_icon
-from .recorder import HOTKEY_RECORD, HOTKEY_SMART_MODE, HOTKEY_ELEMENT_INFO
+from .recorder import HOTKEY_RECORD, HOTKEY_SMART_MODE, HOTKEY_ELEMENT_INFO, HOTKEY_COPY_CODE
 from win32api import GetSystemMetrics, GetCursorPos
 import time
 
@@ -493,6 +496,130 @@ def build_menu(recorder, clipboard_replay, icons):
 	]
 
 
+LATEST_VERSION_URL = "https://raw.githubusercontent.com/beuaaa/pywinauto_recorder/master/bin/VersionInfo.rc"
+"""bin/VersionInfo.rc of the branch 'master', which receives only the published versions: it gives the latest one."""
+VERSION_CHECK_TIMEOUT = 5
+"""Maximum duration, in seconds, of the request for the latest published version."""
+
+_VERSION_PATTERN = re.compile(r"v?(\d+(?:\.\d+)*)[._-]?([a-z]*)[._-]?(\d*)")
+_PRE_RELEASE_RANKS = {"dev": 0, "a": 1, "alpha": 1, "b": 2, "beta": 2, "c": 3, "rc": 3}
+_FINAL_RELEASE_RANK = 4
+
+
+def get_latest_version(timeout=VERSION_CHECK_TIMEOUT):
+	"""
+	Returns the latest published version of Pywinauto Recorder.
+
+	:param timeout: The maximum duration of the request, in seconds
+	:return: The version read in LATEST_VERSION_URL, or None if it cannot be read (no network, timeout, proxy, unexpected
+		content...)
+	"""
+	try:
+		with urllib.request.urlopen(LATEST_VERSION_URL, timeout=timeout) as response:
+			text = response.read().decode('utf-8')
+		version = text.split('ProductVersion')[1].split('"')[2].strip()
+	except Exception:
+		return None
+	return version if _VERSION_PATTERN.match(version.lower()) else None
+
+
+def version_key(version):
+	"""
+	Returns a key to compare versions: "0.6.9" < "0.10.0" < "1.0.0.dev0" < "1.0.0b1" < "1.0.0rc1" < "1.0.0" == "1.0".
+
+	:param version: A version, for example "1.0.0b1"
+	:return: A tuple: the numbers of the version without the trailing zeros, the rank of the pre-release (a final
+		release comes after its pre-releases), and the number of the pre-release
+	"""
+	match = _VERSION_PATTERN.match(version.strip().lower())
+	if not match:
+		return (), -1, 0
+	numbers = [int(number) for number in match.group(1).split(".")]
+	while len(numbers) > 1 and numbers[-1] == 0:
+		numbers.pop()  # 1.0.0 is the same version as 1.0
+	label = match.group(2)
+	rank = _PRE_RELEASE_RANKS.get(label, _FINAL_RELEASE_RANK) if label else _FINAL_RELEASE_RANK
+	return tuple(numbers), rank, int(match.group(3) or 0)
+
+
+def version_messages(installed_version, latest_version):
+	"""
+	Returns the messages about the version of Pywinauto Recorder.
+
+	:param installed_version: The version of this Pywinauto Recorder
+	:param latest_version: The latest published version, or None if it is unknown
+	:return: The message printed in the console, and the line displayed by the splash screen
+	"""
+	version_line = 'Pywinauto recorder ' + installed_version
+	if latest_version is None:
+		return "Cannot check whether a newer version of Pywinauto recorder is available.", version_line
+	if version_key(installed_version) == version_key(latest_version):
+		return "Your Pywinauto recorder is up to date.", version_line
+	if version_key(installed_version) < version_key(latest_version):
+		return ("Pywinauto recorder v" + latest_version + " is available!",
+		        'Your version of Pywinauto recorder (' + installed_version + ') is not up to date (' +
+		        latest_version + ' is available!)')
+	return ("Your Pywinauto recorder " + installed_version + " is newer than the latest published version (" +
+	        latest_version + ")."), version_line
+
+
+@functools.lru_cache(maxsize=None)
+def check_version():
+	"""
+	It checks whether a newer version of Pywinauto Recorder is available, and prints the result in the console.
+	The check is done only once: the next calls return the same line, without printing it again.
+
+	:return: The line about the version displayed by the splash screen
+	"""
+	from . import __version__
+	console_message, version_line = version_messages(__version__, get_latest_version())
+	print(console_message)
+	return version_line
+
+
+_SPLASH_WIDTH = 640
+_SPLASH_HEIGHT = 540
+_SPLASH_NB_LINES = 24
+_SPLASH_LINE_HEIGHT = 22.4
+
+
+def _splash_screen_text_lines(version_line):
+	"""
+	Returns the lines of text of the splash screen, with the keyboard shortcuts.
+
+	:param version_line: The line about the version of Pywinauto Recorder
+	:return: A list of 24 lines. The last one, the message to continue, is set by display_splash_screen.
+	"""
+	text_lines = [''] * _SPLASH_NB_LINES
+	text_lines[6] = version_line
+	text_lines[7] = 'by David Pratmarty'
+	text_lines[9] = 'Record / Stop                            Smart mode On / Off'
+	text_lines[10] = HOTKEY_RECORD + ' ' * 38 + HOTKEY_SMART_MODE
+	text_lines[12] = 'Search algorithm speed        Display / Hide information'
+	text_lines[13] = ' ' * 55 + HOTKEY_ELEMENT_INFO
+	text_lines[15] = 'Copy python code in clipboard          Click on "Quit" in'
+	text_lines[16] = HOTKEY_COPY_CODE + ' ' * 32 + 'tray menu to quit'
+	text_lines[18] = 'To replay your recorded file you can:                          '
+	text_lines[19] = '- Drag and drop it on pywinauto_recorder.exe            '
+	text_lines[20] = '- Click on "Start replaying clipboard" in tray menu       '
+	text_lines[21] = '- Run "python.exe recorded_file.py"                           '
+	return text_lines
+
+
+def _splash_rectangle():
+	"""Returns the rectangle (left, top, right, bottom) of the splash screen, centered on the screen."""
+	left = GetSystemMetrics(0) / 2 - _SPLASH_WIDTH / 2
+	top = GetSystemMetrics(1) / 2 - _SPLASH_HEIGHT / 2
+	return left, top, left + _SPLASH_WIDTH, top + _SPLASH_HEIGHT
+
+
+def _is_mouse_cursor_in(rectangle):
+	"""Returns True if the mouse cursor is in the rectangle (left, top, right, bottom)."""
+	left, top, right, bottom = rectangle
+	x, y = GetCursorPos()
+	return left < x < right and top < y < bottom
+
+
 def overlay_add_pywinauto_recorder_icon(overlay, x, y):
 	overlay.add(
 		geometry=oaam.Shape.rectangle, x=x, y=y, width=200, height=100, thickness=5, color=(200, 66, 66),
@@ -507,117 +634,73 @@ def overlay_add_pywinauto_recorder_icon(overlay, x, y):
 		text=u'recorder', font_size=48, font_name='Arial Black')
 
 
-def display_splash_screen():
-	import urllib.request
-	import urllib.error
-	from . import __version__
-	url_version = "https://raw.githubusercontent.com/beuaaa/pywinauto_recorder/master/bin/VersionInfo.rc"
-	latest_version = __version__
-	try:
-		with urllib.request.urlopen(url_version) as f:
-			line = f.read().decode('utf-8')
-		latest_version = line.split('ProductVersion')[1].split('"')[2]
-	except urllib.error.URLError:
-		pass
-	
-	if __version__ == latest_version:
-		print("Your Pywinauto recorder is up to date.")
-	else:
-		print("Pywinauto recorder v" + latest_version + " is available!")
+def _draw_splash_background(overlay, rectangle):
+	"""It draws the background of the splash screen, and the logo of Pywinauto Recorder."""
+	x, y, right, bottom = rectangle
+	w, h = right - x, bottom - y
+	overlay.clear_all()
+	overlay.add(
+		geometry=oaam.Shape.triangle, thickness=0,
+		xyrgb_array=((x, y, 200, 0, 0), (x + w, y, 0, 128, 0), (x + w, y + h, 0, 0, 155)))
+	overlay.add(
+		geometry=oaam.Shape.triangle, thickness=0,
+		xyrgb_array=((x + w, y + h, 0, 0, 155), (x, y + h, 22, 128, 66), (x, y, 200, 0, 0)))
+	overlay.refresh()
+	overlay_add_pywinauto_recorder_icon(overlay, x + w / 2 - 200 / 2, y + 30)
 
+
+def _draw_splash_foreground(overlay, rectangle, text_lines, n):
+	"""
+	It draws the texts and the icons of the splash screen.
+
+	:param n: The number of the frame: the record/stop icon and the progress icon are animated
+	"""
+	splash_left, splash_top, splash_right, _ = rectangle
+	line_height = _SPLASH_LINE_HEIGHT
+	overlay.clear_all()
+	for i, text_line in enumerate(text_lines):
+		overlay.add(
+			x=splash_left, y=splash_top + i * line_height, width=_SPLASH_WIDTH, height=line_height,
+			text=text_line, font_size=44 if i < 2 else 20, text_color=(254, 255, 255), color=(255, 255, 255),
+			geometry=oaam.Shape.rectangle, thickness=0
+		)
+	if n % 6 in [0, 1, 2]:
+		_overlay_add_mode_icon(overlay, IconSet.hicon_record, splash_left + 50, splash_top + line_height * 8.7)
+	else:
+		_overlay_add_mode_icon(overlay, IconSet.hicon_stop, splash_left + 50, splash_top + line_height * 8.7)
+	_overlay_add_mode_icon(overlay, IconSet.hicon_light_on, int(splash_right - (52 + 50)), int(splash_top + line_height * 8.7))
+	_overlay_add_progress_icon(overlay, n % 6, splash_left + 50, splash_top + line_height * 11.7)
+	_overlay_add_mode_icon(overlay, IconSet.hicon_search, int(splash_right - (52 + 50)), splash_top + line_height * 11.7)
+	_overlay_add_mode_icon(overlay, IconSet.hicon_clipboard, splash_left + 50, splash_top + line_height * 14.7)
+	_overlay_add_mode_icon(overlay, IconSet.hicon_power, int(splash_right - (52 + 50)), splash_top + line_height * 14.7)
+	_overlay_add_mode_icon(overlay, IconSet.hicon_play, splash_left + 50, int(splash_top + line_height * 19.3))
+	overlay.refresh()
+
+
+def display_splash_screen():
+	"""
+	It displays the splash screen, with the version and the keyboard shortcuts, until the mouse cursor moves out of it.
+	If the mouse cursor is not over the splash screen when it is displayed, it waits until the mouse cursor moves over it.
+	"""
+	text_lines = _splash_screen_text_lines(check_version())
 	splash_foreground = oaam.Overlay(transparency=0.0)
 	time.sleep(0.2)
 	splash_background = oaam.Overlay(transparency=0.1)
-	screen_width = GetSystemMetrics(0)
-	screen_height = GetSystemMetrics(1)
-	nb_band = 24
-	line_height = 22.4
-	text_lines = [''] * nb_band
-	if __version__ == latest_version:
-		text_lines[6] = 'Pywinauto recorder ' + __version__
-	else:
-		text_lines[6] = 'Your version of Pywinauto recorder (' +  __version__ + ') is not up to date (' + latest_version + ' is available!)'
-	text_lines[7] = 'by David Pratmarty'
-	text_lines[9] = 'Record / Stop                            Smart mode On / Off'
-	text_lines[10] = 'CTRL+ALT+R                                      CTRL+ALT+S'
-	text_lines[12] = 'Search algorithm speed        Display / Hide information'
-	text_lines[13] = '                                                       CTRL+SHIFT+D'
-	text_lines[15] = 'Copy python code in clipboard          Click on "Quit" in'
-	text_lines[16] = 'CTRL+SHIFT+F                                tray menu to quit'
-	text_lines[18] = 'To replay your recorded file you can:                          '
-	text_lines[19] = '- Drag and drop it on pywinauto_recorder.exe            '
-	text_lines[20] = '- Click on "Start replaying clipboard" in tray menu       '
-	text_lines[21] = '- Run "python.exe recorded_file.py"                           '
-	
-	splash_background.clear_all()
-	w, h = 640, 540
-	x, y = screen_width / 2 - w / 2, screen_height / 2 - h / 2
-	splash_width = w
-	splash_left = x
-	splash_right = x + w
-	splash_top = y
-	splash_bottom = y + h
-	splash_background.add(
-		geometry=oaam.Shape.triangle, thickness=0,
-		xyrgb_array=((x, y, 200, 0, 0), (x + w, y, 0, 128, 0), (x + w, y + h, 0, 0, 155)))
-	splash_background.add(
-		geometry=oaam.Shape.triangle, thickness=0,
-		xyrgb_array=((x + w, y + h, 0, 0, 155), (x, y + h, 22, 128, 66), (x, y, 200, 0, 0)))
-	
-	splash_background.refresh()
-	
-	mouse_was_splash_screen = False
-	x, y = GetCursorPos()
-	if (splash_left < x < splash_right) and (splash_top < y < splash_bottom):
-		mouse_was_splash_screen = True
+	rectangle = _splash_rectangle()
+	_draw_splash_background(splash_background, rectangle)
+	mouse_was_in_splash_screen = _is_mouse_cursor_in(rectangle)
+	if mouse_was_in_splash_screen:
 		message_to_continue = 'To continue: move the mouse cursor out of this window'
 	else:
 		message_to_continue = 'To continue: move the mouse cursor over this window'
-
-	py_rec_icon_rect = (splash_left + splash_width / 2 - 200 / 2, splash_top + 30, 200, 100)
-	overlay_add_pywinauto_recorder_icon(splash_background, py_rec_icon_rect[0], py_rec_icon_rect[1])
-	continue_after_splash_screen = True
 	n = 0
-	while continue_after_splash_screen:
-		splash_foreground.clear_all()
-		i = 0
-		while i < nb_band:
-			if i < 2:
-				font_size = 44
-			else:
-				font_size = 20
-			splash_foreground.add(
-				x=splash_left, y=splash_top + i * line_height, width=splash_width, height=line_height,
-				text=text_lines[i], font_size=font_size, text_color=(254, 255, 255), color=(255, 255, 255),
-				geometry=oaam.Shape.rectangle, thickness=0
-			)
-			i = i + 1
-		if n % 6 in [0, 1, 2]:
-			_overlay_add_mode_icon(splash_foreground, IconSet.hicon_record, splash_left + 50, splash_top + line_height * 8.7)
-		else:
-			_overlay_add_mode_icon(splash_foreground, IconSet.hicon_stop, splash_left + 50, splash_top + line_height * 8.7)
-		_overlay_add_mode_icon(splash_foreground, IconSet.hicon_light_on, int(splash_right - (52 + 50)), int(splash_top + line_height * 8.7))
-		_overlay_add_progress_icon(splash_foreground, n % 6, splash_left + 50, splash_top + line_height * 11.7)
-		_overlay_add_mode_icon(splash_foreground, IconSet.hicon_search, int(splash_right - (52 + 50)), splash_top + line_height * 11.7)
-		_overlay_add_mode_icon(splash_foreground, IconSet.hicon_clipboard, splash_left + 50, splash_top + line_height * 14.7)
-		_overlay_add_mode_icon(splash_foreground, IconSet.hicon_power, int(splash_right - (52 + 50)), splash_top + line_height * 14.7)
-		_overlay_add_mode_icon(splash_foreground, IconSet.hicon_play, splash_left + 50, int(splash_top + line_height * 19.3))
-		
-		splash_foreground.refresh()
+	while True:
+		_draw_splash_foreground(splash_foreground, rectangle, text_lines, n)
 		time.sleep(0.4)
-		if n % 2 == 0:
-			text_lines[23] = message_to_continue
-		else:
-			text_lines[23] = ''
-		continue_after_splash_screen = False
-		x, y = GetCursorPos()
-		if (splash_left < x < splash_right) and (splash_top < y < splash_bottom):
-			if mouse_was_splash_screen:
-				continue_after_splash_screen = True
-		else:
-			if not mouse_was_splash_screen:
-				continue_after_splash_screen = True
+		text_lines[_SPLASH_NB_LINES - 1] = message_to_continue if n % 2 == 0 else ''  # the message blinks
 		n = n + 1
+		if _is_mouse_cursor_in(rectangle) != mouse_was_in_splash_screen:
+			break
 	splash_foreground.clear_all()
 	splash_foreground.refresh()
 	splash_background.clear_all()

@@ -97,7 +97,6 @@ def test_recorder_mode_is_exported_by_the_package():
 #                                 Command line and file replay                                 #
 ################################################################################################
 
-import ctypes
 import subprocess
 import sys
 import types
@@ -629,3 +628,248 @@ def test_tray_menu_is_built_from_the_entries(monkeypatch):
 	tray.command(None, None, entries[0]["wID"], None)
 	tray.command(None, None, submenu_entries[0]["wID"], None)  # a grayed entry has no action
 	assert clicked == ["last", "first"]
+
+
+################################################################################################
+#                               Version check and splash screen                                #
+################################################################################################
+
+import socket
+import ssl
+import urllib.error
+
+VERSION_INFO_RC = PACKAGE_DIR.parent / "bin" / "VersionInfo.rc"
+
+
+@pytest.fixture
+def version_not_checked():
+	"""check_version() checks the version once: this fixture clears its cache before and after the test."""
+	app.check_version.cache_clear()
+	yield
+	app.check_version.cache_clear()
+
+
+@pytest.mark.parametrize("older, newer", [
+	("0.6.8", "0.6.9"), ("0.6.9", "0.10.0"), ("0.6.9", "1.0.0.dev0"), ("1.0.0.dev0", "1.0.0a1"), ("1.0.0a1", "1.0.0b1"),
+	("1.0.0b1", "1.0.0b2"), ("1.0.0b2", "1.0.0rc1"), ("1.0.0rc1", "1.0.0"), ("1.0.0", "1.0.1"), ("1.0.0", "1.0.0.post1"),
+])
+def test_version_key_order(older, newer):
+	"""Tests that the versions are compared as numbers, and that a pre-release comes before its final release."""
+	assert app.version_key(older) < app.version_key(newer)
+	assert app.version_key(newer) > app.version_key(older)
+
+
+@pytest.mark.parametrize("version, same_version", [
+	("1.0", "1.0.0"), ("v0.6.9", "0.6.9"), (" 0.6.9\r\n", "0.6.9"), ("1.0.0B1", "1.0.0b1"), ("1.0.0-beta.1", "1.0.0b1"),
+])
+def test_version_key_same_version(version, same_version):
+	assert app.version_key(version) == app.version_key(same_version)
+
+
+@pytest.mark.parametrize("installed, latest, console_message, version_line", [
+	("0.6.9", "0.6.9", "Your Pywinauto recorder is up to date.", "Pywinauto recorder 0.6.9"),
+	("0.6.8", "0.6.9", "Pywinauto recorder v0.6.9 is available!",
+	 "Your version of Pywinauto recorder (0.6.8) is not up to date (0.6.9 is available!)"),
+	("1.0.0.dev0", "0.6.9", "Your Pywinauto recorder 1.0.0.dev0 is newer than the latest published version (0.6.9).",
+	 "Pywinauto recorder 1.0.0.dev0"),
+	("0.6.9", None, "Cannot check whether a newer version of Pywinauto recorder is available.",
+	 "Pywinauto recorder 0.6.9"),
+])
+def test_version_messages(installed, latest, console_message, version_line):
+	"""
+	Tests the messages of the console and of the splash screen. Before, a development version was "not up to date"
+	because it was not the latest published version, and "up to date" when the version could not be checked.
+	"""
+	assert app.version_messages(installed, latest) == (console_message, version_line)
+
+
+class _FakeResponse:
+	"""Replaces the response of urllib.request.urlopen."""
+	def __init__(self, content):
+		self.content = content
+
+	def __enter__(self):
+		return self
+
+	def __exit__(self, *exc_info):
+		return False
+
+	def read(self):
+		return self.content
+
+
+def test_get_latest_version_reads_version_info_rc(monkeypatch):
+	"""Tests that the latest version is read in bin/VersionInfo.rc of the branch master, with a timeout."""
+	if not VERSION_INFO_RC.is_file():
+		pytest.skip("bin/VersionInfo.rc is not next to the package")
+	requests = []
+
+	def urlopen(url, timeout=None):
+		requests.append((url, timeout))
+		return _FakeResponse(VERSION_INFO_RC.read_bytes())
+	monkeypatch.setattr(app.urllib.request, "urlopen", urlopen)
+	assert app.get_latest_version() == pywinauto_recorder.__version__
+	assert requests == [(app.LATEST_VERSION_URL, app.VERSION_CHECK_TIMEOUT)]
+	assert app.LATEST_VERSION_URL.endswith("/beuaaa/pywinauto_recorder/master/bin/VersionInfo.rc")
+	assert 0 < app.VERSION_CHECK_TIMEOUT <= 10
+
+
+@pytest.mark.parametrize("content", [
+	b"", b"<html>Proxy authentication required</html>", b'VALUE "ProductVersion", ""',
+	b'VALUE "ProductVersion", "unknown"', b"\xff\xfe\x00"])
+def test_get_latest_version_unexpected_content(monkeypatch, content):
+	"""Tests that an unexpected content, a page of a proxy for example, gives no version."""
+	monkeypatch.setattr(app.urllib.request, "urlopen", lambda url, timeout=None: _FakeResponse(content))
+	assert app.get_latest_version() is None
+
+
+@pytest.mark.parametrize("error", [
+	urllib.error.URLError("no network"), socket.timeout("timed out"), ssl.SSLError("certificate verify failed"),
+	ConnectionResetError("connection reset"), ValueError("unknown url type")])
+def test_get_latest_version_network_errors(monkeypatch, error):
+	"""
+	Tests that the errors are ignored. Before, only URLError was caught: another error, a connection reset while
+	reading the response for example, stopped Pywinauto Recorder at startup.
+	"""
+	def urlopen(url, timeout=None):
+		raise error
+	monkeypatch.setattr(app.urllib.request, "urlopen", urlopen)
+	assert app.get_latest_version() is None
+
+
+def test_check_version_is_done_once(monkeypatch, capsys, version_not_checked):
+	"""
+	Tests that check_version() prints the message in the console and returns the line of the splash screen, and that
+	the version is checked only once: "About" displays the splash screen again without a new request.
+	"""
+	requests = []
+	monkeypatch.setattr(app, "get_latest_version", lambda: requests.append("request") or "0.0.1")
+	version_line = app.check_version()
+	assert version_line == "Pywinauto recorder " + pywinauto_recorder.__version__
+	assert capsys.readouterr().out == ("Your Pywinauto recorder " + pywinauto_recorder.__version__ +
+	                                   " is newer than the latest published version (0.0.1).\n")
+	assert app.check_version() == version_line
+	assert capsys.readouterr().out == ""
+	assert requests == ["request"]
+
+
+def test_splash_screen_text_lines():
+	"""Tests that the splash screen displays the keyboard shortcuts of the recorder, at the same places as before."""
+	text_lines = app._splash_screen_text_lines("Pywinauto recorder 1.2.3")
+	assert len(text_lines) == 24
+	assert text_lines[6] == "Pywinauto recorder 1.2.3"
+	assert text_lines[9] == 'Record / Stop                            Smart mode On / Off'
+	assert text_lines[10] == 'CTRL+ALT+R                                      CTRL+ALT+S'
+	assert text_lines[13] == '                                                       CTRL+SHIFT+D'
+	assert text_lines[16] == 'CTRL+SHIFT+F                                tray menu to quit'
+	assert text_lines[23] == ''
+
+
+class _FakeSplashOverlay:
+	"""Replaces overlay_arrows_and_more.Overlay: it keeps what is displayed at each refresh."""
+	def __init__(self, transparency=0.0):
+		self.items = []
+		self.frames = []
+
+	def clear_all(self):
+		self.items = []
+
+	def add(self, **kwargs):
+		self.items.append(kwargs)
+
+	def refresh(self):
+		self.frames.append(list(self.items))
+
+
+def _display_splash_screen(monkeypatch, cursor_positions):
+	"""
+	Displays the splash screen on a 1920x1080 screen, with fake overlays and the given positions of the mouse cursor.
+
+	:return: The foreground and the background overlays
+	"""
+	overlays = []
+
+	def make_overlay(transparency=0.0):
+		overlays.append(_FakeSplashOverlay(transparency))
+		return overlays[-1]
+	positions = iter(cursor_positions)
+	monkeypatch.setattr(app.oaam, "Overlay", make_overlay)
+	monkeypatch.setattr(app, "time", types.SimpleNamespace(sleep=lambda seconds: None))
+	monkeypatch.setattr(app, "GetSystemMetrics", lambda index: (1920, 1080)[index])
+	monkeypatch.setattr(app, "GetCursorPos", lambda: next(positions))
+	monkeypatch.setattr(app, "check_version", lambda: "Pywinauto recorder 1.2.3")
+	app.display_splash_screen()
+	return overlays
+
+
+def _displayed_text_lines(frame):
+	"""Returns the 24 lines of text of a frame of the splash screen: they are drawn before the icons."""
+	return [item["text"] for item in frame[:24]]
+
+
+IN_SPLASH_SCREEN = (960, 540)
+OUT_OF_SPLASH_SCREEN = (100, 100)
+
+
+def test_splash_screen_closed_when_the_mouse_cursor_moves_out_of_it(monkeypatch):
+	"""Tests that the splash screen, displayed under the mouse cursor, is closed when the mouse cursor moves out of it."""
+	foreground, background = _display_splash_screen(
+		monkeypatch, [IN_SPLASH_SCREEN, IN_SPLASH_SCREEN, IN_SPLASH_SCREEN, OUT_OF_SPLASH_SCREEN])
+	frames = [_displayed_text_lines(frame) for frame in foreground.frames[:-1]]
+	assert len(frames) == 3
+	assert all(text_lines[6] == "Pywinauto recorder 1.2.3" for text_lines in frames)
+	assert [text_lines[23] for text_lines in frames] == [
+		'', 'To continue: move the mouse cursor out of this window', '']  # the message blinks
+	assert foreground.frames[-1] == [] and background.frames[-1] == []  # the splash screen is closed
+
+
+def test_splash_screen_closed_when_the_mouse_cursor_moves_over_it(monkeypatch):
+	"""Tests that the splash screen, displayed away from the mouse cursor, is closed when the mouse cursor moves over it."""
+	foreground, background = _display_splash_screen(
+		monkeypatch, [OUT_OF_SPLASH_SCREEN, OUT_OF_SPLASH_SCREEN, IN_SPLASH_SCREEN])
+	frames = [_displayed_text_lines(frame) for frame in foreground.frames[:-1]]
+	assert [text_lines[23] for text_lines in frames] == ['', 'To continue: move the mouse cursor over this window']
+	assert foreground.frames[-1] == [] and background.frames[-1] == []
+
+
+def test_splash_screen_is_centered(monkeypatch):
+	monkeypatch.setattr(app, "GetSystemMetrics", lambda index: (1920, 1080)[index])
+	assert app._splash_rectangle() == (640, 270, 1280, 810)
+
+
+@pytest.mark.parametrize("argv, events", [
+	([], ["recorder", "splash screen", "tray icon"]),
+	(["--no_splash_screen"], ["recorder", "tray icon"]),
+])
+def test_run_interactive(monkeypatch, argv, events):
+	"""
+	Tests that the recorder starts with the splash screen, unless --no_splash_screen is given, then runs the tray icon.
+	Its double click displays element information, except during a replay of the clipboard, and "Quit" stops the
+	recorder.
+	"""
+	happened = []
+	trays = []
+	fake_recorder = _FakeRecorderForMenu()
+	fake_recorder.quit = lambda: fake_recorder.calls.append("quit")
+
+	class FakeSysTrayIcon:
+		def __init__(self, icon, hover_text, menu, on_quit=None, default_action=None):
+			self.menu, self.on_quit, self.default_action = menu, on_quit, default_action
+			trays.append(self)
+
+		def run(self):
+			happened.append("tray icon")
+
+	monkeypatch.setattr(app, "Recorder", lambda: happened.append("recorder") or fake_recorder)
+	monkeypatch.setattr(app, "display_splash_screen", lambda: happened.append("splash screen"))
+	monkeypatch.setattr(app, "SysTrayIcon", FakeSysTrayIcon)
+	assert app.run_interactive(app.parse_arguments(argv)) == app.EXIT_OK
+	assert happened == events
+	tray = trays[0]
+	tray.default_action(tray)
+	assert fake_recorder.calls == ["toggle_element_info"]
+	monkeypatch.setattr(app.ClipboardReplay, "is_running", lambda self: True)
+	tray.default_action(tray)
+	assert fake_recorder.calls == ["toggle_element_info"]
+	tray.on_quit(tray)
+	assert fake_recorder.calls == ["toggle_element_info", "quit"]

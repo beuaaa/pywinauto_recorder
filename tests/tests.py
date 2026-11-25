@@ -1123,8 +1123,8 @@ def test_playback_waits_for_enter_in_a_console(monkeypatch, capsys, playback_env
 
 def test_version_info_rc_has_the_version_of_the_package():
 	"""
-	Tests that bin/VersionInfo.rc gives the version of the package, read the same way as in pywinauto_recorder.py.
-	pywinauto_recorder.py reads this file on the 'master' branch to tell the users that a new version is available.
+	Tests that bin/VersionInfo.rc gives the version of the package, read the same way as by app.get_latest_version.
+	app.get_latest_version reads this file on the 'master' branch to tell the users that a new version is available.
 	"""
 	import pywinauto_recorder
 	version_info = pathlib.Path(pywinauto_recorder.__file__).resolve().parent.parent / "bin" / "VersionInfo.rc"
