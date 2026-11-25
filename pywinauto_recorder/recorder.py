@@ -8,7 +8,7 @@ import traceback
 import time
 import win32api
 import win32con
-from threading import Thread
+from threading import Event, Thread
 import pywinauto
 import overlay_arrows_and_more as oaam
 import keyboard
@@ -576,6 +576,37 @@ HOTKEY_COPY_CODE = "CTRL+SHIFT+F"
 QUIT_TIMEOUT = 10
 """Maximum duration, in seconds, of the wait for the end of the loop of the recorder when it quits."""
 
+KEYBOARD_HOOKS_CHECK_TIMEOUT = 1.0
+"""Maximum duration, in seconds, of the check of the keyboard hooks when the recorder starts."""
+
+_VK_LSHIFT = 0xA0
+
+
+def keyboard_hooks_work(timeout=KEYBOARD_HOOKS_CHECK_TIMEOUT, interval=0.2):
+	"""
+	Checks that the keyboard hooks receive the keyboard events.
+
+	It sends a release of the left Shift key until a keyboard event is received, or until the timeout. The release is
+	sent again because the hook is installed by a thread of the 'keyboard' library: the first release may be sent
+	before the hook is installed.
+
+	:param timeout: The maximum duration of the check, in seconds
+	:param interval: The duration, in seconds, of the wait for a keyboard event after each release of the Shift key
+	:return: True if a keyboard event was received
+	"""
+	received = Event()
+	hooked = keyboard.hook(lambda event: received.set())
+	try:
+		deadline = time.monotonic() + timeout
+		while True:
+			win32api.keybd_event(_VK_LSHIFT, 0, win32con.KEYEVENTF_EXTENDEDKEY | win32con.KEYEVENTF_KEYUP, 0)
+			if received.wait(interval):
+				return True
+			if time.monotonic() >= deadline:
+				return False
+	finally:
+		keyboard.unhook(hooked)
+
 
 class RecorderMode(str, Enum):
 	"""
@@ -828,14 +859,9 @@ class Recorder(Thread):
 		
 		keyboard.hook(self.__key_on)
 		mouse.hook(self.__mouse_on)
-		keyboard.start_recording()
-		win32api.keybd_event(160, 0, win32con.KEYEVENTF_EXTENDEDKEY | win32con.KEYEVENTF_KEYUP, 0)
-		ev_list = keyboard.stop_recording()
-		if not ev_list and os.path.isfile(dir_path + r"\pywinauto_recorder.exe"):
-			print("Couldn't set keyboard hooks. Trying once again...\n")
-			time.sleep(0.5)
-			os.system(dir_path + r"\pywinauto_recorder.exe --no_splash_screen")
-			sys.exit(1)
+		if not keyboard_hooks_work():
+			print("Warning: the keyboard hooks do not work. The keyboard shortcuts and the recording of the keyboard are "
+			      "not available: use the menu of the tray icon, or restart Pywinauto Recorder.")
 		elements = []
 		i = 0
 		previous_wrapper_path = None

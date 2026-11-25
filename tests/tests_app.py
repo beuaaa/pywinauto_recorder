@@ -404,6 +404,75 @@ class _FakeKeyboard:
 		return (self.SCAN_CODES[name],)
 
 
+class _FakeKeyboardHooks:
+	"""
+	Replaces the keyboard hooks and keybd_event. The releases of the Shift key whose numbers are in received_releases
+	are received by the hook, after delay seconds, by another thread like the thread of the 'keyboard' library.
+	"""
+	def __init__(self, received_releases, delay=0.0):
+		self.received_releases = received_releases
+		self.delay = delay
+		self.callbacks = []
+		self.unhooked = []
+		self.releases = []
+
+	def hook(self, callback):
+		self.callbacks.append(callback)
+		return "hook " + str(len(self.callbacks))
+
+	def unhook(self, hooked):
+		self.unhooked.append(hooked)
+
+	def keybd_event(self, virtual_key, scan_code, flags, extra_info):
+		self.releases.append(virtual_key)
+		if len(self.releases) in self.received_releases:
+			threading.Timer(self.delay, self.callbacks[-1], args=("left shift up",)).start()
+
+
+def _check_keyboard_hooks(monkeypatch, fake_hooks, timeout, interval):
+	"""Returns the result of keyboard_hooks_work with the fake keyboard hooks, and its duration in seconds."""
+	import time
+	monkeypatch.setattr(recorder, "keyboard", fake_hooks)
+	monkeypatch.setattr(recorder, "win32api", types.SimpleNamespace(keybd_event=fake_hooks.keybd_event))
+	start = time.monotonic()
+	result = recorder.keyboard_hooks_work(timeout=timeout, interval=interval)
+	return result, time.monotonic() - start
+
+
+def test_keyboard_hooks_work_at_once(monkeypatch):
+	"""Tests that the check returns as soon as the hook receives the release of the left Shift key."""
+	fake_hooks = _FakeKeyboardHooks(received_releases={1}, delay=0.05)
+	result, duration = _check_keyboard_hooks(monkeypatch, fake_hooks, timeout=5.0, interval=2.0)
+	assert result is True
+	assert duration < 1.0
+	assert fake_hooks.releases == [0xA0]  # VK_LSHIFT
+	assert fake_hooks.unhooked == ["hook 1"]
+
+
+def test_keyboard_hooks_installed_late(monkeypatch):
+	"""
+	Tests that the release of the Shift key is sent again until the hook receives it: the hook is installed by a thread
+	of the 'keyboard' library, which may not be ready yet. Before, a single release was sent, and the result was read
+	at once.
+	"""
+	fake_hooks = _FakeKeyboardHooks(received_releases={3})
+	result, _ = _check_keyboard_hooks(monkeypatch, fake_hooks, timeout=5.0, interval=0.1)
+	assert result is True
+	assert len(fake_hooks.releases) >= 3
+	assert fake_hooks.unhooked == ["hook 1"]
+
+
+def test_keyboard_hooks_do_not_work(monkeypatch):
+	"""Tests that the check fails after the timeout if the hook receives nothing, and removes its hook."""
+	fake_hooks = _FakeKeyboardHooks(received_releases=set())
+	result, duration = _check_keyboard_hooks(monkeypatch, fake_hooks, timeout=0.3, interval=0.05)
+	assert result is False
+	assert duration >= 0.3
+	assert len(fake_hooks.releases) >= 2
+	assert fake_hooks.unhooked == ["hook 1"]
+	assert recorder.KEYBOARD_HOOKS_CHECK_TIMEOUT == 1.0
+
+
 def _fake_recorder_for_shortcuts(mode):
 	"""Returns an object that records the actions started by the keyboard shortcuts."""
 	actions = []
@@ -1025,7 +1094,6 @@ def test_run_interactive(monkeypatch, argv, events):
 	assert fake_recorder.calls == ["toggle_element_info"]
 	tray.on_quit(tray)
 	assert fake_recorder.calls == ["toggle_element_info", "quit"]
-
 
 
 @pytest.mark.parametrize("alive", [False, True])
