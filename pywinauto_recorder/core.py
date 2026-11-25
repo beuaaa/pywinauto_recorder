@@ -11,6 +11,12 @@ from pywinauto import findwindows
 # from thefuzz import fuzz
 from .ocr_wrapper import find_all_ocr, OCRWrapper
 
+try:
+	from _ctypes import COMError  # raised by UI Automation, for example for an element that vanished
+except ImportError:  # not on Windows
+	class COMError(Exception):
+		pass
+
 
 __all__ = ['path_separator', 'type_separator', 'Strategy', 'is_int', 'is_absolute_path',
            'get_wrapper_path', 'get_entry_list', 'get_entry', 'match_entry_list', 'get_sorted_region',
@@ -50,13 +56,28 @@ class Strategy(Enum):
 
 
 def get_wrapper_path(wrapper, wrapper_top_level_parent=None):
+	"""
+	Returns the path of an element: the names and control types of the element and of its ancestors, from its top level
+	window, for example "Calculator||Window->Number pad||Group->One||Button".
+
+	It returns '' if the element vanished, for example a menu that was closed: UI Automation then gives None as its name
+	or control type, or raises a COMError. Before, a traceback was printed, and comparing the vanished element with its
+	top level window made Pywinauto print the warning "Can't compare elements due to error".
+	"""
 	try:
 		path = ''
 		wrapper_top_level_parent = wrapper.top_level_parent()
-		while wrapper != wrapper_top_level_parent:
-			path = path_separator + wrapper.element_info.name + type_separator + wrapper.element_info.control_type + path
+		while True:
+			name = wrapper.element_info.name
+			control_type = wrapper.element_info.control_type
+			if name is None or control_type is None:
+				return ''  # the element vanished
+			if wrapper == wrapper_top_level_parent:
+				return name + type_separator + control_type + path
+			path = path_separator + name + type_separator + control_type + path
 			wrapper = wrapper.parent()
-		return wrapper.element_info.name + type_separator + wrapper.element_info.control_type + path
+	except COMError:
+		return ''  # the element vanished
 	except Exception as e:
 		traceback.print_exc()
 		print(e)

@@ -4,6 +4,7 @@ import pathlib
 import re
 import sys
 import time
+import types
 import warnings
 import pytest
 from pywinauto_recorder.core import get_entry_list, get_entry, match_entry_list, get_sorted_region
@@ -181,6 +182,92 @@ def test_uipath_without_regex_title_does_not_warn():
 			with UIPath("Text Editor||Edit", regex_title=False):
 				assert UIPath.get_full_path() == "RegEx: .* - Notepad||Window->Text Editor||Edit"
 	assert UIPath.get_full_path() == ""
+
+
+################################################################################################
+#                                   Tests of get_wrapper_path                                  #
+################################################################################################
+
+class _FakePathElement:
+	"""Stands for a Pywinauto wrapper in the tests of get_wrapper_path. It counts the comparisons of elements."""
+	comparisons = 0
+
+	def __init__(self, name, control_type, parent=None):
+		self.element_info = types.SimpleNamespace(name=name, control_type=control_type)
+		self._parent = parent
+
+	def parent(self):
+		return self._parent
+
+	def top_level_parent(self):
+		element = self
+		while element._parent is not None:
+			element = element._parent
+		return element
+
+	def __eq__(self, other):
+		_FakePathElement.comparisons += 1
+		return self is other
+
+	__hash__ = object.__hash__
+
+
+def _fake_path_elements(names=("Calculator", "Number pad", "One"), control_types=("Window", "Group", "Button")):
+	"""Returns the elements of a window, from the window to the element at the end of the path."""
+	elements = []
+	for name, control_type in zip(names, control_types):
+		elements.append(_FakePathElement(name, control_type, elements[-1] if elements else None))
+	return elements
+
+
+def test_get_wrapper_path(capsys):
+	window, group, button = _fake_path_elements()
+	assert core.get_wrapper_path(button) == "Calculator||Window->Number pad||Group->One||Button"
+	assert core.get_wrapper_path(window) == "Calculator||Window"
+	assert capsys.readouterr() == ("", "")
+
+
+@pytest.mark.parametrize("names, control_types", [
+	(("Calculator", "Number pad", None), ("Window", "Group", "Button")),
+	(("Calculator", "Number pad", "One"), ("Window", "Group", None)),
+	(("Calculator", None, "One"), ("Window", "Group", "Button")),
+	((None, "Number pad", "One"), ("Window", "Group", "Button")),
+])
+def test_get_wrapper_path_of_an_element_that_vanished(capsys, names, control_types):
+	"""
+	Tests that the path of an element that vanished, a menu that was closed for example, is '', without printing anything:
+	UI Automation gives None as the name or the control type of a vanished element. Before, a traceback was printed.
+	"""
+	element = _fake_path_elements(names, control_types)[-1]
+	_FakePathElement.comparisons = 0
+	assert core.get_wrapper_path(element) == ""
+	assert capsys.readouterr() == ("", "")
+	if names[-1] is None or control_types[-1] is None:
+		# the vanished element is not compared with its window: Pywinauto would print "Can't compare elements..."
+		assert _FakePathElement.comparisons == 0
+
+
+def test_get_wrapper_path_com_error(capsys):
+	"""Tests that the path of an element is '', without printing anything, if UI Automation raises a COMError."""
+	class VanishedElementInfo:
+		control_type = "Button"
+
+		@property
+		def name(self):
+			raise core.COMError(-2147220991, "An event was unable to invoke any of the subscribers", None)
+	element = _fake_path_elements()[-1]
+	element.element_info = VanishedElementInfo()
+	assert core.get_wrapper_path(element) == ""
+	assert capsys.readouterr() == ("", "")
+
+
+def test_get_wrapper_path_unexpected_error(capsys):
+	"""Tests that an unexpected error is still printed: here, an element without parent that is not its top level window."""
+	window, group, button = _fake_path_elements()
+	group._parent = None
+	button.top_level_parent = lambda: window
+	assert core.get_wrapper_path(button) == ""
+	assert "Traceback" in capsys.readouterr().err
 
 
 ################################################################################################
