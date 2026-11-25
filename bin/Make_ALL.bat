@@ -34,8 +34,8 @@ set OPTIONS=%OPTIONS% --windows-icon-from-ico=..\pywinauto_recorder\Icons\IconPy
 set OPTIONS=%OPTIONS% --product-name="Pywinauto Recorder" --company-name="Pywinauto Recorder"
 set OPTIONS=%OPTIONS% --file-version=%numeric_version% --product-version=%numeric_version%
 set OPTIONS=%OPTIONS% --file-description="Pywinauto Recorder %version%"
-REM The icons are searched in <folder of pywinauto_recorder.exe>\Icons
-set OPTIONS=%OPTIONS% --include-data-dir=..\pywinauto_recorder\Icons=Icons
+REM The icons are searched in the folder of the package: <folder of pywinauto_recorder.exe>\pywinauto_recorder\Icons
+set OPTIONS=%OPTIONS% --include-data-dir=..\pywinauto_recorder\Icons=pywinauto_recorder\Icons
 REM Packages that Pywinauto Recorder does not need (formerly deleted after the build)
 set OPTIONS=%OPTIONS% --nofollow-import-to=numpy --nofollow-import-to=PIL --nofollow-import-to=tkinter
 set OPTIONS=%OPTIONS% --nofollow-import-to=certifi --nofollow-import-to=win32com

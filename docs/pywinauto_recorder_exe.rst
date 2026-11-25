@@ -24,6 +24,8 @@ Pywinauto_recorder for Windows
 Usage
 -----
 - Double click on "pywinauto_recorder.exe_" or run "python.exe pywinauto_recorder.py_" to start the recorder.
+  If you installed the pywinauto_recorder package with "pip install pywinauto-recorder", you can also run
+  "pywinauto-recorder" or "python -m pywinauto_recorder".
 - The recorder is started in display information mode, a tray  icon is added in the right-side of the Windows Taskbar.
 - Press CTRL+SHIFT+f to copy the code that finds the element colored green or orange to the clipboard.
 - Press CTRL+ALT+r to switch to "Record" mode.

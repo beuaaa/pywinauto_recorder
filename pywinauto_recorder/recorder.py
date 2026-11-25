@@ -42,11 +42,8 @@ MenuEvent = namedtuple('MenuEvent', ['path', 'menu_path'])
 
 
 class IconSet:
-	""" It loads the icons from the Icons folder and stores them in the class."""
-	if "__compiled__" in globals():
-		path_icons = os.path.dirname(os.path.realpath(__file__)) + r'\..'
-	else:
-		path_icons = os.path.dirname(os.path.realpath(__file__))
+	""" It loads the icons from the Icons folder of the package and stores them in the class."""
+	path_icons = os.path.dirname(os.path.realpath(__file__))
 	hicon_clipboard = oaam.load_ico(path_icons + r'\Icons\paste.ico', 48, 48)
 	hicon_light_on = oaam.load_ico(path_icons + r'\Icons\light-on.ico', 48, 48)
 	hicon_record = oaam.load_ico(path_icons + r'\Icons\record.ico', 48, 48)

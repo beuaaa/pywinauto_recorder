@@ -48,6 +48,9 @@ dependencies = [
     "Pillow",
 ]
 
+[project.scripts]
+pywinauto-recorder = "pywinauto_recorder.app:main"
+
 [project.optional-dependencies]
 dev = ["pytest", "flake8", "build", "twine"]
 

@@ -46,4 +46,4 @@ jobs:
     - name: Import smoke test
       run: python -c "import pywinauto_recorder; print('pywinauto_recorder', pywinauto_recorder.__version__)"
     - name: Tests that need no application under test
-      run: python -m pytest -c tests/pytest.ini tests/tests.py tests/tests_pywinauto_api.py -v
+      run: python -m pytest -c tests/pytest.ini tests/tests.py tests/tests_pywinauto_api.py tests/tests_app.py -v
