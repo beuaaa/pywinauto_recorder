@@ -26,7 +26,8 @@ from win32con import IDC_WAIT, MOUSEEVENTF_MOVE, MOUSEEVENTF_ABSOLUTE, MOUSEEVEN
 	MOUSEEVENTF_MIDDLEDOWN, MOUSEEVENTF_MIDDLEUP, MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP, MOUSEEVENTF_WHEEL, \
 	WHEEL_DELTA, SW_RESTORE,HWND_NOTOPMOST, HWND_TOPMOST
 from .core import type_separator, path_separator, get_entry, get_entry_list, find_elements, get_sorted_region, \
-	get_wrapper_path, is_int, is_absolute_path, set_native_window_handle, get_native_window_handle, find_window_candidates
+	get_wrapper_path, is_int, is_absolute_path, set_native_window_handle, get_native_window_handle, find_window_candidates, \
+	SPECIAL_CHARACTERS
 from functools import partial, update_wrapper
 from cachetools import func
 import math
@@ -62,10 +63,10 @@ __all__ = [
 	'find_main_windows', 'kill_application', 'FailedSearch']
 
 
-# TODO special_char_array in core for recorder.py and player.py (check when to call escape & unescape)
 def unescape_special_char(string):
-	for r in (("\\\\", "\\"), ("\\t", "\t"), ("\\n", "\n"), ("\\r", "\r"), ("\\v", "\v"), ("\\f", "\f"), ('\\"', '"')):
-		string = string.replace(*r)
+	"""Replaces the special characters escaped in a path by the recorder (see core.SPECIAL_CHARACTERS)."""
+	for character, escaped in SPECIAL_CHARACTERS:
+		string = string.replace(escaped, character)
 	return string
 
 

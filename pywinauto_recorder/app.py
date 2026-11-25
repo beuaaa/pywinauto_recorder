@@ -656,14 +656,14 @@ def overlay_add_pywinauto_recorder_icon(overlay, x, y):
 	overlay.add(
 		geometry=oaam.Shape.rectangle, x=x, y=y, width=200, height=100, thickness=5, color=(200, 66, 66),
 		brush=oaam.Brush.solid, brush_color=(255, 254, 255))
-	overlay.add(
-		geometry=oaam.Shape.rectangle, x=x + 5, y=y + 15, width=190, height=38, thickness=0,
-		brush=oaam.Brush.solid, brush_color=(255, 254, 255), text_color=(66, 66, 66),
-		text=u'PYWINAUTO', font_size=44, font_name='Impact')
-	overlay.add(
-		geometry=oaam.Shape.rectangle, x=x + 20, y=y + 50, width=160, height=38, thickness=0,
-		brush=oaam.Brush.solid, brush_color=(255, 254, 255), text_color=(200, 40, 40),
-		text=u'recorder', font_size=48, font_name='Arial Black')
+	texts = (  # x, y, width, color, text, font size and font of the 2 words of the logo
+		(x + 5, y + 15, 190, (66, 66, 66), u'PYWINAUTO', 44, 'Impact'),
+		(x + 20, y + 50, 160, (200, 40, 40), u'recorder', 48, 'Arial Black'))
+	for text_x, text_y, width, text_color, text, font_size, font_name in texts:
+		overlay.add(
+			geometry=oaam.Shape.rectangle, x=text_x, y=text_y, width=width, height=38, thickness=0,
+			brush=oaam.Brush.solid, brush_color=(255, 254, 255), text_color=text_color,
+			text=text, font_size=font_size, font_name=font_name)
 
 
 def _draw_splash_background(overlay, rectangle):

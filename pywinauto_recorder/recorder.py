@@ -21,7 +21,7 @@ import pyperclip
 import codecs
 from .core import path_separator, type_separator, Strategy, is_int, \
 	get_wrapper_path, get_entry_list, get_entry, get_sorted_region, \
-	read_config_file, set_native_window_handle
+	read_config_file, set_native_window_handle, SPECIAL_CHARACTERS
 from .core import find_elements as not_ttl_cached_find_elements
 from .player import playback
 from cachetools import func
@@ -66,8 +66,8 @@ def _escape_special_char(string):
 	and in script += 'menu_click... in menu_click as it's already done.
 	Should replace -> by _>.
 	"""
-	for r in (("\\", "\\\\"), ("\t", "\\t"), ("\n", "\\n"), ("\r", "\\r"), ("\v", "\\v"), ("\f", "\\f"), ('"', '\\"')):
-		string = string.replace(*r)
+	for character, escaped in SPECIAL_CHARACTERS:
+		string = string.replace(character, escaped)
 	return string
 
 
@@ -608,8 +608,8 @@ t0_progress_icon_timings = time.time()
 progress_icon_timings = [0, 0, 0, 0, 0, 0, 0]
 
 
-def _overlay_add_progress_icon(main_overlay, i, x, y):
-	global t0_progress_icon_timings
+def _overlay_add_icon_frame(main_overlay, x, y):
+	"""Draws the frame of an icon of the recorder, 52x52 pixels, at (x, y)."""
 	main_overlay.add(
 		geometry=oaam.Shape.rectangle, x=x, y=y, width=52, height=52,
 		color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 255, 254))
@@ -617,6 +617,11 @@ def _overlay_add_progress_icon(main_overlay, i, x, y):
 		geometry=oaam.Shape.triangle,
 		xyrgb_array=((x + 1, y + 1, 255, 255, 254), (x + 1, y + 52, 128, 128, 128), (x + 51, y + 52, 255, 255, 254)),
 		thickness=0)
+
+
+def _overlay_add_progress_icon(main_overlay, i, x, y):
+	global t0_progress_icon_timings
+	_overlay_add_icon_frame(main_overlay, x, y)
 	dt = time.time() - t0_progress_icon_timings
 	nb_dt = int(dt/0.01)
 	if nb_dt > 255:
@@ -633,13 +638,7 @@ def _overlay_add_progress_icon(main_overlay, i, x, y):
 
 
 def _overlay_add_mode_icon(main_overlay, hicon, x, y):
-	main_overlay.add(
-		geometry=oaam.Shape.rectangle, x=x, y=y, width=52, height=52,
-		color=(0, 0, 0), thickness=1, brush=oaam.Brush.solid, brush_color=(255, 255, 254))
-	main_overlay.add(
-		geometry=oaam.Shape.triangle,
-		xyrgb_array=((x + 1, y + 1, 255, 255, 254), (x + 1, y + 52, 128, 128, 128), (x + 51, y + 52, 255, 255, 254)),
-		thickness=0)
+	_overlay_add_icon_frame(main_overlay, x, y)
 	main_overlay.add(
 		geometry=oaam.Shape.image, hicon=hicon, x=int(x+2), y=int(y+2))
 
@@ -686,6 +685,19 @@ def keyboard_hooks_work(timeout=KEYBOARD_HOOKS_CHECK_TIMEOUT, interval=0.2):
 				return False
 	finally:
 		keyboard.unhook(hooked)
+
+
+def _is_hotkey_released(event, key, modifiers):
+	"""
+	Returns True if a keyboard event is the release of a key while modifier keys are pressed.
+
+	:param event: The keyboard event
+	:param key: The name of the key, for example 'r'
+	:param modifiers: The names of the modifier keys, for example ("alt", "ctrl")
+	"""
+	if (event.name, event.event_type) != (key, 'up'):
+		return False
+	return {keyboard.key_to_scan_codes(modifier)[0] for modifier in modifiers}.issubset(keyboard._pressed_events)
 
 
 def _top_level_window(wrapper):
@@ -812,18 +824,13 @@ class Recorder(Thread):
 	def __overlay_add_bold_rectangle(self, wrapper_rectangle, color=(0, 255, 0)):
 		thickness = 5
 		r = wrapper_rectangle
-		self.main_overlay.add(
-			geometry=oaam.Shape.rectangle, x=r.left, y=r.top, width=r.width(), height=thickness,
-			thickness=0, color=(0, 128, 0), brush=oaam.Brush.solid, brush_color=color)
-		self.main_overlay.add(
-			geometry=oaam.Shape.rectangle, x=r.left, y=r.bottom - thickness, width=r.width(), height=thickness,
-			thickness=0, color=(0, 128, 0), brush=oaam.Brush.solid, brush_color=color)
-		self.main_overlay.add(
-			geometry=oaam.Shape.rectangle, x=r.left, y=r.top, width=thickness, height=r.height(),
-			thickness=0, color=(0, 128, 0), brush=oaam.Brush.solid, brush_color=color)
-		self.main_overlay.add(
-			geometry=oaam.Shape.rectangle, x=r.right - thickness, y=r.top, width=thickness, height=r.height(),
-			thickness=0, color=(0, 128, 0), brush=oaam.Brush.solid, brush_color=color)
+		sides = (  # top, bottom, left and right sides: x, y, width, height
+			(r.left, r.top, r.width(), thickness), (r.left, r.bottom - thickness, r.width(), thickness),
+			(r.left, r.top, thickness, r.height()), (r.right - thickness, r.top, thickness, r.height()))
+		for x, y, width, height in sides:
+			self.main_overlay.add(
+				geometry=oaam.Shape.rectangle, x=x, y=y, width=width, height=height,
+				thickness=0, color=(0, 128, 0), brush=oaam.Brush.solid, brush_color=color)
 		
 	def __find_unique_element_array_1d(self, wrapper_rectangle, elements):
 		nb_y, nb_x, candidates = get_sorted_region(elements)
@@ -917,22 +924,13 @@ class Recorder(Thread):
 			# The shortcuts are ignored during a replay: CTRL+ALT+R would record the replayed actions,
 			# and the end of the replay would then lose this recording.
 			return
-		key_to_scan_codes = keyboard.key_to_scan_codes
-		if (
-				(e.name, e.event_type) == ('r', 'up') and
-				set([key_to_scan_codes("alt")[0], key_to_scan_codes("ctrl")[0]]).issubset(keyboard._pressed_events)):
+		if _is_hotkey_released(e, 'r', ("alt", "ctrl")):
 			self.__start_stop_recording_by_key()
-		elif (
-				(e.name, e.event_type) == ('s', 'up') and
-				set([key_to_scan_codes("alt")[0], key_to_scan_codes("ctrl")[0]]).issubset(keyboard._pressed_events)):
+		elif _is_hotkey_released(e, 's', ("alt", "ctrl")):
 			self.smart_mode = not self.smart_mode
-		elif (
-				(e.name, e.event_type) == ('F', 'up') and
-				set([key_to_scan_codes("shift")[0], key_to_scan_codes("ctrl")[0]]).issubset(keyboard._pressed_events)):
+		elif _is_hotkey_released(e, 'F', ("shift", "ctrl")):
 			self.__display_found_element_by_key()
-		elif (
-				(e.name, e.event_type) == ('D', 'up') and
-				set([key_to_scan_codes("shift")[0], key_to_scan_codes("ctrl")[0]]).issubset(keyboard._pressed_events)):
+		elif _is_hotkey_released(e, 'D', ("shift", "ctrl")):
 			self.__start_stop_displaying_info_by_key()
 		elif self.mode == RecorderMode.RECORD:
 			self.event_list.append(e)

@@ -46,6 +46,9 @@ class CoreSettings:
 path_separator = "->"
 type_separator = "||"
 
+SPECIAL_CHARACTERS = (("\\", "\\\\"), ("\t", "\\t"), ("\n", "\\n"), ("\r", "\\r"), ("\v", "\\v"), ("\f", "\\f"), ('"', '\\"'))
+"""The special characters of the paths, and how they are escaped in the strings of the recorded scripts."""
+
 
 # > The `Strategy` class is an enumeration of the different strategies that can be used to solve the problem
 class Strategy(Enum):
