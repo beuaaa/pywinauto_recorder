@@ -693,25 +693,27 @@ def display_splash_screen():
 	splash_foreground = oaam.Overlay(transparency=0.0)
 	time.sleep(0.2)
 	splash_background = oaam.Overlay(transparency=0.1)
-	rectangle = _splash_rectangle()
-	_draw_splash_background(splash_background, rectangle)
-	mouse_was_in_splash_screen = _is_mouse_cursor_in(rectangle)
-	if mouse_was_in_splash_screen:
-		message_to_continue = 'To continue: move the mouse cursor out of this window'
-	else:
-		message_to_continue = 'To continue: move the mouse cursor over this window'
-	n = 0
-	while True:
-		_draw_splash_foreground(splash_foreground, rectangle, text_lines, n)
-		time.sleep(0.4)
-		text_lines[_SPLASH_NB_LINES - 1] = message_to_continue if n % 2 == 0 else ''  # the message blinks
-		n = n + 1
-		if _is_mouse_cursor_in(rectangle) != mouse_was_in_splash_screen:
-			break
-	splash_foreground.clear_all()
-	splash_foreground.refresh()
-	splash_background.clear_all()
-	splash_background.refresh()
+	try:
+		rectangle = _splash_rectangle()
+		_draw_splash_background(splash_background, rectangle)
+		mouse_was_in_splash_screen = _is_mouse_cursor_in(rectangle)
+		if mouse_was_in_splash_screen:
+			message_to_continue = 'To continue: move the mouse cursor out of this window'
+		else:
+			message_to_continue = 'To continue: move the mouse cursor over this window'
+		n = 0
+		while True:
+			_draw_splash_foreground(splash_foreground, rectangle, text_lines, n)
+			time.sleep(0.4)
+			text_lines[_SPLASH_NB_LINES - 1] = message_to_continue if n % 2 == 0 else ''  # the message blinks
+			n = n + 1
+			if _is_mouse_cursor_in(rectangle) != mouse_was_in_splash_screen:
+				break
+	finally:
+		# The overlays are closed: before, they were only cleared, and two more stayed open at each display ("About").
+		# quit() is reliable since overlay_arrows_and_more 0.6.0, even just after the creation of an overlay.
+		splash_foreground.quit()
+		splash_background.quit()
 
 
 def _program_name():

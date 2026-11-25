@@ -987,10 +987,14 @@ def test_splash_screen_text_lines():
 
 
 class _FakeSplashOverlay:
-	"""Replaces overlay_arrows_and_more.Overlay: it keeps what is displayed at each refresh."""
+	"""Replaces overlay_arrows_and_more.Overlay: it keeps what is displayed at each refresh, and whether it is closed."""
 	def __init__(self, transparency=0.0):
 		self.items = []
 		self.frames = []
+		self.closed = False
+
+	def quit(self, timeout=None):
+		self.closed = True
 
 	def clear_all(self):
 		self.items = []
@@ -1002,23 +1006,33 @@ class _FakeSplashOverlay:
 		self.frames.append(list(self.items))
 
 
-def _display_splash_screen(monkeypatch, cursor_positions):
+def _patch_splash_screen(monkeypatch, get_cursor_pos):
 	"""
-	Displays the splash screen on a 1920x1080 screen, with fake overlays and the given positions of the mouse cursor.
+	Patches the splash screen: a 1920x1080 screen, fake overlays and the given function for the position of the mouse.
 
-	:return: The foreground and the background overlays
+	:return: The list of the overlays that the splash screen will create: the foreground, then the background
 	"""
 	overlays = []
 
 	def make_overlay(transparency=0.0):
 		overlays.append(_FakeSplashOverlay(transparency))
 		return overlays[-1]
-	positions = iter(cursor_positions)
 	monkeypatch.setattr(app.oaam, "Overlay", make_overlay)
 	monkeypatch.setattr(app, "time", types.SimpleNamespace(sleep=lambda seconds: None))
 	monkeypatch.setattr(app, "GetSystemMetrics", lambda index: (1920, 1080)[index])
-	monkeypatch.setattr(app, "GetCursorPos", lambda: next(positions))
+	monkeypatch.setattr(app, "GetCursorPos", get_cursor_pos)
 	monkeypatch.setattr(app, "check_version", lambda: "Pywinauto recorder 1.2.3")
+	return overlays
+
+
+def _display_splash_screen(monkeypatch, cursor_positions):
+	"""
+	Displays the splash screen on a 1920x1080 screen, with fake overlays and the given positions of the mouse cursor.
+
+	:return: The foreground and the background overlays
+	"""
+	positions = iter(cursor_positions)
+	overlays = _patch_splash_screen(monkeypatch, lambda: next(positions))
 	app.display_splash_screen()
 	return overlays
 
@@ -1036,21 +1050,34 @@ def test_splash_screen_closed_when_the_mouse_cursor_moves_out_of_it(monkeypatch)
 	"""Tests that the splash screen, displayed under the mouse cursor, is closed when the mouse cursor moves out of it."""
 	foreground, background = _display_splash_screen(
 		monkeypatch, [IN_SPLASH_SCREEN, IN_SPLASH_SCREEN, IN_SPLASH_SCREEN, OUT_OF_SPLASH_SCREEN])
-	frames = [_displayed_text_lines(frame) for frame in foreground.frames[:-1]]
+	frames = [_displayed_text_lines(frame) for frame in foreground.frames]
 	assert len(frames) == 3
 	assert all(text_lines[6] == "Pywinauto recorder 1.2.3" for text_lines in frames)
 	assert [text_lines[23] for text_lines in frames] == [
 		'', 'To continue: move the mouse cursor out of this window', '']  # the message blinks
-	assert foreground.frames[-1] == [] and background.frames[-1] == []  # the splash screen is closed
+	assert foreground.closed and background.closed
 
 
 def test_splash_screen_closed_when_the_mouse_cursor_moves_over_it(monkeypatch):
 	"""Tests that the splash screen, displayed away from the mouse cursor, is closed when the mouse cursor moves over it."""
 	foreground, background = _display_splash_screen(
 		monkeypatch, [OUT_OF_SPLASH_SCREEN, OUT_OF_SPLASH_SCREEN, IN_SPLASH_SCREEN])
-	frames = [_displayed_text_lines(frame) for frame in foreground.frames[:-1]]
+	frames = [_displayed_text_lines(frame) for frame in foreground.frames]
 	assert [text_lines[23] for text_lines in frames] == ['', 'To continue: move the mouse cursor over this window']
-	assert foreground.frames[-1] == [] and background.frames[-1] == []
+	assert foreground.closed and background.closed
+
+
+def test_splash_screen_closed_after_an_error(monkeypatch):
+	"""
+	Tests that the overlays of the splash screen are closed, even after an error. Before, they were only cleared: two
+	more overlays stayed open at each display of the splash screen ("About").
+	"""
+	def get_cursor_pos():
+		raise RuntimeError("GetCursorPos failed")
+	overlays = _patch_splash_screen(monkeypatch, get_cursor_pos)
+	with pytest.raises(RuntimeError):
+		app.display_splash_screen()
+	assert len(overlays) == 2 and all(overlay.closed for overlay in overlays)
 
 
 def test_splash_screen_is_centered(monkeypatch):
