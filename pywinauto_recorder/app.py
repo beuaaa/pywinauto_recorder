@@ -217,6 +217,8 @@ class SysTrayIcon(object):
 		self._actions_by_id = {}
 		self._menu_bitmaps = {}
 
+		# The handlers return 0, the result of the window procedure: recent versions of pywin32 refuse None, and print
+		# "WNDPROC return value cannot be converted to LRESULT"
 		message_map = {win32gui.RegisterWindowMessage("TaskbarCreated"): self.restart,
 		               win32con.WM_DESTROY: self.destroy,
 		               win32con.WM_COMMAND: self.command,
@@ -266,6 +268,7 @@ class SysTrayIcon(object):
 	def restart(self, hwnd, msg, wparam, lparam):
 		"""Called when the taskbar is created again (Windows Explorer restarted): it adds the icon again."""
 		self.refresh_icon()
+		return 0
 
 	def destroy(self, hwnd, msg, wparam, lparam):
 		"""
@@ -279,6 +282,7 @@ class SysTrayIcon(object):
 			nid = (self.hwnd, 0)
 			win32gui.Shell_NotifyIcon(win32gui.NIM_DELETE, nid)
 			win32gui.PostQuitMessage(0)  # Terminate the app.
+		return 0
 
 	def notify(self, hwnd, msg, wparam, lparam):
 		"""Called on a mouse event on the icon: a double click calls default_action, a right click shows the menu."""
@@ -287,7 +291,7 @@ class SysTrayIcon(object):
 				self.default_action(self)
 		elif lparam == win32con.WM_RBUTTONUP:
 			self.show_menu()
-		return True
+		return 0
 
 	def show_menu(self):
 		"""It shows the menu at the position of the mouse cursor."""
@@ -364,6 +368,7 @@ class SysTrayIcon(object):
 		action = self._actions_by_id.get(win32gui.LOWORD(wparam))
 		if action is not None:
 			action(self)
+		return 0
 
 
 class TrayIcons(object):

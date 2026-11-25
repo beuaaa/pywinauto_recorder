@@ -831,6 +831,36 @@ def test_tray_menu_is_built_from_the_entries(monkeypatch):
 	assert clicked == ["last", "first"]
 
 
+def test_tray_icon_message_handlers_return_an_int(monkeypatch):
+	"""
+	Tests that the handlers of the messages of the tray icon return an int: the result of the window procedure. Before,
+	restart, destroy and command returned None, which recent versions of pywin32 refuse: "WNDPROC return value cannot be
+	converted to LRESULT" was printed, twice when quitting for example.
+	"""
+	calls = []
+	monkeypatch.setattr(app, "win32gui", types.SimpleNamespace(
+		NIM_DELETE=2, LOWORD=lambda value: value & 0xFFFF,
+		Shell_NotifyIcon=lambda message, nid: calls.append("Shell_NotifyIcon"),
+		PostQuitMessage=lambda exit_code: calls.append("PostQuitMessage")))
+	tray = object.__new__(app.SysTrayIcon)
+	tray.hwnd = 42
+	tray.on_quit = lambda tray_: calls.append("on_quit")
+	tray.default_action = lambda tray_: calls.append("default_action")
+	tray._actions_by_id = {1024: lambda tray_: calls.append("action")}
+	tray.refresh_icon = lambda: calls.append("refresh_icon")
+	tray.show_menu = lambda: calls.append("show_menu")
+	results = [
+		tray.restart(42, 0, 0, 0),
+		tray.command(42, 0, 1024, 0),
+		tray.command(42, 0, 9999, 0),  # an entry without action
+		tray.notify(42, 0, 0, app.win32con.WM_LBUTTONDBLCLK),
+		tray.notify(42, 0, 0, app.win32con.WM_RBUTTONUP),
+		tray.destroy(42, 0, 0, 0)]
+	assert [type(result) for result in results] == [int] * 6
+	assert calls == ["refresh_icon", "action", "default_action", "show_menu", "on_quit", "Shell_NotifyIcon",
+	                 "PostQuitMessage"]
+
+
 def test_tray_icon_removed_even_if_on_quit_fails(monkeypatch):
 	"""
 	Tests that the tray icon is removed and run() stopped, even if on_quit raises an exception. Before, the application
