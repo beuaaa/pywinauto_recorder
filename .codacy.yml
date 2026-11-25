@@ -4,3 +4,5 @@
 exclude_paths:
   # Scripts used to make the video tutorials: they are not part of Pywinauto Recorder.
   - "Tutorials/**"
+  # Tests of Pywinauto Recorder: they are not part of the package.
+  - "tests/**"
