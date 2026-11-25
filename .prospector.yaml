@@ -1,0 +1,11 @@
+# Settings of Prospector, one of the tools used by Codacy to analyse the code
+# (https://app.codacy.com/gh/beuaaa/pywinauto_recorder). Codacy chooses which tools Prospector runs;
+# this file only adjusts their settings. Run it locally with "prospector --with-tool pydocstyle".
+
+strictness: medium
+
+pydocstyle:
+  disable:
+    # D212 and D213 contradict each other: every multi-line docstring breaks one of them.
+    # In this project, the summary of a multi-line docstring starts on the second line (D213).
+    - D212

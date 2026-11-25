@@ -1,0 +1,6 @@
+---
+# Codacy configuration (https://docs.codacy.com/repositories-configure/codacy-configuration-file/).
+# When this file exists, the "Ignored files" settings of the Codacy web interface no longer apply.
+exclude_paths:
+  # Scripts used to make the video tutorials: they are not part of Pywinauto Recorder.
+  - "Tutorials/**"
