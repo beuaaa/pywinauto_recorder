@@ -41,7 +41,7 @@ dependencies = [
     "psutil",
     "keyboard",
     "mouse",
-    "overlay_arrows_and_more",
+    "overlay_arrows_and_more>=0.6.0",
     "pyperclip",
     "cachetools",
     "thefuzz",

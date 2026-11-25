@@ -212,9 +212,9 @@ def task(info_mode_event, info_mode_quit_event):
 			sleep(2.0)
 	info_overlay.clear_all()
 	info_overlay.refresh()
-	# No info_overlay.quit(): it never returns if the window of the overlay is not created yet, which happens when the
-	# tooltip is stopped just after it started (replay of a short file). The thread of the overlay is a daemon thread,
-	# so it ends with this process.
+	# No info_overlay.quit(): the thread of the overlay is a daemon thread, so it ends with this process. Before
+	# overlay_arrows_and_more 0.6.0, quit() never returned if the window of the overlay was not created yet, which
+	# happens when the tooltip is stopped just after it started (replay of a short file).
 
 
 class ElementInfoTooltip:
