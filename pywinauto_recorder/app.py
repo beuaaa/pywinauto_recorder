@@ -19,7 +19,10 @@ import win32gui_struct
 import win32gui
 import win32ui
 import pyperclip
+import threading
+import webbrowser
 from .recorder import Recorder, RecorderMode, IconSet, _overlay_add_mode_icon, _overlay_add_progress_icon
+from .recorder import HOTKEY_RECORD, HOTKEY_SMART_MODE, HOTKEY_ELEMENT_INFO
 from win32api import GetSystemMetrics, GetCursorPos
 import time
 
@@ -30,6 +33,13 @@ EXIT_REPLAY_FAILED = 1
 """Exit code: the replayed script raised an exception."""
 EXIT_FILE_NOT_FOUND = 2
 """Exit code: the script to replay was not found (2 is also the exit code of argparse for a wrong command line)."""
+
+ICONS_FOLDER = Path(__file__).parent.absolute() / "Icons"
+"""Folder of the icons of the package."""
+OUTPUT_FOLDER = Path.home() / "Pywinauto recorder"
+"""Folder where the recorder writes the recorded scripts."""
+WEB_SITE = "https://pywinauto-recorder.readthedocs.io"
+"""Web site of Pywinauto Recorder, opened by the 'Web site' entry of the tray menu."""
 
 AC_LINE_OFFLINE = 0
 """ACLineStatus of SYSTEM_POWER_STATUS when the computer runs on battery (1: on AC power, 255: unknown)."""
@@ -135,68 +145,105 @@ def _wait_for_enter_in_console():
 		input("Press Enter to continue...")
 
 
+MENU_SEPARATOR = None
+"""A separator line between the entries of a menu."""
+
+
+class MenuItem(object):
+	"""
+	An entry of the menu of the tray icon.
+
+	'text', 'icon' and 'enabled' are values, or functions without argument that return the value. They are evaluated
+	each time the menu is displayed, so that the menu shows the current state of the recorder.
+	"""
+	def __init__(self, text, icon=None, action=None, submenu=None, enabled=True):
+		"""
+		:param text: The text of the entry, or a function that returns it
+		:param icon: The path of the .ico file of the entry, or a function that returns it, or None
+		:param action: The function called with the SysTrayIcon when the entry is clicked
+		:param submenu: The entries of the submenu (a list of MenuItem and MENU_SEPARATOR), or None
+		:param enabled: True if the entry can be clicked, or a function that returns it. A disabled entry is grayed.
+		"""
+		self.text = text
+		self.icon = icon
+		self.action = action
+		self.submenu = submenu
+		self.enabled = enabled
+
+	@staticmethod
+	def _value(value):
+		return value() if callable(value) else value
+
+	def current_text(self):
+		"""Returns the text of the entry."""
+		return self._value(self.text)
+
+	def current_icon(self):
+		"""Returns the path of the icon of the entry, or None."""
+		return self._value(self.icon)
+
+	def is_enabled(self):
+		"""Returns True if the entry can be clicked."""
+		return bool(self._value(self.enabled))
+
+
 class SysTrayIcon(object):
-	QUIT = 'QUIT'
-	SPECIAL_ACTIONS = [QUIT]
+	"""
+	The icon of Pywinauto Recorder in the notification area of the taskbar, and its menu.
+
+	It creates a hidden window that receives the messages of the icon. run() processes these messages until quit() is called.
+	"""
 	FIRST_ID = 1023
-	
-	def __init__(self, icon, hover_text, menu_options, on_quit=None, default_menu_index=None, window_class_name=None, ):
-		self.menu = None
+	_WM_NOTIFY_ICON = win32con.WM_USER + 20
+
+	def __init__(self, icon, hover_text, menu, on_quit=None, default_action=None, window_class_name="SysTrayIconPy"):
+		"""
+		:param icon: The path of the .ico file of the icon
+		:param hover_text: The text displayed when the mouse cursor is over the icon
+		:param menu: The entries of the menu: a list of MenuItem and MENU_SEPARATOR
+		:param on_quit: The function called with the SysTrayIcon when it is destroyed
+		:param default_action: The function called with the SysTrayIcon on a double click on the icon
+		:param window_class_name: The name of the class of the hidden window
+		"""
 		self.icon = icon
 		self.hover_text = hover_text
+		self.menu = menu
 		self.on_quit = on_quit
-		
-		menu_options = menu_options + [['Quit', icon_power, self.QUIT], ]
-		self._next_action_id = self.FIRST_ID
-		self.menu_actions_by_id = set()
-		self.menu_options = self._add_ids_to_menu_options(list(menu_options))
-		self.menu_actions_by_id = dict(self.menu_actions_by_id)
-		del self._next_action_id
-		
-		self.default_menu_index = (default_menu_index or 0)
-		self.window_class_name = window_class_name or "SysTrayIconPy"
-		
+		self.default_action = default_action
+		self._actions_by_id = {}
+		self._menu_bitmaps = {}
+
 		message_map = {win32gui.RegisterWindowMessage("TaskbarCreated"): self.restart,
 		               win32con.WM_DESTROY: self.destroy,
 		               win32con.WM_COMMAND: self.command,
-		               win32con.WM_USER + 20: self.notify,}
+		               self._WM_NOTIFY_ICON: self.notify}
 		# Register the Window class.
 		window_class = win32gui.WNDCLASS()
 		hinst = window_class.hInstance = win32gui.GetModuleHandle(None)
-		window_class.lpszClassName = self.window_class_name
+		window_class.lpszClassName = window_class_name
 		window_class.style = win32con.CS_VREDRAW | win32con.CS_HREDRAW
 		window_class.hCursor = win32gui.LoadCursor(0, win32con.IDC_ARROW)
 		window_class.hbrBackground = win32con.COLOR_WINDOW
 		window_class.lpfnWndProc = message_map  # could also specify a wndproc.
-		classAtom = win32gui.RegisterClass(window_class)
+		class_atom = win32gui.RegisterClass(window_class)
 		# Create the Window.
 		style = win32con.WS_OVERLAPPED | win32con.WS_SYSMENU
-		self.hwnd = win32gui.CreateWindow(classAtom, self.window_class_name, style, 0, 0,
+		self.hwnd = win32gui.CreateWindow(class_atom, window_class_name, style, 0, 0,
 		                                  win32con.CW_USEDEFAULT, win32con.CW_USEDEFAULT, 0, 0, hinst, None)
 		win32gui.UpdateWindow(self.hwnd)
 		self.notify_id = None
 		self.refresh_icon()
+
+	def run(self):
+		"""It processes the messages of the icon and of its menu until quit() is called."""
 		win32gui.PumpMessages()
 
-	def _add_ids_to_menu_options(self, menu_options):
-		result = []
-		for menu_option in menu_options:
-			option_text, option_icon, option_action = menu_option
-			if callable(option_action) or option_action in self.SPECIAL_ACTIONS:
-				self.menu_actions_by_id.add((self._next_action_id, option_action))
-				result.append(menu_option + [self._next_action_id, ])
-			elif non_string_iterable(option_action):
-				result.append([option_text,
-				               option_icon,
-				               self._add_ids_to_menu_options(option_action),
-				               self._next_action_id])
-			else:
-				print('Unknown item', option_text, option_icon, option_action)
-			self._next_action_id += 1
-		return result
-	
+	def quit(self):
+		"""It removes the icon, calls on_quit and stops run()."""
+		win32gui.DestroyWindow(self.hwnd)
+
 	def refresh_icon(self):
-		# Try and find a custom icon
+		"""It adds the icon to the notification area, or updates it."""
 		hinst = win32gui.GetModuleHandle(None)
 		if os.path.isfile(self.icon):
 			icon_flags = win32con.LR_LOADFROMFILE | win32con.LR_DEFAULTSIZE
@@ -209,131 +256,241 @@ class SysTrayIcon(object):
 		else:
 			message = win32gui.NIM_ADD
 		self.notify_id = (self.hwnd, 0, win32gui.NIF_ICON | win32gui.NIF_MESSAGE | win32gui.NIF_TIP,
-		                  win32con.WM_USER + 20, hicon, self.hover_text)
+		                  self._WM_NOTIFY_ICON, hicon, self.hover_text)
 		win32gui.Shell_NotifyIcon(message, self.notify_id)
 
 	def restart(self, hwnd, msg, wparam, lparam):
+		"""Called when the taskbar is created again (Windows Explorer restarted): it adds the icon again."""
 		self.refresh_icon()
 
 	def destroy(self, hwnd, msg, wparam, lparam):
-		print("destroy--->")
+		"""Called when the hidden window is destroyed: it calls on_quit, removes the icon and stops run()."""
 		if self.on_quit:
 			self.on_quit(self)
 		nid = (self.hwnd, 0)
 		win32gui.Shell_NotifyIcon(win32gui.NIM_DELETE, nid)
 		win32gui.PostQuitMessage(0)  # Terminate the app.
-		print("<----destroy")
 
 	def notify(self, hwnd, msg, wparam, lparam):
+		"""Called on a mouse event on the icon: a double click calls default_action, a right click shows the menu."""
 		if lparam == win32con.WM_LBUTTONDBLCLK:
-			self.execute_menu_option(self.default_menu_index + self.FIRST_ID)
+			if self.default_action:
+				self.default_action(self)
 		elif lparam == win32con.WM_RBUTTONUP:
 			self.show_menu()
-		elif lparam == win32con.WM_LBUTTONUP:
-			pass
-		
 		return True
-	
+
 	def show_menu(self):
-		self.menu = win32gui.CreatePopupMenu()
-		self.create_menu(self.menu, self.menu_options)
+		"""It shows the menu at the position of the mouse cursor."""
+		self._actions_by_id = {}
+		menu = win32gui.CreatePopupMenu()
+		self._fill_menu(menu, self.menu)
 		pos = win32gui.GetCursorPos()
 		win32gui.SetForegroundWindow(self.hwnd)
-		win32gui.TrackPopupMenu(self.menu, win32con.TPM_LEFTALIGN, pos[0], pos[1], 0, self.hwnd, None)
+		win32gui.TrackPopupMenu(menu, win32con.TPM_LEFTALIGN, pos[0], pos[1], 0, self.hwnd, None)
 		win32gui.PostMessage(self.hwnd, win32con.WM_NULL, 0, 0)
+		# The command of the clicked entry is posted: the menu, and its submenus, are no longer needed
+		win32gui.DestroyMenu(menu)
 
-	def create_menu(self, menu, menu_options):
-		if len(menu_options) > 9:
-			if recorder.mode != RecorderMode.RECORD:
-				menu_options[0][0] = "Start recording\t\tCTRL+ALT+R"
-				menu_options[0][1] = icon_record
-			else:
-				menu_options[0][0] = "Stop recording\t\tCTRL+ALT+R"
-				menu_options[0][1] = icon_stop
-			if recorder.mode == RecorderMode.PLAY:
-				menu_options[1][0] = "Wait end of replay" # disabled
-				menu_options[1][1] = icon_stop
-			else:
-				menu_options[1][0] = "Start replaying clipboard"
-				menu_options[1][1] = icon_play
-			if not recorder.mode == RecorderMode.INFO:
-				menu_options[2][0] = "Start displaying element information\tCTRL+SHIFT+D"
-				menu_options[2][1] = icon_search
-			else:
-				menu_options[2][0] = "Stop displaying element information\tCTRL+SHIFT+D"
-				menu_options[2][1] = icon_stop
-			if not recorder.smart_mode:
-				menu_options[3][0] = "Start Smart mode\t\tCTRL+ALT+S"
-				menu_options[3][1] = icon_light_on
-			else:
-				menu_options[3][0] = "Stop Smart mode\t\tCTRL+ALT+S"
-				menu_options[3][1] = icon_stop
-			if not recorder.relative_coordinate_mode:
-				menu_options[6][2][0][1] = icon_cross
-			else:
-				menu_options[6][2][0][1] = icon_check
-			if not recorder.process_menu_click_mode:
-				menu_options[6][2][1][1] = icon_cross
-			else:
-				menu_options[6][2][1][1] = icon_check
-		for option_text, option_icon, option_action, option_id in menu_options[::-1]:
-			if option_icon:
-				option_icon = self.prep_menu_icon(option_icon)
-			if option_id in self.menu_actions_by_id:
-				item, _ = win32gui_struct.PackMENUITEMINFO(text=option_text, hbmpItem=option_icon, wID=option_id)
-				if option_text == '- - - - - -':
-					win32gui.InsertMenu(menu, 0, win32con.MF_SEPARATOR | win32con.MF_BYPOSITION, 0, None)
-				else:
-					win32gui.InsertMenuItem(menu, 0, 1, item)
-			else:
+	def _fill_menu(self, menu, items):
+		"""
+		It adds the entries to a native menu, with their current text, icon and state.
+
+		:param menu: The handle of the native menu
+		:param items: A list of MenuItem and MENU_SEPARATOR
+		"""
+		for item in reversed(items):  # each entry is inserted at the top of the menu
+			if item is MENU_SEPARATOR:
+				win32gui.InsertMenu(menu, 0, win32con.MF_SEPARATOR | win32con.MF_BYPOSITION, 0, None)
+				continue
+			icon = item.current_icon()
+			bitmap = self._menu_bitmap(icon) if icon else None
+			state = None if item.is_enabled() else win32con.MFS_GRAYED
+			if item.submenu is not None:
 				submenu = win32gui.CreatePopupMenu()
-				self.create_menu(submenu, option_action)
-				item, _ = win32gui_struct.PackMENUITEMINFO(text=option_text, hbmpItem=option_icon, hSubMenu=submenu)
-				if option_text == '- - - - - -':
-					win32gui.InsertMenu(menu, 0, win32con.MF_SEPARATOR | win32con.MF_BYPOSITION, 0, None)
-				else:
-					win32gui.InsertMenuItem(menu, 0, 1, item)
+				self._fill_menu(submenu, item.submenu)
+				menu_item_info, extras = win32gui_struct.PackMENUITEMINFO(
+					text=item.current_text(), hbmpItem=bitmap, hSubMenu=submenu, fState=state)
+			else:
+				item_id = self.FIRST_ID + len(self._actions_by_id)
+				self._actions_by_id[item_id] = item.action
+				menu_item_info, extras = win32gui_struct.PackMENUITEMINFO(
+					text=item.current_text(), hbmpItem=bitmap, wID=item_id, fState=state)
+			win32gui.InsertMenuItem(menu, 0, 1, menu_item_info)
 
-	def prep_menu_icon(self, icon):
-		# First load the icon.
+	def _menu_bitmap(self, icon):
+		"""
+		Returns the handle of the bitmap of an icon of the menu. Each icon is loaded once, then kept for the next menus.
+
+		:param icon: The path of the .ico file
+		"""
+		bitmap = self._menu_bitmaps.get(icon)
+		if bitmap is None:
+			bitmap = self._load_menu_bitmap(icon)
+			self._menu_bitmaps[icon] = bitmap  # keeps the bitmap object, so that its handle stays valid
+		return bitmap.GetHandle()
+
+	def _load_menu_bitmap(self, icon):
+		"""Returns a bitmap object with the icon drawn on the background color of the menus."""
 		ico_x = GetSystemMetrics(win32con.SM_CXSMICON)
 		ico_y = GetSystemMetrics(win32con.SM_CYSMICON)
-		hIcon = win32gui.LoadImage(0, icon, win32con.IMAGE_ICON, ico_x, ico_y, win32con.LR_LOADFROMFILE)
-		hwndDC = win32gui.GetWindowDC(self.hwnd)
-		dc = win32ui.CreateDCFromHandle(hwndDC)
-		memDC = dc.CreateCompatibleDC()
-		iconBitmap = win32ui.CreateBitmap()
-		iconBitmap.CreateCompatibleBitmap(dc, ico_x, ico_y)
-		oldBmp = memDC.SelectObject(iconBitmap)
+		hicon = win32gui.LoadImage(0, icon, win32con.IMAGE_ICON, ico_x, ico_y, win32con.LR_LOADFROMFILE)
+		hwnd_dc = win32gui.GetWindowDC(self.hwnd)
+		dc = win32ui.CreateDCFromHandle(hwnd_dc)
+		mem_dc = dc.CreateCompatibleDC()
+		icon_bitmap = win32ui.CreateBitmap()
+		icon_bitmap.CreateCompatibleBitmap(dc, ico_x, ico_y)
+		old_bitmap = mem_dc.SelectObject(icon_bitmap)
 		brush = win32gui.GetSysColorBrush(win32con.COLOR_MENU)
-		win32gui.FillRect(memDC.GetSafeHdc(), (0, 0, ico_x, ico_y), brush)
-		win32gui.DrawIconEx(memDC.GetSafeHdc(), 0, 0, hIcon, ico_x, ico_y, 0, 0, win32con.DI_NORMAL)
-		memDC.SelectObject(oldBmp)
-		memDC.DeleteDC()
-		win32gui.ReleaseDC(self.hwnd, hwndDC)
-		return iconBitmap.GetHandle()
-	
+		win32gui.FillRect(mem_dc.GetSafeHdc(), (0, 0, ico_x, ico_y), brush)
+		win32gui.DrawIconEx(mem_dc.GetSafeHdc(), 0, 0, hicon, ico_x, ico_y, 0, 0, win32con.DI_NORMAL)
+		mem_dc.SelectObject(old_bitmap)
+		mem_dc.DeleteDC()
+		win32gui.ReleaseDC(self.hwnd, hwnd_dc)
+		win32gui.DestroyIcon(hicon)
+		return icon_bitmap
+
 	def command(self, hwnd, msg, wparam, lparam):
-		print("command--->")
-		id = win32gui.LOWORD(wparam)
-		self.execute_menu_option(id)
-		print("<---command")
-
-	def execute_menu_option(self, id):
-		menu_action = self.menu_actions_by_id[id]
-		if menu_action == self.QUIT:
-			win32gui.DestroyWindow(self.hwnd)
-		else:
-			menu_action(self)
+		"""Called when an entry of the menu is clicked: it calls its action."""
+		action = self._actions_by_id.get(win32gui.LOWORD(wparam))
+		if action is not None:
+			action(self)
 
 
-def non_string_iterable(obj):
-	try:
-		iter(obj)
-	except TypeError:
-		return False
+class TrayIcons(object):
+	"""The paths of the icons of the tray icon and of its menu."""
+	def __init__(self, folder=ICONS_FOLDER):
+		"""
+		:param folder: The folder of the .ico files
+		"""
+		self.pywinauto_recorder = str(folder / "IconPyRec.ico")
+		self.record = str(folder / "record.ico")
+		self.stop = str(folder / "stop.ico")
+		self.play = str(folder / "play.ico")
+		self.folder = str(folder / "folder.ico")
+		self.search = str(folder / "search.ico")
+		self.light_on = str(folder / "light-on.ico")
+		self.settings = str(folder / "settings.ico")
+		self.check = str(folder / "check.ico")
+		self.cross = str(folder / "cross.ico")
+		self.power = str(folder / "power.ico")
+		self.help = str(folder / "help.ico")
+		self.comments = str(folder / "comments.ico")
+		self.favourite = str(folder / "favourite.ico")
+
+
+class ClipboardReplay(object):
+	"""
+	It replays the Python code of the clipboard in a thread, so that the tray menu keeps working during the replay.
+	"""
+	def __init__(self, recorder):
+		"""
+		:param recorder: The Recorder that replays the code: it displays the 'play' icon during the replay
+		"""
+		self.recorder = recorder
+		self._thread = None
+
+	def is_running(self):
+		"""Returns True while a replay is in progress."""
+		return self._thread is not None and self._thread.is_alive()
+
+	def start(self, code):
+		"""
+		It starts replaying Python code, unless a replay is already in progress.
+
+		:param code: The Python code to replay
+		:return: True if the replay was started, False if a replay is already in progress
+		"""
+		if self.is_running():
+			return False
+		self._thread = threading.Thread(
+			target=self.recorder.playback, kwargs={"str_code": code}, name="Pywinauto Recorder replay", daemon=True)
+		self._thread.start()
+		return True
+
+
+def toggle_recording(recorder):
+	"""It starts recording, or stops the recording in progress and writes the recorded script."""
+	if recorder.mode == RecorderMode.RECORD:
+		recorder.stop_recording()
 	else:
-		return not isinstance(obj, str)
+		recorder.start_recording()
+
+
+def show_about(recorder):
+	"""It stops the recorder, after writing the recording in progress, and displays the splash screen."""
+	if recorder.mode == RecorderMode.RECORD:
+		recorder.stop_recording()
+	recorder.mode = RecorderMode.STOP
+	display_splash_screen()
+
+
+def open_output_folder():
+	"""It opens the folder of the recorded scripts in the Windows Explorer, after creating it if needed."""
+	OUTPUT_FOLDER.mkdir(parents=True, exist_ok=True)
+	os.startfile(str(OUTPUT_FOLDER))
+
+
+def open_web_site():
+	"""It opens the web site of Pywinauto Recorder in the default browser."""
+	webbrowser.open(WEB_SITE)
+
+
+def build_menu(recorder, clipboard_replay, icons):
+	"""
+	Returns the entries of the tray menu.
+
+	Their texts, icons and states are evaluated each time the menu is displayed. During a replay of the clipboard,
+	the entries that would interfere with the replay are grayed, "Quit" included.
+
+	:param recorder: The Recorder
+	:param clipboard_replay: The ClipboardReplay
+	:param icons: The TrayIcons
+	:return: A list of MenuItem and MENU_SEPARATOR
+	"""
+	def no_replay():
+		return not clipboard_replay.is_running()
+
+	def recording():
+		return recorder.mode == RecorderMode.RECORD
+
+	def displaying_info():
+		return recorder.mode == RecorderMode.INFO
+
+	return [
+		MenuItem(
+			lambda: ("Stop recording" if recording() else "Start recording") + "\t\t" + HOTKEY_RECORD,
+			lambda: icons.stop if recording() else icons.record,
+			action=lambda tray: toggle_recording(recorder), enabled=no_replay),
+		MenuItem(
+			lambda: "Start replaying clipboard" if no_replay() else "Wait end of replay",
+			lambda: icons.play if no_replay() else icons.stop,
+			action=lambda tray: clipboard_replay.start(pyperclip.paste()), enabled=no_replay),
+		MenuItem(
+			lambda: ("Stop" if displaying_info() else "Start") + " displaying element information\t" + HOTKEY_ELEMENT_INFO,
+			lambda: icons.stop if displaying_info() else icons.search,
+			action=lambda tray: recorder.toggle_element_info(), enabled=no_replay),
+		MenuItem(
+			lambda: ("Stop" if recorder.smart_mode else "Start") + " Smart mode\t\t" + HOTKEY_SMART_MODE,
+			lambda: icons.stop if recorder.smart_mode else icons.light_on,
+			action=lambda tray: setattr(recorder, "smart_mode", not recorder.smart_mode), enabled=no_replay),
+		MENU_SEPARATOR,
+		MenuItem("Open output folder", icons.folder, action=lambda tray: open_output_folder()),
+		MenuItem("Process events", icons.settings, submenu=[
+			MenuItem(
+				"% relative coordinates", lambda: icons.check if recorder.relative_coordinate_mode else icons.cross,
+				action=lambda tray: setattr(recorder, "relative_coordinate_mode", not recorder.relative_coordinate_mode)),
+			MenuItem(
+				"menu_click", lambda: icons.check if recorder.process_menu_click_mode else icons.cross,
+				action=lambda tray: setattr(recorder, "process_menu_click_mode", not recorder.process_menu_click_mode)),
+			MenuItem("set_text (not implemented yet)", icons.cross, enabled=False),
+			MenuItem("set_combobox (not implemented yet)", icons.cross, enabled=False)]),
+		MENU_SEPARATOR,
+		MenuItem("Help", icons.help, submenu=[
+			MenuItem("About", icons.comments, action=lambda tray: show_about(recorder), enabled=no_replay),
+			MenuItem("Web site", icons.favourite, action=lambda tray: open_web_site())]),
+		MenuItem("Quit", icons.power, action=lambda tray: tray.quit(), enabled=no_replay),
+	]
 
 
 def overlay_add_pywinauto_recorder_icon(overlay, x, y):
@@ -518,99 +675,20 @@ def run_interactive(args):
 	:param args: The parsed command line arguments
 	:return: EXIT_OK
 	"""
-	# These names are used by SysTrayIcon
-	global recorder, icon_record, icon_stop, icon_play, icon_search, icon_light_on, icon_check, icon_cross, icon_power
 	recorder = Recorder()
 	if not args.no_splash_screen:
 		display_splash_screen()
-	path_icons = Path(__file__).parent.absolute() / Path("Icons")
-	# print("ICONS PATH: " + str(path_icons))
-	icon_pywinauto_recorder = str(path_icons / Path("IconPyRec.ico"))
-	icon_record = str(path_icons / Path("record.ico"))
-	icon_stop = str(path_icons / Path("stop.ico"))
-	icon_play = str(path_icons / Path("play.ico"))
-	icon_folder = str(path_icons / Path("folder.ico"))
-	icon_search = str(path_icons / Path("search.ico"))
-	icon_light_on = str(path_icons / Path("light-on.ico"))
-	icon_settings = str(path_icons / Path("settings.ico"))
-	icon_check = str(path_icons / Path("check.ico"))
-	icon_cross = str(path_icons / Path("cross.ico"))
-	icon_power = str(path_icons / Path("power.ico"))
-	icon_help = str(path_icons / Path("help.ico"))
-	icon_comments = str(path_icons / Path("comments.ico"))
-	icon_favourite = str(path_icons / Path("favourite.ico"))
-	hover_text = "Pywinauto recorder"
-	
-	def action_record(sys_tray_icon):
-		if recorder.mode == RecorderMode.RECORD:
-			recorder.stop_recording()
-		else:
-			recorder.start_recording()
+	icons = TrayIcons()
+	clipboard_replay = ClipboardReplay(recorder)
 
-	def action_replay(sys_tray_icon):
-		if recorder.mode != RecorderMode.PLAY:
-			recorder.playback(pyperclip.paste())
+	def double_click(tray):
+		if not clipboard_replay.is_running():
+			recorder.toggle_element_info()
 
-	def action_display_element_info(sys_tray_icon):
-		if recorder.mode == RecorderMode.STOP:
-			recorder.mode = RecorderMode.INFO
-		else:
-			recorder.mode = RecorderMode.STOP
-
-	def action_smart_mode(sys_tray_icon):
-		recorder.smart_mode = not recorder.smart_mode
-
-	def action_relative_coordinates(sys_tray_icon):
-		recorder.relative_coordinate_mode = not recorder.relative_coordinate_mode
-
-	def action_process_menu_click(sys_tray_icon):
-		recorder.process_menu_click_mode = not recorder.process_menu_click_mode
-
-	def action_open_explorer(sys_tray_icon):
-		pywinauto_recorder_path = Path.home() / Path("Pywinauto recorder")
-		os.system('explorer "' + str(pywinauto_recorder_path) + '"')
-
-	def action_display_help(sys_tray_icon):
-		recorder.mode = RecorderMode.STOP
-		display_splash_screen()
-
-	def action_display_web_site(sys_tray_icon):
-		os.system('rundll32 url.dll,FileProtocolHandler "https://pywinauto-recorder.readthedocs.io"')
-		
-	def hello(sys_tray_icon):
-		print("Menu 2")
-
-
-	menu_options = [['Start recording\t\tCTRL+ALT+R', icon_stop, action_record],
-	                ['Replay clipboard', icon_pywinauto_recorder, action_replay],
-	                ['Start displaying element info\tCTRL+SHIFT+D', icon_play, action_display_element_info],
-	                ['Start Smart mode\t\tCTRL+ALT+S', icon_stop, action_smart_mode],
-	                ['- - - - - -', None, hello],
-	                ['Open output folder', icon_folder, action_open_explorer],
-	                ['Process events', icon_settings, [
-		                ['% relative coordinates', icon_cross, action_relative_coordinates],
-		                ['menu_click', icon_cross, action_process_menu_click],
-		                ['set_text', icon_cross, hello],
-		                ['set_combobox', icon_cross, hello], ]],
-	                ['- - - - - -', None, hello],
-	                ['Help', icon_help, [
-		                ['About', icon_comments, action_display_help],
-		                ['Web site', icon_favourite, action_display_web_site], ]]
-	                ]
-	
-	def bye(sys_tray_icon):
-		print("bye---->")
-		recorder.quit()
-		while recorder.is_alive():
-			time.sleep(0.5)
-		print("Exit")
-		print("<----bye")
-
-	SysTrayIcon(icon_pywinauto_recorder, hover_text, menu_options, on_quit=bye, default_menu_index=2)
-	
-	while recorder.is_alive():
-		time.sleep(0.5)
-	print("Exit2")
+	tray = SysTrayIcon(
+		icons.pywinauto_recorder, "Pywinauto recorder", build_menu(recorder, clipboard_replay, icons),
+		on_quit=lambda tray: recorder.quit(), default_action=double_click)
+	tray.run()
 	return EXIT_OK
 
 

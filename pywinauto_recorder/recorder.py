@@ -564,6 +564,16 @@ def _overlay_add_mode_icon(main_overlay, hicon, x, y):
 		geometry=oaam.Shape.image, hicon=hicon, x=int(x+2), y=int(y+2))
 
 
+HOTKEY_RECORD = "CTRL+ALT+R"
+"""Keyboard shortcut that starts or stops the recording (handled by Recorder.__key_on)."""
+HOTKEY_SMART_MODE = "CTRL+ALT+S"
+"""Keyboard shortcut that starts or stops the Smart mode (handled by Recorder.__key_on)."""
+HOTKEY_ELEMENT_INFO = "CTRL+SHIFT+D"
+"""Keyboard shortcut that starts or stops displaying element information (handled by Recorder.__key_on)."""
+HOTKEY_COPY_CODE = "CTRL+SHIFT+F"
+"""Keyboard shortcut that copies the Python code finding the element to the clipboard (handled by Recorder.__key_on)."""
+
+
 class RecorderMode(str, Enum):
 	"""
 	The modes of the recorder.
@@ -711,10 +721,7 @@ class Recorder(Thread):
 			self.stop_recording()
 	
 	def __start_stop_displaying_info_by_key(self):
-		if self.mode == RecorderMode.INFO:
-			self.mode = RecorderMode.STOP
-		else:
-			self.mode = RecorderMode.INFO
+		self.toggle_element_info()
 			
 	def __display_found_element_by_key(self):
 		if self.last_element_event:
@@ -1095,6 +1102,19 @@ class Recorder(Thread):
 		"""
 		return self.last_element_event
 	
+	def toggle_element_info(self):
+		"""
+		It starts or stops displaying element information.
+
+		A recording in progress is stopped first with stop_recording(), so that the recorded script is written.
+		"""
+		if self.mode == RecorderMode.INFO:
+			self.mode = RecorderMode.STOP
+		else:
+			if self.mode == RecorderMode.RECORD:
+				self.stop_recording()
+			self.mode = RecorderMode.INFO
+
 	def playback(self, str_code='', filename=''):
 		"""
 		This function plays back a string of code or a Python file.

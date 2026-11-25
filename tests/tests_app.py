@@ -341,3 +341,291 @@ def test_shortcuts_are_ignored_during_a_replay(monkeypatch, key, pressed, action
 	recorder.Recorder._Recorder__key_on(playing, event)
 	assert playing.actions == []
 	assert playing.event_list == []
+
+
+################################################################################################
+#                                     Tray icon and its menu                                   #
+################################################################################################
+
+import threading
+
+
+class _FakeRecorderForMenu:
+	"""Replaces the Recorder in the tests of the menu: it records the calls of its methods."""
+	def __init__(self, mode=recorder.RecorderMode.STOP):
+		self.mode = mode
+		self.smart_mode = False
+		self.relative_coordinate_mode = False
+		self.process_menu_click_mode = False
+		self.calls = []
+
+	def start_recording(self):
+		self.calls.append("start_recording")
+		self.mode = recorder.RecorderMode.RECORD
+
+	def stop_recording(self):
+		self.calls.append("stop_recording")
+		self.mode = recorder.RecorderMode.STOP
+
+	def toggle_element_info(self):
+		self.calls.append("toggle_element_info")
+
+
+class _FakeClipboardReplay:
+	"""Replaces the ClipboardReplay in the tests of the menu."""
+	def __init__(self, running=False):
+		self.running = running
+		self.started = []
+
+	def is_running(self):
+		return self.running
+
+	def start(self, code):
+		self.started.append(code)
+		return True
+
+
+def _menu(recorder_=None, replay=None):
+	"""Returns the tray menu with fake recorder and replay, and the TrayIcons."""
+	icons = app.TrayIcons()
+	return app.build_menu(recorder_ or _FakeRecorderForMenu(), replay or _FakeClipboardReplay(), icons), icons
+
+
+def _entries(menu):
+	"""Returns the entries of a menu by text, without the shortcut: {"Start recording": MenuItem, ...}."""
+	return {item.current_text().split("\t")[0]: item for item in menu if item is not app.MENU_SEPARATOR}
+
+
+def test_menu_item_values_and_functions():
+	"""Tests that the text, icon and state of an entry can be values or functions evaluated when the menu is displayed."""
+	state = {"enabled": False}
+	item = app.MenuItem(lambda: "Text", "icon.ico", enabled=lambda: state["enabled"])
+	assert (item.current_text(), item.current_icon(), item.is_enabled()) == ("Text", "icon.ico", False)
+	state["enabled"] = True
+	assert item.is_enabled() is True
+	assert app.MenuItem("Text").is_enabled() is True
+
+
+def test_menu_when_the_recorder_is_stopped():
+	"""Tests the texts and icons of the menu when the recorder is stopped."""
+	menu, icons = _menu()
+	assert [item.current_text() if item is not app.MENU_SEPARATOR else None for item in menu] == [
+		"Start recording\t\t" + recorder.HOTKEY_RECORD,
+		"Start replaying clipboard",
+		"Start displaying element information\t" + recorder.HOTKEY_ELEMENT_INFO,
+		"Start Smart mode\t\t" + recorder.HOTKEY_SMART_MODE,
+		None, "Open output folder", "Process events", None, "Help", "Quit"]
+	assert [item.current_icon() for item in menu[:4]] == [icons.record, icons.play, icons.search, icons.light_on]
+	assert all(item.is_enabled() for item in menu if item is not app.MENU_SEPARATOR)
+
+
+def test_menu_depends_on_the_state_of_the_recorder():
+	"""Tests the texts and icons of the menu during a recording, the display of information and the Smart mode."""
+	fake_recorder = _FakeRecorderForMenu(recorder.RecorderMode.RECORD)
+	fake_recorder.smart_mode = True
+	menu, icons = _menu(fake_recorder)
+	entries = _entries(menu)
+	assert entries["Stop recording"].current_icon() == icons.stop
+	assert entries["Stop Smart mode"].current_icon() == icons.stop
+	fake_recorder.mode = recorder.RecorderMode.INFO
+	entries = _entries(menu)  # the same menu, displayed again
+	assert entries["Stop displaying element information"].current_icon() == icons.stop
+	assert "Start recording" in entries
+
+
+def test_menu_during_a_replay_of_the_clipboard():
+	"""
+	Tests that, during a replay of the clipboard, the entries that would interfere with the replay are grayed,
+	"Quit" included, and that the others stay enabled.
+	"""
+	menu, icons = _menu(replay=_FakeClipboardReplay(running=True))
+	entries = _entries(menu)
+	assert entries["Wait end of replay"].current_icon() == icons.stop
+	grayed = {text for text, item in entries.items() if not item.is_enabled()}
+	assert grayed == {"Start recording", "Wait end of replay", "Start displaying element information",
+	                  "Start Smart mode", "Quit"}
+	help_entries = _entries(entries["Help"].submenu)
+	assert not help_entries["About"].is_enabled()
+	assert help_entries["Web site"].is_enabled()
+	assert all(item.is_enabled() for item in entries["Process events"].submenu[:2])
+
+
+def test_menu_set_text_and_set_combobox_are_not_implemented_yet():
+	"""Tests that set_text and set_combobox are grayed entries that tell they are not implemented yet."""
+	menu, _ = _menu()
+	process_events = _entries(_entries(menu)["Process events"].submenu)
+	for name in ("set_text", "set_combobox"):
+		item = process_events[name + " (not implemented yet)"]
+		assert not item.is_enabled()
+		assert item.action is None
+
+
+def test_menu_process_events_toggles():
+	"""Tests the entries of 'Process events' that switch the processing of the recorded events."""
+	fake_recorder = _FakeRecorderForMenu()
+	menu, icons = _menu(fake_recorder)
+	process_events = _entries(menu)["Process events"].submenu
+	relative_coordinates, menu_click = process_events[0], process_events[1]
+	assert relative_coordinates.current_icon() == icons.cross
+	relative_coordinates.action(None)
+	assert fake_recorder.relative_coordinate_mode is True
+	assert relative_coordinates.current_icon() == icons.check
+	menu_click.action(None)
+	assert fake_recorder.process_menu_click_mode is True
+	assert menu_click.current_icon() == icons.check
+
+
+def test_menu_actions(monkeypatch, tmp_path):
+	"""Tests the actions of the entries of the menu."""
+	fake_recorder = _FakeRecorderForMenu()
+	replay = _FakeClipboardReplay()
+	menu, _ = _menu(fake_recorder, replay)
+	entries = _entries(menu)
+	entries["Start recording"].action(None)
+	assert fake_recorder.calls == ["start_recording"]
+	_entries(menu)["Stop recording"].action(None)
+	assert fake_recorder.calls == ["start_recording", "stop_recording"]
+
+	monkeypatch.setattr(app.pyperclip, "paste", lambda: "print('replayed')")
+	entries["Start replaying clipboard"].action(None)
+	assert replay.started == ["print('replayed')"]
+
+	entries["Start displaying element information"].action(None)
+	assert fake_recorder.calls[-1] == "toggle_element_info"
+
+	entries["Start Smart mode"].action(None)
+	assert fake_recorder.smart_mode is True
+
+	quit_calls = []
+	entries["Quit"].action(types.SimpleNamespace(quit=lambda: quit_calls.append("quit")))
+	assert quit_calls == ["quit"]
+
+
+def test_open_output_folder(monkeypatch, tmp_path):
+	"""Tests that 'Open output folder' creates the folder if needed and opens it."""
+	opened = []
+	output_folder = tmp_path / "Pywinauto recorder"
+	monkeypatch.setattr(app, "OUTPUT_FOLDER", output_folder)
+	monkeypatch.setattr(app.os, "startfile", lambda path: opened.append(path), raising=False)
+	app.open_output_folder()
+	assert output_folder.is_dir()
+	assert opened == [str(output_folder)]
+
+
+def test_open_web_site(monkeypatch):
+	"""Tests that 'Web site' opens the documentation in the default browser."""
+	opened = []
+	monkeypatch.setattr(app.webbrowser, "open", lambda url: opened.append(url))
+	app.open_web_site()
+	assert opened == ["https://pywinauto-recorder.readthedocs.io"]
+
+
+@pytest.mark.parametrize("mode, calls", [
+	(recorder.RecorderMode.RECORD, ["stop_recording"]), (recorder.RecorderMode.INFO, []), (recorder.RecorderMode.STOP, [])])
+def test_show_about_stops_the_recording_first(monkeypatch, mode, calls):
+	"""Tests that 'About' writes the recording in progress (stop_recording) before displaying the splash screen."""
+	splash_screens = []
+	monkeypatch.setattr(app, "display_splash_screen", lambda *args, **kwargs: splash_screens.append(args))
+	fake_recorder = _FakeRecorderForMenu(mode)
+	app.show_about(fake_recorder)
+	assert fake_recorder.calls == calls
+	assert fake_recorder.mode is recorder.RecorderMode.STOP
+	assert len(splash_screens) == 1
+
+
+@pytest.mark.parametrize("mode, calls, new_mode", [
+	(recorder.RecorderMode.STOP, [], recorder.RecorderMode.INFO),
+	(recorder.RecorderMode.INFO, [], recorder.RecorderMode.STOP),
+	(recorder.RecorderMode.RECORD, ["stop_recording"], recorder.RecorderMode.INFO),
+])
+def test_recorder_toggle_element_info(mode, calls, new_mode):
+	"""
+	Tests that displaying element information stops the recording in progress with stop_recording(), so that the
+	recorded script is written. Before, the recording was lost (menu and CTRL+SHIFT+D).
+	"""
+	fake_recorder = _FakeRecorderForMenu(mode)
+	recorder.Recorder.toggle_element_info(fake_recorder)
+	assert fake_recorder.calls == calls
+	assert fake_recorder.mode is new_mode
+
+
+class _BlockingRecorder:
+	"""A recorder whose replay lasts until 'finish' is set."""
+	def __init__(self):
+		self.finish = threading.Event()
+		self.codes = []
+
+	def playback(self, str_code='', filename=''):
+		self.codes.append(str_code)
+		self.finish.wait(5)
+		return True
+
+
+def test_clipboard_replay_runs_in_a_thread():
+	"""
+	Tests that the clipboard is replayed in a thread: start() returns at once, is_running() is True until the end of
+	the replay, and a second replay cannot start meanwhile.
+	"""
+	blocking_recorder = _BlockingRecorder()
+	replay = app.ClipboardReplay(blocking_recorder)
+	assert replay.is_running() is False
+	assert replay.start("first code") is True
+	assert replay.is_running() is True
+	assert replay.start("second code") is False
+	blocking_recorder.finish.set()
+	replay._thread.join(5)
+	assert replay.is_running() is False
+	assert blocking_recorder.codes == ["first code"]
+	assert replay.start("third code") is True
+	replay._thread.join(5)
+	assert blocking_recorder.codes == ["first code", "third code"]
+
+
+class _FakeWin32Gui:
+	"""Records the native menus built by SysTrayIcon._fill_menu."""
+	def __init__(self):
+		self.menus = {}
+
+	def CreatePopupMenu(self):
+		handle = 1000 + len(self.menus)
+		self.menus[handle] = []
+		return handle
+
+	def InsertMenu(self, menu, position, flags, item_id, text):
+		self.menus[menu].insert(position, "separator")
+
+	def InsertMenuItem(self, menu, position, by_position, menu_item_info):
+		self.menus[menu].insert(position, menu_item_info)
+
+	@staticmethod
+	def LOWORD(value):
+		return value & 0xFFFF
+
+
+def test_tray_menu_is_built_from_the_entries(monkeypatch):
+	"""Tests that the native menu has the current texts, the grayed state, the submenus, and calls the right actions."""
+	fake_win32gui = _FakeWin32Gui()
+	monkeypatch.setattr(app, "win32gui", fake_win32gui)
+	monkeypatch.setattr(app.win32gui_struct, "PackMENUITEMINFO", lambda **kwargs: (kwargs, None))
+	tray = object.__new__(app.SysTrayIcon)
+	tray._actions_by_id = {}
+	monkeypatch.setattr(tray, "_menu_bitmap", lambda icon: "bitmap of " + icon, raising=False)
+	clicked = []
+	items = [
+		app.MenuItem(lambda: "First", "first.ico", action=lambda tray_: clicked.append("first")),
+		app.MENU_SEPARATOR,
+		app.MenuItem("Submenu", None, submenu=[app.MenuItem("Grayed", enabled=False)]),
+		app.MenuItem("Last", action=lambda tray_: clicked.append("last")),
+	]
+	menu = fake_win32gui.CreatePopupMenu()
+	tray._fill_menu(menu, items)
+	entries = fake_win32gui.menus[menu]
+	assert [entry if entry == "separator" else entry["text"] for entry in entries] == ["First", "separator", "Submenu", "Last"]
+	assert entries[0]["hbmpItem"] == "bitmap of first.ico" and entries[0]["fState"] is None
+	submenu_entries = fake_win32gui.menus[entries[2]["hSubMenu"]]
+	assert submenu_entries[0]["text"] == "Grayed"
+	assert submenu_entries[0]["fState"] == app.win32con.MFS_GRAYED
+	tray.command(None, None, entries[3]["wID"], None)
+	tray.command(None, None, entries[0]["wID"], None)
+	tray.command(None, None, submenu_entries[0]["wID"], None)  # a grayed entry has no action
+	assert clicked == ["last", "first"]
