@@ -803,49 +803,6 @@ class Recorder(Thread):
 		elif self.mode == RecorderMode.RECORD:
 			self.event_list.append(e)
 
-
-	# Ne fonctionne pas dans tous les cas car un rectangle père n'englobe pas forcément un rectangle fils
-	# (par exemple un TreeItem) Mais peut être utilisé en ultime recours
-	'''
-	def my_from_point(self, x, y, wrapper=None):
-		def get_children_of_children_with_empty_rectangle(wrapper_children):
-			children_of_children_with_empty_rectangle = []
-			for child in wrapper_children:
-				child_rectangle = child.rectangle()
-				if child_rectangle.width() ==0 or child_rectangle.width()==0:
-					children_of_children_with_empty_rectangle += child.children()
-			return children_of_children_with_empty_rectangle
-		def get_children_of_children_not_in_parent_rectangle(wrapper_children):
-			children_of_children_with_empty_rectangle = []
-			for child in wrapper_children:
-				child_rectangle = child.rectangle()
-				grandchildren = child.children()
-				if grandchildren:
-					x = grandchildren[0].rectangle().left
-					y = grandchildren[0].rectangle().top
-					if not ((child_rectangle.left < x < child_rectangle.right) and (child_rectangle.top < y < child_rectangle.bottom)):
-						return grandchildren
-			return []
-		if not wrapper:
-			wrapper = self.desktop.top_from_point(x, y)
-		wrapper_children = wrapper.children()
-		for child in wrapper_children:
-			child_rectangle = child.rectangle()
-			if (child_rectangle.left < x < child_rectangle.right) and (child_rectangle.top < y < child_rectangle.bottom):
-				return self.my_from_point(x, y, wrapper=child)
-		for grandchild in get_children_of_children_with_empty_rectangle(wrapper_children):
-			child_rectangle = grandchild.rectangle()
-			if (child_rectangle.left < x < child_rectangle.right) and (child_rectangle.top < y < child_rectangle.bottom):
-				return self.my_from_point(x, y, wrapper=grandchild)
-			
-		for grandchild in get_children_of_children_not_in_parent_rectangle(wrapper_children):
-			child_rectangle = grandchild.rectangle()
-			if (child_rectangle.left < x < child_rectangle.right) and (child_rectangle.top < y < child_rectangle.bottom):
-				return self.my_from_point(x, y, wrapper=grandchild)
-
-		return wrapper
-	'''
-	
 	def run(self):
 		"""
 		The function is called in a loop, and it tries to find the unique element under the mouse cursor.

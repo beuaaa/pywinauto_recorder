@@ -8,8 +8,6 @@ import ast
 from pywinauto import Desktop as PywinautoDesktop
 from pywinauto.controls.uiawrapper import UIAWrapper
 from pywinauto import findwindows
-# from thefuzz import fuzz
-from .ocr_wrapper import find_all_ocr, OCRWrapper
 
 try:
 	from _ctypes import COMError  # raised by UI Automation, for example for an element that vanished
@@ -360,28 +358,8 @@ def filter_window_candidates(window_candidates):
 
 
 def find_ocr_elements(ocr_text, window, entry_list):
+	"""Returns the OCR_Text elements found with the path: none, because the OCR is disabled (see ocr_wrapper.py)."""
 	return []
-	'''
-	entry_list = entry_list[:-1]
-	title, control_type, _, _ = get_entry(entry_list[-1])
-	while entry_list[-1] == '*':
-		entry_list = entry_list[:-1]
-		title, control_type, _, _ = get_entry(entry_list[-1])
-	descendants = window.descendants(name=title, control_type=control_type)
-	candidates = list(filter(lambda e: match_entry_list(get_entry_list(get_wrapper_path(e, window)), entry_list), descendants))
-	ocr_candidates = []
-	if not candidates:
-		candidates = [window]
-	for wrapper in candidates:
-		results = find_all_ocr(wrapper)
-		for r in results:
-			if fuzz.partial_ratio(ocr_text, r[1]) > 90:
-				ocr_candidates.append(OCRWrapper(r))
-	perfect_candidate = [ocr_candidate for ocr_candidate in ocr_candidates if ocr_candidate.result[1] == ocr_text]
-	if len(perfect_candidate) == 1:
-		return perfect_candidate
-	return ocr_candidates
-	'''
 
 
 last_parent_element_info, last_parent_element_info_path = None, None
