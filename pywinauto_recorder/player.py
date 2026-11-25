@@ -1157,7 +1157,6 @@ def playback(str_code='', filename=''):
 	from ctypes import windll
 	import traceback
 	import os
-	import sys
 	import codecs
 	
 	if str_code == '' and os.path.isfile(filename):

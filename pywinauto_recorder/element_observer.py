@@ -5,7 +5,6 @@ from win32api import GetSystemMetrics, GetCursorPos
 from time import sleep
 from multiprocessing import Process, Event
 from pywinauto_recorder.recorder import IconSet, _find_common_path, _overlay_add_mode_icon
-import traceback
 
 wrapper_old_info_tip = None
 common_path_info_tip = ''
