@@ -228,14 +228,14 @@ class ElementInfoTooltip:
 		self.process.start()
 	
 	def show(self):
+		"""It displays the tooltip, with the information about the element under the mouse cursor."""
 		if not self.info_mode.is_set():
 			self.info_mode.set()
-			print("def show(self):")
 	
 	def hide(self):
+		"""It hides the tooltip."""
 		if self.info_mode.is_set():
 			self.info_mode.clear()
-			print("def hide(self):")
 	
 	def __del__(self):
 		self.info_mode_quit.set()
