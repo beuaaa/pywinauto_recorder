@@ -62,10 +62,10 @@ def test_find_elements_not_found():
 
 def test_find_elements_keywords_accepted():
 	# Same keyword combinations as core.find_elements()
-	findwindows.find_elements(name=UNLIKELY_NAME, control_type="Window", backend="uia", visible=True,
-	                          parent=None, top_level_only=True)
-	findwindows.find_elements(name_re=UNLIKELY_NAME, control_type="Window", backend="uia", visible=True,
-	                          parent=None, top_level_only=True)
+	findwindows.find_elements(
+		name=UNLIKELY_NAME, control_type="Window", backend="uia", visible=True, parent=None, top_level_only=True)
+	findwindows.find_elements(
+		name_re=UNLIKELY_NAME, control_type="Window", backend="uia", visible=True, parent=None, top_level_only=True)
 
 
 def test_element_info_properties_used_by_recorder():

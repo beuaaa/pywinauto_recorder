@@ -29,5 +29,6 @@ html_theme = 'sphinx_rtd_theme'
 
 # General information about the project.
 project = u'pywinauto_recorder'
-copyright = u"2022, David Pratmarty"
+# The name of this setting of Sphinx is also the name of a built-in function of Python
+copyright = u"2022, David Pratmarty"  # pylint: disable=redefined-builtin
 author = u"David Pratmarty"

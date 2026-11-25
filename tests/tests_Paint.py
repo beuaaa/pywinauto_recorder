@@ -57,9 +57,10 @@ def test_recorder_mouse_move(start_kill_app):
 	recorder.start_recording()
 	time.sleep(2.0)
 	
+	# Bandit B311 (pseudo-random generator): random positions on the canvas, not a security feature
 	for _ in range(9):
-		x0 = random.randint(wrapper.rectangle().left+22, wrapper.rectangle().right-22)
-		y0 = random.randint(wrapper.rectangle().top+22, wrapper.rectangle().bottom-22)
+		x0 = random.randint(wrapper.rectangle().left+22, wrapper.rectangle().right-22)  # nosec B311
+		y0 = random.randint(wrapper.rectangle().top+22, wrapper.rectangle().bottom-22)  # nosec B311
 		move((x0, y0), duration=0)
 		x, y = win32api.GetCursorPos()
 		assert (x, y) == (x0, y0)
@@ -74,8 +75,8 @@ def test_recorder_mouse_move(start_kill_app):
 		assert (x, y) == (x0, y0)
 		
 		win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0)
-		x1 = random.randint(wrapper.rectangle().left + 22, wrapper.rectangle().right - 22)
-		y1 = random.randint(wrapper.rectangle().top + 22, wrapper.rectangle().bottom - 22)
+		x1 = random.randint(wrapper.rectangle().left + 22, wrapper.rectangle().right - 22)  # nosec B311
+		y1 = random.randint(wrapper.rectangle().top + 22, wrapper.rectangle().bottom - 22)  # nosec B311
 		move((x1, y1), duration=0.4)  # This duration is mandatory for the recorder
 		time.sleep(0.6)   # This pause is mandatory for the recorder
 		win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0)
@@ -97,7 +98,8 @@ def test_recorder_mouse_move(start_kill_app):
 	
 	# Now the lines are covered in white using the previously recorded drag and drops
 	compiled_code = compile(data, '<string>', 'exec')
-	eval(compiled_code)
+	# Bandit B102 (use of exec): the test plays back the script it has just recorded
+	exec(compiled_code)  # nosec B102  # pylint: disable=exec-used
 	os.remove(recorded_file)
 	send_keys("{VK_CONTROL down}s{VK_CONTROL up}")
 	recorded_image = str(recorded_file).replace('.py', '.png')

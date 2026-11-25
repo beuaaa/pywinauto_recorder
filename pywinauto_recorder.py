@@ -23,7 +23,6 @@ def clear_comtypes_cache_after_update():
 	It must be called before pywinauto, and so comtypes, is imported.
 	"""
 	import shutil
-	import sys
 	import tempfile
 	exe_path = os.path.abspath(sys.executable)
 	try:

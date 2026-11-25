@@ -12,7 +12,8 @@
 
 __version__ = "1.0.0.dev0"
 
-from .player import *
-from .recorder import Recorder, RecorderMode
+# The API of the package: the functions of the player, and the recorder
+from .player import *  # noqa: F401,F403
+from .recorder import Recorder, RecorderMode  # noqa: F401
 
 

@@ -219,10 +219,11 @@ class SysTrayIcon(object):
 
 		# The handlers return 0, the result of the window procedure: recent versions of pywin32 refuse None, and print
 		# "WNDPROC return value cannot be converted to LRESULT"
-		message_map = {win32gui.RegisterWindowMessage("TaskbarCreated"): self.restart,
-		               win32con.WM_DESTROY: self.destroy,
-		               win32con.WM_COMMAND: self.command,
-		               self._WM_NOTIFY_ICON: self.notify}
+		message_map = {
+			win32gui.RegisterWindowMessage("TaskbarCreated"): self.restart,
+			win32con.WM_DESTROY: self.destroy,
+			win32con.WM_COMMAND: self.command,
+			self._WM_NOTIFY_ICON: self.notify}
 		# Register the Window class.
 		window_class = win32gui.WNDCLASS()
 		hinst = window_class.hInstance = win32gui.GetModuleHandle(None)
@@ -234,8 +235,8 @@ class SysTrayIcon(object):
 		class_atom = win32gui.RegisterClass(window_class)
 		# Create the Window.
 		style = win32con.WS_OVERLAPPED | win32con.WS_SYSMENU
-		self.hwnd = win32gui.CreateWindow(class_atom, window_class_name, style, 0, 0,
-		                                  win32con.CW_USEDEFAULT, win32con.CW_USEDEFAULT, 0, 0, hinst, None)
+		self.hwnd = win32gui.CreateWindow(
+			class_atom, window_class_name, style, 0, 0, win32con.CW_USEDEFAULT, win32con.CW_USEDEFAULT, 0, 0, hinst, None)
 		win32gui.UpdateWindow(self.hwnd)
 		self.notify_id = None
 		self.refresh_icon()
@@ -261,8 +262,9 @@ class SysTrayIcon(object):
 			message = win32gui.NIM_MODIFY
 		else:
 			message = win32gui.NIM_ADD
-		self.notify_id = (self.hwnd, 0, win32gui.NIF_ICON | win32gui.NIF_MESSAGE | win32gui.NIF_TIP,
-		                  self._WM_NOTIFY_ICON, hicon, self.hover_text)
+		self.notify_id = (
+			self.hwnd, 0, win32gui.NIF_ICON | win32gui.NIF_MESSAGE | win32gui.NIF_TIP, self._WM_NOTIFY_ICON, hicon,
+			self.hover_text)
 		win32gui.Shell_NotifyIcon(message, self.notify_id)
 
 	def restart(self, hwnd, msg, wparam, lparam):
@@ -322,13 +324,14 @@ class SysTrayIcon(object):
 			if item.submenu is not None:
 				submenu = win32gui.CreatePopupMenu()
 				self._fill_menu(submenu, item.submenu)
-				menu_item_info, extras = win32gui_struct.PackMENUITEMINFO(
+				menu_item_info, _extras = win32gui_struct.PackMENUITEMINFO(
 					text=item.current_text(), hbmpItem=bitmap, hSubMenu=submenu, fState=state)
 			else:
 				item_id = self.FIRST_ID + len(self._actions_by_id)
 				self._actions_by_id[item_id] = item.action
-				menu_item_info, extras = win32gui_struct.PackMENUITEMINFO(
+				menu_item_info, _extras = win32gui_struct.PackMENUITEMINFO(
 					text=item.current_text(), hbmpItem=bitmap, wID=item_id, fState=state)
+			# _extras keeps the buffers used by menu_item_info, like its text, until the entry is inserted
 			win32gui.InsertMenuItem(menu, 0, 1, menu_item_info)
 
 	def _menu_bitmap(self, icon):
@@ -442,7 +445,8 @@ def show_about(recorder):
 def open_output_folder():
 	"""It opens the folder of the recorded scripts in the Windows Explorer, after creating it if needed."""
 	OUTPUT_FOLDER.mkdir(parents=True, exist_ok=True)
-	os.startfile(str(OUTPUT_FOLDER))
+	# Bandit B606 (process started without a shell): startfile is how Windows opens a folder in the Explorer
+	os.startfile(str(OUTPUT_FOLDER))  # nosec B606
 
 
 def open_web_site():
@@ -526,7 +530,8 @@ def get_latest_version(timeout=VERSION_CHECK_TIMEOUT):
 		content...)
 	"""
 	try:
-		with urllib.request.urlopen(LATEST_VERSION_URL, timeout=timeout) as response:
+		# Bandit B310 (URL schemes such as file:/ allowed): the URL is the constant https address LATEST_VERSION_URL
+		with urllib.request.urlopen(LATEST_VERSION_URL, timeout=timeout) as response:  # nosec B310
 			text = response.read().decode('utf-8')
 		version = text.split('ProductVersion')[1].split('"')[2].strip()
 	except Exception:
@@ -567,11 +572,14 @@ def version_messages(installed_version, latest_version):
 	if version_key(installed_version) == version_key(latest_version):
 		return "Your Pywinauto recorder is up to date.", version_line
 	if version_key(installed_version) < version_key(latest_version):
-		return ("Pywinauto recorder v" + latest_version + " is available!",
-		        'Your version of Pywinauto recorder (' + installed_version + ') is not up to date (' +
-		        latest_version + ' is available!)')
-	return ("Your Pywinauto recorder " + installed_version + " is newer than the latest published version (" +
-	        latest_version + ")."), version_line
+		return (
+			"Pywinauto recorder v" + latest_version + " is available!",
+			'Your version of Pywinauto recorder (' + installed_version + ') is not up to date (' + latest_version +
+			' is available!)')
+	console_message = (
+		"Your Pywinauto recorder " + installed_version + " is newer than the latest published version (" +
+		latest_version + ").")
+	return console_message, version_line
 
 
 @functools.lru_cache(maxsize=None)

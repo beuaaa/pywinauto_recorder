@@ -50,13 +50,14 @@ class FailedSearch(PywinautoRecorderException):
 	...
 
 
-__all__ = ['PlayerSettings', 'MoveMode', 'ButtonLocation', 'load_dictionary', 'shortcut', 'full_definition', 'UIPath',
-           'Window', 'Region', 'find', 'find_all', 'move_window', 'move', 'click', 'left_click', 'right_click',
-           'double_left_click', 'triple_left_click', 'double_click', 'triple_click',
-           'drag_and_drop', 'middle_drag_and_drop', 'right_drag_and_drop', 'menu_click',
-           'mouse_wheel', 'send_keys', 'set_combobox', 'set_text', 'exists', 'select_file', 'playback',
-           'find_cache_clear', 'UIApplication', 'start_application', 'connect_application', 'focus_on_application',
-           'find_main_windows', 'kill_application', 'FailedSearch']
+__all__ = [
+	'PlayerSettings', 'MoveMode', 'ButtonLocation', 'load_dictionary', 'shortcut', 'full_definition', 'UIPath',
+	'Window', 'Region', 'find', 'find_all', 'move_window', 'move', 'click', 'left_click', 'right_click',
+	'double_left_click', 'triple_left_click', 'double_click', 'triple_click',
+	'drag_and_drop', 'middle_drag_and_drop', 'right_drag_and_drop', 'menu_click',
+	'mouse_wheel', 'send_keys', 'set_combobox', 'set_text', 'exists', 'select_file', 'playback',
+	'find_cache_clear', 'UIApplication', 'start_application', 'connect_application', 'focus_on_application',
+	'find_main_windows', 'kill_application', 'FailedSearch']
 
 
 # TODO special_char_array in core for recorder.py and player.py (check when to call escape & unescape)
@@ -134,9 +135,6 @@ class ButtonLocation(Enum):
 
 
 _dictionary = {}
-unique_element_old = None
-element_path_old = ''
-w_rOLD = None
 
 
 def load_dictionary(filename_key: str, filename_def: str,encoding: str = 'utf8') -> None:
@@ -290,13 +288,14 @@ class UIPath(object):
 			UIPath._path_list.append(self.relative_path)
 		return self
 	
-	def __exit__(self, type, value, traceback):
+	def __exit__(self, exc_type, exc_value, exc_traceback):
 		if self.relative_path:
 			UIPath._path_list = UIPath._path_list[0:-1]
 		# Only the UIPath that saved the path in __enter__ (absolute_path=True) restores it.
 		# A UIPath nested in it must not: it would restore the outer path too early.
 		if self.absolute_path:
 			UIPath._path_list = UIPath._stack.pop()
+
 
 Window = UIPath
 Region = UIPath
@@ -333,6 +332,19 @@ def _index_out_of_range_message(full_element_path, y_x, candidates):
 		rows = "no row, because none of them is visible"
 	return "The index [" + str(y_x[0]) + "," + str(y_x[1]) + "] of the UIPath '" + full_element_path + \
 		"' is out of range: the elements found are arranged in " + rows + "."
+
+
+def _find_elements_or(full_element_path, default):
+	"""
+	Returns the elements found with full_element_path, or default if the search raises an exception.
+
+	The search raises an exception when the user interface changes during the search: for example, when an element
+	that was found vanishes before its information is read.
+	"""
+	try:
+		return find_elements(full_element_path)
+	except Exception:
+		return default
 
 
 def find_cache_clear():
@@ -426,10 +438,7 @@ def _find(
 		# (for example a window that is closing while another one is opening).
 		# The pause between two searches is shortened at the end, so that the last search is done at the timeout.
 		time.sleep(min(_SEARCH_AGAIN_PAUSE, max(0.0, timeout - (time.time() - t0))))
-		try:
-			elements = find_elements(full_element_path)
-		except Exception:
-			pass  # keep the elements of the previous search
+		elements = _find_elements_or(full_element_path, elements)  # the previous elements if the search fails
 
 	if index_error_message:
 		raise FailedSearch(index_error_message)
@@ -548,22 +557,21 @@ def find_all(
 		return find(element_path, timeout=timeout)
 	t0 = time.time()
 	while (time.time() - t0) < timeout:
-		try:
-			elements = find_elements(full_element_path)
-			if elements:
-				return elements
-			time.sleep(2.0)
-		except Exception:
-			pass
+		elements = _find_elements_or(full_element_path, None)
+		if elements:
+			return elements
+		if elements is not None:
+			time.sleep(2.0)  # no element found: the next search is done later than after an error of the search
 		time.sleep(0.1)
 	return []
 
 
-def move_window(element_path: Optional[UI_Selector] = None,
-                x: Optional[int] = 0,
-                y: Optional[int] = 0,
-                width: Optional[int] = 0,
-                height: Optional[int] = 0):
+def move_window(
+		element_path: Optional[UI_Selector] = None,
+		x: Optional[int] = 0,
+		y: Optional[int] = 0,
+		width: Optional[int] = 0,
+		height: Optional[int] = 0):
 	"""
 	Moves and resizes a window
 
@@ -766,20 +774,19 @@ def click(
 		else:
 			wrapper.click_input()
 		return wrapper
-	elif wait_ready and \
-			(element_path is None or isinstance(element_path, str) or isinstance(element_path, pywinauto.base_wrapper.BaseWrapper)):
-				use_cache_old = PlayerSettings.use_cache
-				PlayerSettings.use_cache = False
-				try:
-					# if isinstance(element_path, pywinauto.base_wrapper.BaseWrapper):
-					#	wrapper = element_path
-					wrapper = move(element_path, duration=duration, mode=mode, timeout=timeout)
-					wait_is_ready_try1(wrapper, timeout=timeout)
-				finally:
-					# Restore the cache setting even if the element is not found or never ready
-					PlayerSettings.use_cache = use_cache_old
-	else:
+	elif wait_ready and (
+			element_path is None or isinstance(element_path, str) or
+			isinstance(element_path, pywinauto.base_wrapper.BaseWrapper)):
+		use_cache_old = PlayerSettings.use_cache
+		PlayerSettings.use_cache = False
+		try:
 			wrapper = move(element_path, duration=duration, mode=mode, timeout=timeout)
+			wait_is_ready_try1(wrapper, timeout=timeout)
+		finally:
+			# Restore the cache setting even if the element is not found or never ready
+			PlayerSettings.use_cache = use_cache_old
+	else:
+		wrapper = move(element_path, duration=duration, mode=mode, timeout=timeout)
 	_win32api_mouse_click(button, click_count)
 	return wrapper
 
@@ -937,8 +944,9 @@ def menu_click(
 				time.sleep(1)
 				ws = find_all(menu_item_path, timeout=timeout)
 			if not ws:
-				raise FailedSearch("No menu item found with the UIPath '" + UIPath.get_full_path(menu_item_path) +
-				                   "' while clicking on the menu '" + menu_path + "'.")
+				raise FailedSearch(
+					"No menu item found with the UIPath '" + UIPath.get_full_path(menu_item_path) +
+					"' while clicking on the menu '" + menu_path + "'.")
 			ws.sort(key=lambda w: distance(w.rectangle().mid_point(), mouse_cursor_pos))
 			w = ws[0]
 			if i == 0:
@@ -1167,7 +1175,8 @@ def playback(str_code='', filename=''):
 		os.chdir(os.path.abspath(script_dir))
 		sys.path.append(script_dir)
 		compiled_code = compile(str_code, filename, 'exec')
-		exec(compiled_code)
+		# Bandit B102 (use of exec): playing back a script is running it. The script comes from the caller.
+		exec(compiled_code)  # nosec B102  # pylint: disable=exec-used
 		return True
 	except Exception:
 		windll.user32.ShowWindow(windll.kernel32.GetConsoleWindow(), 3)
@@ -1254,12 +1263,23 @@ def _candidate_pids(launcher_pid, exe_name, t_start):
 		pass  # the launcher has already exited
 	if exe_name:
 		for process in psutil.process_iter(["name", "create_time"]):
-			try:
-				if (process.info["name"] or "").lower() == exe_name and process.info["create_time"] >= t_start - 1:
-					pids.add(process.pid)
-			except Exception:
-				pass
+			if _is_instance_started_after(process, exe_name, t_start):
+				pids.add(process.pid)
 	return pids
+
+
+def _is_instance_started_after(process, exe_name, t_start):
+	"""
+	Returns True if the process is an instance of the executable exe_name started after t_start (or 1 s before).
+
+	:param process: A psutil.Process returned by psutil.process_iter, with the information "name" and "create_time"
+	:param exe_name: The lowercase file name of the executable
+	:param t_start: The time when the application was started
+	"""
+	try:
+		return (process.info["name"] or "").lower() == exe_name and process.info["create_time"] >= t_start - 1
+	except Exception:
+		return False  # for example create_time is None, because the access to the process is denied
 
 
 def _is_running(pid):
@@ -1278,6 +1298,15 @@ def _process_name(pid):
 		return ""
 
 
+def _window_process_id(handle):
+	"""Returns the ID of the process that owns a window, or None if the window has been destroyed in the meantime."""
+	try:
+		_, pid = win32process_GetWindowThreadProcessId(handle)
+	except Exception:
+		return None
+	return pid
+
+
 def _new_windows_of_application(launcher_pid, exe_name, t_start, windows_before, title_re=None):
 	"""
 	Returns the handles of the visible top level windows that appeared since the application was started
@@ -1293,13 +1322,10 @@ def _new_windows_of_application(launcher_pid, exe_name, t_start, windows_before,
 	pids = _candidate_pids(launcher_pid, exe_name, t_start)
 	new_windows = []
 	for handle in _visible_top_windows(title_re):
-		if handle in windows_before:
-			continue
-		try:
-			_, pid = win32process_GetWindowThreadProcessId(handle)
-		except Exception:
-			continue  # the window has been destroyed in the meantime
-		new_windows.append((handle, pid))
+		if handle not in windows_before:
+			pid = _window_process_id(handle)
+			if pid is not None:
+				new_windows.append((handle, pid))
 	candidates = [handle for handle, pid in new_windows if pid in pids]
 	if not candidates and not _is_running(launcher_pid):
 		# UWP application (the Calculator...): the launcher exits at once, and the main window belongs to
@@ -1323,8 +1349,9 @@ def _start_application_with_main_window_uipath(cmd_line, timeout, wait_for_idle,
 	diff = set(window_candidates_2) - set(window_candidates_1)
 	while not diff:
 		if (time.time() - t0) >= timeout:
-			raise TimeoutError("No new window appeared " + str(timeout) + " s after starting '" + str(cmd_line) + "'. " +
-			                   "Increase the 'timeout' parameter if the application is slow to start.")
+			raise TimeoutError(
+				"No new window appeared " + str(timeout) + " s after starting '" + str(cmd_line) + "'. " +
+				"Increase the 'timeout' parameter if the application is slow to start.")
 		time.sleep(1)
 		window_candidates_2 = desktop.windows()
 		diff = set(window_candidates_2) - set(window_candidates_1)
@@ -1371,9 +1398,10 @@ def start_application(cmd_line, timeout=10, wait_for_idle=True, main_window_uipa
 		if candidates:
 			break
 		if time.time() >= deadline:
-			raise TimeoutError("No window of '" + str(cmd_line) + "' appeared " + str(timeout) + " s after it was started. " +
-			                   "Increase the 'timeout' parameter if the application is slow to start" +
-			                   (", or check the 'title_re' parameter." if title_re is not None else "."))
+			raise TimeoutError(
+				"No window of '" + str(cmd_line) + "' appeared " + str(timeout) + " s after it was started. " +
+				"Increase the 'timeout' parameter if the application is slow to start" +
+				(", or check the 'title_re' parameter." if title_re is not None else "."))
 		time.sleep(1)
 
 	native_window_handle = candidates[0]

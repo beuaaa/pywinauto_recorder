@@ -18,10 +18,9 @@ from enum import Enum
 import pyperclip
 import codecs
 from .core import path_separator, type_separator, Strategy, is_int, \
-                    get_wrapper_path, get_entry_list, get_entry, get_sorted_region, \
-                    read_config_file, set_native_window_handle
+	get_wrapper_path, get_entry_list, get_entry, get_sorted_region, \
+	read_config_file, set_native_window_handle
 from .core import find_elements as not_ttl_cached_find_elements
-#from .core import find_elements
 from .player import playback
 from cachetools import func
 
@@ -73,6 +72,24 @@ def _compute_dx_dy(x, y, rectangle):
 	return (dx, dy)
 
 
+def _relative_coordinates(dx, dy, relative_coordinate_mode):
+	"""
+	Returns the relative coordinates written after the path of an element in the scripts: "%(dx,dy)".
+
+	The coordinates are written in percent, with 2 decimals. Nothing is written when relative_coordinate_mode is False,
+	or when one of the written coordinates is 0.
+
+	:param dx: The horizontal coordinate, relative to the center of the element (-1 and 1 are its left and right sides)
+	:param dy: The vertical coordinate, relative to the center of the element (-1 and 1 are its top and bottom sides)
+	:param relative_coordinate_mode: True if the relative coordinates are recorded
+	:return: "%(dx,dy)", or "" if no coordinates are written
+	"""
+	str_dx, str_dy = "{:.2f}".format(round(dx * 100, 2)), "{:.2f}".format(round(dy * 100, 2))
+	if relative_coordinate_mode and float(str_dx) != 0 and float(str_dy) != 0:
+		return '%(' + str_dx + ',' + str_dy + ')'
+	return ''
+
+
 def _write_in_file(events, relative_coordinate_mode=False):
 	from pathlib import Path
 	home_dir = Path.home() / 'Pywinauto recorder'
@@ -114,42 +131,31 @@ def _write_in_file(events, relative_coordinate_mode=False):
 				script += 'mouse_wheel(' + str(e_i.delta) + ')\n'
 			elif isinstance(e_i, DragAndDropEvent):
 				p1, p2 = e_i.path, e_i.path2
-				dx1, dy1 = "{:.2f}".format(round(e_i.dx1 * 100, 2)), "{:.2f}".format(round(e_i.dy1 * 100, 2))
-				dx2, dy2 = "{:.2f}".format(round(e_i.dx2 * 100, 2)), "{:.2f}".format(round(e_i.dy2 * 100, 2))
 				if common_path:
 					p1 = _get_relative_path(common_path, p1)
 					p2 = _get_relative_path(common_path, p2)
 				script += 'drag_and_drop(u"' + _escape_special_char(p1)
-				if relative_coordinate_mode and eval(dx1) != 0 and eval(dy1) != 0:
-					script += '%(' + dx1 + ',' + dy1 + ')'
+				script += _relative_coordinates(e_i.dx1, e_i.dy1, relative_coordinate_mode)
 				script += '", u"' + _escape_special_char(p2)
-				if relative_coordinate_mode and eval(dx2) != 0 and eval(dy2) != 0:
-					script += '%(' + dx2 + ',' + dy2 + ')'
+				script += _relative_coordinates(e_i.dx2, e_i.dy2, relative_coordinate_mode)
 				script += '")\n'
 			elif isinstance(e_i, ClickEvent):
 				p = e_i.path
-				dx, dy = "{:.2f}".format(round(e_i.dx * 100, 2)), "{:.2f}".format(round(e_i.dy * 100, 2))
 				if common_path:
 					p = _get_relative_path(common_path, p)
 				str_c = ['', '', 'double_', 'triple_']
 				if e_i.button == 'left':
-					if e_i.count == 1:
-						script += 'click(u"' + _escape_special_char(p)
-					else:
-						script += str_c[e_i.click_count] + 'click(u"' + _escape_special_char(p)
+					script += str_c[e_i.click_count] + 'click(u"' + _escape_special_char(p)
 				else:
 					script += str_c[e_i.click_count] + e_i.button + '_click(u"' + _escape_special_char(p)
-				if relative_coordinate_mode and eval(dx) != 0 and eval(dy) != 0:
-					script += '%(' + dx + ',' + dy + ')'
+				script += _relative_coordinates(e_i.dx, e_i.dy, relative_coordinate_mode)
 				script += '")\n'
 			elif isinstance(e_i, FindEvent):
 				p = e_i.path
-				dx, dy = "{:.2f}".format(round(e_i.dx * 100, 2)), "{:.2f}".format(round(e_i.dy * 100, 2))
 				if common_path:
 					p = _get_relative_path(common_path, p)
 				script += 'wrapper = find(u"' + _escape_special_char(p)
-				if relative_coordinate_mode and eval(dx) != 0 and eval(dy) != 0:
-					script += '%(' + dx + ',' + dy + ')'
+				script += _relative_coordinates(e_i.dx, e_i.dy, relative_coordinate_mode)
 				script += '")\n'
 			elif isinstance(e_i, MenuEvent):
 				script += 'menu_click(u"' + _escape_special_char(e_i.menu_path) + '")\n'
@@ -181,14 +187,11 @@ def _clean_events(events, remove_first_up=False):
 	i = 0
 	previous_event_type = None
 	while i < len(events):
-		if type(events[i]) is previous_event_type:
-			if type(events[i]) in (ElementEvent, mouse.MoveEvent):
-				del events[i - 1]
-			else:
-				previous_event_type = type(events[i])
-				i = i + 1
+		event_type = type(events[i])
+		if event_type is previous_event_type and event_type in (ElementEvent, mouse.MoveEvent):
+			del events[i - 1]  # only the last of consecutive element events, or of consecutive mouse moves, is kept
 		else:
-			previous_event_type = type(events[i])
+			previous_event_type = event_type
 			i = i + 1
 	i = len(events) - 1
 	while i > 0:
@@ -763,15 +766,12 @@ class Recorder(Thread):
 			x, y = win32api.GetCursorPos()
 			l_e_e = self.last_element_event
 			dx, dy = _compute_dx_dy(x, y, l_e_e.rectangle)
-			str_dx, str_dy = "{:.2f}".format(round(dx * 100, 2)), "{:.2f}".format(round(dy * 100, 2))
 			i = l_e_e.path.find(path_separator)
 			window_title = l_e_e.path[0:i]
-			# element_path = l_e_e.path[i+len(path_separator):]
 			p = _get_relative_path(window_title, l_e_e.path)
 			code = 'with UIPath(u"' + _escape_special_char(window_title) + '"):\n'
 			code += '\twrapper = find(u"' + _escape_special_char(p)
-			if self.relative_coordinate_mode and eval(str_dx) != 0 and eval(str_dy) != 0:
-				code += '%(' + str_dx + ',' + str_dy + ')'
+			code += _relative_coordinates(dx, dy, self.relative_coordinate_mode)
 			code += '")\n'
 			code += '\twrapper.draw_outline()\n'
 			pyperclip.copy(code)
@@ -817,13 +817,14 @@ class Recorder(Thread):
 		keyboard.hook(self.__key_on)
 		mouse.hook(self.__mouse_on)
 		if not keyboard_hooks_work():
-			print("Warning: the keyboard hooks do not work. The keyboard shortcuts and the recording of the keyboard are "
-			      "not available: use the menu of the tray icon, or restart Pywinauto Recorder.")
+			print(
+				"Warning: the keyboard hooks do not work. The keyboard shortcuts and the recording of the keyboard are "
+				"not available: use the menu of the tray icon, or restart Pywinauto Recorder.")
 		elements = []
 		i = 0
 		previous_wrapper_path = None
 		unique_wrapper_path = None
-		strategies = [Strategy.unique_path, Strategy.array_2D, Strategy.array_1D]
+		strategies = [Strategy.unique_path, Strategy.array_2d, Strategy.array_1d]
 		i_strategy = 0
 		if self.mode == RecorderMode.INITIALIZING:
 			# a replay of a file, or quit(), may have set the mode while the recorder was initializing
@@ -842,22 +843,20 @@ class Recorder(Thread):
 				if wrapper is None:
 					time.sleep(0.01)
 					continue
-				
-				""" """
+
 				window = wrapper
 				while window.parent() is not None and window.parent().parent() is not None:
 					window = window.parent()
 				set_native_window_handle(window.handle)
-				""" """
-				
+
 				wrapper_path = get_wrapper_path(wrapper)
 				if not wrapper_path:
 					time.sleep(0.01)
 					continue
 				if wrapper_path == previous_wrapper_path:
-					if (unique_wrapper_path is None) or (strategies[i_strategy] == Strategy.array_2D):
+					if (unique_wrapper_path is None) or (strategies[i_strategy] == Strategy.array_2d):
 						i_strategy = i_strategy + 1
-						if (not self.smart_mode) and (strategies[i_strategy] == Strategy.array_1D):
+						if (not self.smart_mode) and (strategies[i_strategy] == Strategy.array_1d):
 							i_strategy = 1
 						if i_strategy >= len(strategies):
 							i_strategy = len(strategies) - 1
@@ -890,7 +889,7 @@ class Recorder(Thread):
 						for e in elements:
 							self.__overlay_add_bold_rectangle(e.rectangle(), color=(255, 0, 0))
 
-				if strategy == Strategy.array_1D and elements:
+				if strategy == Strategy.array_1d and elements:
 					x_new, y_new = win32api.GetCursorPos()
 					if not ((wrapper_rectangle.left < x_new < wrapper_rectangle.right) and (
 							wrapper_rectangle.top < y_new < wrapper_rectangle.bottom)):
@@ -900,8 +899,8 @@ class Recorder(Thread):
 					if unique_array_1d is not None:
 						unique_wrapper_path = wrapper_path + unique_array_1d
 					else:
-						strategy = Strategy.array_2D
-				if strategy == Strategy.array_2D and elements:
+						strategy = Strategy.array_2d
+				if strategy == Strategy.array_2d and elements:
 					x_new, y_new = win32api.GetCursorPos()
 					if not ((wrapper_rectangle.left < x_new < wrapper_rectangle.right) and (
 							wrapper_rectangle.top < y_new < wrapper_rectangle.bottom)):
@@ -1134,5 +1133,6 @@ class Recorder(Thread):
 			print("The recorder did not stop within " + str(QUIT_TIMEOUT) + " seconds.")
 		del self.element_info_tooltip  # it stops the process of the tooltip, now that the loop does not use it
 		print("Quit")
+
 
 read_config_file()

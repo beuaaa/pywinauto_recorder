@@ -221,7 +221,7 @@ def _fake_path_elements(names=("Calculator", "Number pad", "One"), control_types
 
 
 def test_get_wrapper_path(capsys):
-	window, group, button = _fake_path_elements()
+	window, _, button = _fake_path_elements()
 	assert core.get_wrapper_path(button) == "Calculator||Window->Number pad||Group->One||Button"
 	assert core.get_wrapper_path(window) == "Calculator||Window"
 	assert capsys.readouterr() == ("", "")

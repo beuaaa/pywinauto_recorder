@@ -23,9 +23,10 @@ def test_app_has_main():
 def test_icons_are_in_the_package():
 	"""Tests that the icons are in the package, where the application and the recorder search them."""
 	icons_dir = PACKAGE_DIR / "Icons"
-	for name in ("IconPyRec.ico", "record.ico", "stop.ico", "play.ico", "folder.ico", "search.ico", "light-on.ico",
-	             "settings.ico", "check.ico", "cross.ico", "power.ico", "help.ico", "comments.ico", "favourite.ico",
-	             "paste.ico"):
+	for name in (
+			"IconPyRec.ico", "record.ico", "stop.ico", "play.ico", "folder.ico", "search.ico", "light-on.ico",
+			"settings.ico", "check.ico", "cross.ico", "power.ico", "help.ico", "comments.ico", "favourite.ico",
+			"paste.ico"):
 		assert (icons_dir / name).is_file(), name
 	assert pathlib.Path(recorder.IconSet.path_icons).resolve() == PACKAGE_DIR
 
@@ -37,8 +38,9 @@ def test_command_pywinauto_recorder():
 		distribution = metadata.distribution("pywinauto_recorder")
 	except metadata.PackageNotFoundError:
 		pytest.skip("The package is not installed")
-	entry_points = [entry_point for entry_point in distribution.entry_points
-	                if entry_point.group == "console_scripts" and entry_point.name == "pywinauto-recorder"]
+	entry_points = [
+		entry_point for entry_point in distribution.entry_points
+		if entry_point.group == "console_scripts" and entry_point.name == "pywinauto-recorder"]
 	assert len(entry_points) == 1
 	assert entry_points[0].value == "pywinauto_recorder.app:main"
 
@@ -97,7 +99,8 @@ def test_recorder_mode_is_exported_by_the_package():
 #                                 Command line and file replay                                 #
 ################################################################################################
 
-import subprocess
+# Bandit B404 and B603 (subprocess): the tests run Pywinauto Recorder in a new process, with the current Python
+import subprocess  # nosec B404
 import sys
 import types
 
@@ -135,8 +138,8 @@ def test_is_on_battery(ac_line_status, on_battery):
 	assert app.is_on_battery(ac_line_status) is on_battery
 
 
-def _fake_windll(get_system_power_status=None, console_window=0, console_process_ids=(), message_boxes=None,
-                 shown_windows=None):
+def _fake_windll(
+		get_system_power_status=None, console_window=0, console_process_ids=(), message_boxes=None, shown_windows=None):
 	"""Returns a fake ctypes.windll with the functions used by the application."""
 	def get_console_process_list(process_ids, size):
 		for i, process_id in enumerate(console_process_ids[:size]):
@@ -211,8 +214,15 @@ def test_console_process_ids(monkeypatch):
 
 
 class _FakeRecorderForReplay:
-	"""Replaces the Recorder in the tests of the replay of a file."""
+	"""
+	Replaces the Recorder in the tests of the replay of a file.
+
+	playback() raises 'error' if it is not None, else it returns 'result'.
+	"""
+
 	instances = []
+	result = True
+	error = None
 
 	def __init__(self):
 		self.played_back = []
@@ -222,8 +232,8 @@ class _FakeRecorderForReplay:
 	def playback(self, str_code='', filename=''):
 		self.played_back.append(filename)
 		self.calls.append("playback")
-		if isinstance(_FakeRecorderForReplay.result, BaseException):
-			raise _FakeRecorderForReplay.result
+		if _FakeRecorderForReplay.error is not None:
+			raise _FakeRecorderForReplay.error
 		return _FakeRecorderForReplay.result
 
 	def quit(self):
@@ -235,6 +245,7 @@ def fake_recorder_for_replay(monkeypatch):
 	"""Replaces the Recorder of the application, and makes stdin a non interactive input."""
 	_FakeRecorderForReplay.instances = []
 	_FakeRecorderForReplay.result = True
+	_FakeRecorderForReplay.error = None
 	monkeypatch.setattr(app, "Recorder", _FakeRecorderForReplay)
 	monkeypatch.setattr(sys, "stdin", None)
 	return _FakeRecorderForReplay
@@ -255,7 +266,7 @@ def test_replay_file_quits_the_recorder_after_an_interruption(tmp_path, fake_rec
 	"""Tests that the recorder quits, so that the application exits, even if the replay is interrupted by CTRL+C."""
 	script = tmp_path / "recorded.py"
 	script.write_text("pass\n")
-	fake_recorder_for_replay.result = KeyboardInterrupt()
+	fake_recorder_for_replay.error = KeyboardInterrupt()
 	with pytest.raises(KeyboardInterrupt):
 		app.replay_file(str(script))
 	assert fake_recorder_for_replay.instances[0].calls == ["playback", "quit"]
@@ -286,7 +297,8 @@ def test_main(monkeypatch, argv, expected):
 ])
 def test_help_of_the_command_line(command):
 	"""Tests 'python -m pywinauto_recorder --help' and the launcher, in a new process."""
-	completed = subprocess.run(command, capture_output=True, text=True, timeout=120, cwd=str(PACKAGE_DIR.parent))
+	completed = subprocess.run(  # nosec B603
+		command, capture_output=True, text=True, timeout=120, cwd=str(PACKAGE_DIR.parent))
 	assert completed.returncode == 0, completed.stderr
 	assert "--no_splash_screen" in completed.stdout
 
@@ -313,7 +325,8 @@ def _run_in_a_new_process(command, timeout, cwd):
 	import tempfile
 	import time
 	with tempfile.TemporaryFile() as output:
-		process = subprocess.Popen(command, stdout=output, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, cwd=cwd)
+		process = subprocess.Popen(  # nosec B603
+			command, stdout=output, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, cwd=cwd)
 		children = set()
 		deadline = time.monotonic() + timeout
 		while process.poll() is None and time.monotonic() < deadline:
@@ -597,8 +610,8 @@ def test_menu_during_a_replay_of_the_clipboard():
 	entries = _entries(menu)
 	assert entries["Wait end of replay"].current_icon() == icons.stop
 	grayed = {text for text, item in entries.items() if not item.is_enabled()}
-	assert grayed == {"Start recording", "Wait end of replay", "Start displaying element information",
-	                  "Start Smart mode", "Quit"}
+	assert grayed == {
+		"Start recording", "Wait end of replay", "Start displaying element information", "Start Smart mode", "Quit"}
 	help_entries = _entries(entries["Help"].submenu)
 	assert not help_entries["About"].is_enabled()
 	assert help_entries["Web site"].is_enabled()
@@ -661,7 +674,7 @@ def test_open_output_folder(monkeypatch, tmp_path):
 	opened = []
 	output_folder = tmp_path / "Pywinauto recorder"
 	monkeypatch.setattr(app, "OUTPUT_FOLDER", output_folder)
-	monkeypatch.setattr(app.os, "startfile", lambda path: opened.append(path), raising=False)
+	monkeypatch.setattr(app.os, "startfile", opened.append, raising=False)
 	app.open_output_folder()
 	assert output_folder.is_dir()
 	assert opened == [str(output_folder)]
@@ -670,7 +683,7 @@ def test_open_output_folder(monkeypatch, tmp_path):
 def test_open_web_site(monkeypatch):
 	"""Tests that 'Web site' opens the documentation in the default browser."""
 	opened = []
-	monkeypatch.setattr(app.webbrowser, "open", lambda url: opened.append(url))
+	monkeypatch.setattr(app.webbrowser, "open", opened.append)
 	app.open_web_site()
 	assert opened == ["https://pywinauto-recorder.readthedocs.io"]
 
@@ -857,8 +870,8 @@ def test_tray_icon_message_handlers_return_an_int(monkeypatch):
 		tray.notify(42, 0, 0, app.win32con.WM_RBUTTONUP),
 		tray.destroy(42, 0, 0, 0)]
 	assert [type(result) for result in results] == [int] * 6
-	assert calls == ["refresh_icon", "action", "default_action", "show_menu", "on_quit", "Shell_NotifyIcon",
-	                 "PostQuitMessage"]
+	assert calls == [
+		"refresh_icon", "action", "default_action", "show_menu", "on_quit", "Shell_NotifyIcon", "PostQuitMessage"]
 
 
 def test_tray_icon_removed_even_if_on_quit_fails(monkeypatch):
@@ -919,12 +932,15 @@ def test_version_key_same_version(version, same_version):
 
 @pytest.mark.parametrize("installed, latest, console_message, version_line", [
 	("0.6.9", "0.6.9", "Your Pywinauto recorder is up to date.", "Pywinauto recorder 0.6.9"),
-	("0.6.8", "0.6.9", "Pywinauto recorder v0.6.9 is available!",
-	 "Your version of Pywinauto recorder (0.6.8) is not up to date (0.6.9 is available!)"),
-	("1.0.0.dev0", "0.6.9", "Your Pywinauto recorder 1.0.0.dev0 is newer than the latest published version (0.6.9).",
-	 "Pywinauto recorder 1.0.0.dev0"),
-	("0.6.9", None, "Cannot check whether a newer version of Pywinauto recorder is available.",
-	 "Pywinauto recorder 0.6.9"),
+	(
+		"0.6.8", "0.6.9", "Pywinauto recorder v0.6.9 is available!",
+		"Your version of Pywinauto recorder (0.6.8) is not up to date (0.6.9 is available!)"),
+	(
+		"1.0.0.dev0", "0.6.9", "Your Pywinauto recorder 1.0.0.dev0 is newer than the latest published version (0.6.9).",
+		"Pywinauto recorder 1.0.0.dev0"),
+	(
+		"0.6.9", None, "Cannot check whether a newer version of Pywinauto recorder is available.",
+		"Pywinauto recorder 0.6.9"),
 ])
 def test_version_messages(installed, latest, console_message, version_line):
 	"""
@@ -997,8 +1013,8 @@ def test_check_version_is_done_once(monkeypatch, capsys, version_not_checked):
 	monkeypatch.setattr(app, "get_latest_version", lambda: requests.append("request") or "0.0.1")
 	version_line = app.check_version()
 	assert version_line == "Pywinauto recorder " + pywinauto_recorder.__version__
-	assert capsys.readouterr().out == ("Your Pywinauto recorder " + pywinauto_recorder.__version__ +
-	                                   " is newer than the latest published version (0.0.1).\n")
+	assert capsys.readouterr().out == (
+		"Your Pywinauto recorder " + pywinauto_recorder.__version__ + " is newer than the latest published version (0.0.1).\n")
 	assert app.check_version() == version_line
 	assert capsys.readouterr().out == ""
 	assert requests == ["request"]

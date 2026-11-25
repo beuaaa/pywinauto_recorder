@@ -16,9 +16,10 @@ except ImportError:  # not on Windows
 		pass
 
 
-__all__ = ['path_separator', 'type_separator', 'Strategy', 'is_int', 'is_absolute_path',
-           'get_wrapper_path', 'get_entry_list', 'get_entry', 'match_entry_list', 'get_sorted_region',
-           'find_elements', 'read_config_file', 'get_native_window_handle', 'set_native_window_handle']
+__all__ = [
+	'path_separator', 'type_separator', 'Strategy', 'is_int', 'is_absolute_path',
+	'get_wrapper_path', 'get_entry_list', 'get_entry', 'match_entry_list', 'get_sorted_region',
+	'find_elements', 'read_config_file', 'get_native_window_handle', 'set_native_window_handle']
 
 desktop = PywinautoDesktop(backend='uia', allow_magic_lookup=False)
 native_window_handle = None
@@ -49,8 +50,8 @@ type_separator = "||"
 # > The `Strategy` class is an enumeration of the different strategies that can be used to solve the problem
 class Strategy(Enum):
 	unique_path = 1
-	array_1D = 2
-	array_2D = 3
+	array_1d = 2
+	array_2d = 3
 
 
 def get_wrapper_path(wrapper, wrapper_top_level_parent=None):
@@ -440,17 +441,12 @@ def find_elements(full_element_path=None):
 											parent=None if len(entry_list)==1 else window, top_level_only=len(entry_list)==1)
 			candidates += filter_with_match_entry_list(window.element_info, eis, entry_list)
 		elif control_type == "OCR_Text":
-				candidates += find_ocr_elements(title, window, entry_list)
+			candidates += find_ocr_elements(title, window, entry_list)
 		else:
 			eis = findwindows.find_elements(name=title, control_type=control_type, backend="uia", visible=True,
 											parent=None if len(entry_list)==1 else window, top_level_only=len(entry_list)==1)
 			candidates += filter_with_match_entry_list(window.element_info, eis, entry_list)
-	candidates = [UIAWrapper(ei) for ei in candidates]
-	
-	if not candidates:
-			return []
-	else:
-		return candidates
+	return [UIAWrapper(ei) for ei in candidates]
 
 
 # The following code should be called in recorder.py because it's useful only when recording
@@ -459,14 +455,14 @@ def read_config_file():
 	It reads the configuration file and stores the settings in the global variable `core_settings`
 	"""
 	global core_settings
-	config_file_content = '''[window_filtering]
-    mode = ignore_windows
-    admit_windows = []
-    ignore_windows = []
-    '''
+	config_file_content = (
+		"[window_filtering]\n"
+		"mode = ignore_windows\n"
+		"admit_windows = []\n"
+		"ignore_windows = []\n")
 	from pathlib import Path
 	config_file = Path.home() / 'Pywinauto recorder' / 'config.ini'
-	if config_file.exists and config_file.is_file():
+	if config_file.is_file():
 		print("Reading configuration file: " + str(config_file))
 		config = configparser.RawConfigParser()
 		config.read(config_file)
