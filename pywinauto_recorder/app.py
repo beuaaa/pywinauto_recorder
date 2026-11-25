@@ -53,6 +53,7 @@ _COMMAND_INTERPRETERS = frozenset((
 
 
 class _SYSTEM_POWER_STATUS(Structure):
+	"""The SYSTEM_POWER_STATUS structure filled by GetSystemPowerStatus."""
 	# The fields are unsigned: with wintypes.BYTE (signed), the unknown status 255 would be read as -1
 	_fields_ = [
 		('ACLineStatus', c_ubyte),
@@ -267,12 +268,17 @@ class SysTrayIcon(object):
 		self.refresh_icon()
 
 	def destroy(self, hwnd, msg, wparam, lparam):
-		"""Called when the hidden window is destroyed: it calls on_quit, removes the icon and stops run()."""
-		if self.on_quit:
-			self.on_quit(self)
-		nid = (self.hwnd, 0)
-		win32gui.Shell_NotifyIcon(win32gui.NIM_DELETE, nid)
-		win32gui.PostQuitMessage(0)  # Terminate the app.
+		"""
+		Called when the hidden window is destroyed: it calls on_quit, removes the icon and stops run().
+		The icon is removed and run() is stopped even if on_quit raises an exception.
+		"""
+		try:
+			if self.on_quit:
+				self.on_quit(self)
+		finally:
+			nid = (self.hwnd, 0)
+			win32gui.Shell_NotifyIcon(win32gui.NIM_DELETE, nid)
+			win32gui.PostQuitMessage(0)  # Terminate the app.
 
 	def notify(self, hwnd, msg, wparam, lparam):
 		"""Called on a mouse event on the icon: a double click calls default_action, a right click shows the menu."""
@@ -621,6 +627,7 @@ def _is_mouse_cursor_in(rectangle):
 
 
 def overlay_add_pywinauto_recorder_icon(overlay, x, y):
+	"""It adds the logo of Pywinauto Recorder, 200x100 pixels, to the overlay at (x, y)."""
 	overlay.add(
 		geometry=oaam.Shape.rectangle, x=x, y=y, width=200, height=100, thickness=5, color=(200, 66, 66),
 		brush=oaam.Brush.solid, brush_color=(255, 254, 255))
@@ -746,7 +753,10 @@ def replay_file(filename):
 		return EXIT_FILE_NOT_FOUND
 	recorder = Recorder()
 	print("Replaying: " + filename)
-	succeeded = recorder.playback(filename=filename)
+	try:
+		succeeded = recorder.playback(filename=filename)
+	finally:
+		recorder.quit()  # before, the process of the element information tooltip kept the application running
 	print("Exit")
 	return EXIT_OK if succeeded else EXIT_REPLAY_FAILED
 

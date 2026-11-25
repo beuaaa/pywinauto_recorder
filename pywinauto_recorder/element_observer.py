@@ -217,7 +217,8 @@ class ElementInfoTooltip:
 		self.info_mode_quit.clear()
 		self.info_mode = Event()
 		self.info_mode.clear()
-		self.process = Process(target=task, args=(self.info_mode, self.info_mode_quit))
+		# daemon process: it is terminated when the application exits, even if the tooltip was not deleted
+		self.process = Process(target=task, args=(self.info_mode, self.info_mode_quit), daemon=True)
 		self.process.start()
 	
 	def show(self):

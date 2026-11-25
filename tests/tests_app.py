@@ -216,12 +216,18 @@ class _FakeRecorderForReplay:
 
 	def __init__(self):
 		self.played_back = []
-		self.result = True
+		self.calls = []
 		_FakeRecorderForReplay.instances.append(self)
 
 	def playback(self, str_code='', filename=''):
 		self.played_back.append(filename)
+		self.calls.append("playback")
+		if isinstance(_FakeRecorderForReplay.result, BaseException):
+			raise _FakeRecorderForReplay.result
 		return _FakeRecorderForReplay.result
+
+	def quit(self):
+		self.calls.append("quit")
 
 
 @pytest.fixture
@@ -242,6 +248,17 @@ def test_replay_file(tmp_path, fake_recorder_for_replay, result, exit_code):
 	fake_recorder_for_replay.result = result
 	assert app.replay_file(str(script)) == exit_code
 	assert [recorder_.played_back for recorder_ in fake_recorder_for_replay.instances] == [[str(script)]]
+	assert fake_recorder_for_replay.instances[0].calls == ["playback", "quit"]
+
+
+def test_replay_file_quits_the_recorder_after_an_interruption(tmp_path, fake_recorder_for_replay):
+	"""Tests that the recorder quits, so that the application exits, even if the replay is interrupted by CTRL+C."""
+	script = tmp_path / "recorded.py"
+	script.write_text("pass\n")
+	fake_recorder_for_replay.result = KeyboardInterrupt()
+	with pytest.raises(KeyboardInterrupt):
+		app.replay_file(str(script))
+	assert fake_recorder_for_replay.instances[0].calls == ["playback", "quit"]
 
 
 def test_replay_file_not_found(tmp_path, fake_recorder_for_replay):
@@ -272,6 +289,27 @@ def test_help_of_the_command_line(command):
 	completed = subprocess.run(command, capture_output=True, text=True, timeout=120, cwd=str(PACKAGE_DIR.parent))
 	assert completed.returncode == 0, completed.stderr
 	assert "--no_splash_screen" in completed.stdout
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="The recorder needs Windows")
+@pytest.mark.parametrize("script, exit_code", [
+	("print('The script is replayed')\n", app.EXIT_OK),
+	("raise RuntimeError('The script fails')\n", app.EXIT_REPLAY_FAILED),
+])
+def test_replay_of_a_file_in_a_new_process(tmp_path, script, exit_code):
+	"""
+	Tests 'python -m pywinauto_recorder recorded.py' in a new process: the process ends with the exit code of the
+	replay. Before, the process of the element information tooltip kept the application running after the replay.
+	"""
+	recorded_file = tmp_path / "recorded.py"
+	recorded_file.write_text(script)
+	completed = subprocess.run(
+		[sys.executable, "-m", "pywinauto_recorder", str(recorded_file)], capture_output=True, text=True, timeout=180,
+		stdin=subprocess.DEVNULL, cwd=str(PACKAGE_DIR.parent))
+	output = completed.stdout + completed.stderr
+	assert completed.returncode == exit_code, output
+	assert "Replaying: " + str(recorded_file) in completed.stdout
+	assert "did not stop" not in completed.stdout, output  # the recorder kept the mode of the replay and quit at once
 
 
 ################################################################################################
@@ -532,6 +570,51 @@ def test_show_about_stops_the_recording_first(monkeypatch, mode, calls):
 	assert len(splash_screens) == 1
 
 
+class _FakeRecorderForQuit:
+	"""Replaces the Recorder in the tests of Recorder.quit: it records the calls in their order."""
+	def __init__(self, mode, alive_after_join=False):
+		self.mode = mode
+		self.calls = []
+		self.alive_after_join = alive_after_join
+		self.main_overlay = types.SimpleNamespace(
+			clear_all=lambda: self.calls.append("clear overlay"), refresh=lambda: self.calls.append("refresh overlay"))
+		self.element_info_tooltip = "tooltip"
+
+	def stop_recording(self):
+		self.calls.append("stop_recording")
+		self.mode = recorder.RecorderMode.STOP
+
+	def join(self, timeout=None):
+		self.calls.append(("join", timeout, self.mode))
+
+	def is_alive(self):
+		return self.alive_after_join
+
+
+@pytest.mark.parametrize("mode, calls", [
+	(recorder.RecorderMode.RECORD, ["stop_recording"]), (recorder.RecorderMode.INFO, []), (recorder.RecorderMode.STOP, [])])
+def test_recorder_quit(capsys, mode, calls):
+	"""
+	Tests that quit() writes the recording in progress, stops the loop of the recorder and waits for its end at most
+	QUIT_TIMEOUT seconds, and then stops the element information tooltip. Before, the recording in progress was lost.
+	"""
+	fake_recorder = _FakeRecorderForQuit(mode)
+	recorder.Recorder.quit(fake_recorder)
+	assert fake_recorder.calls == calls + [
+		"clear overlay", "refresh overlay", ("join", recorder.QUIT_TIMEOUT, recorder.RecorderMode.QUIT)]
+	assert not hasattr(fake_recorder, "element_info_tooltip")
+	assert capsys.readouterr().out == "Quit\n"
+
+
+def test_recorder_quit_does_not_wait_forever(capsys):
+	"""Tests that quit() returns, and stops the tooltip, when the loop of the recorder is blocked."""
+	fake_recorder = _FakeRecorderForQuit(recorder.RecorderMode.INFO, alive_after_join=True)
+	recorder.Recorder.quit(fake_recorder)
+	assert not hasattr(fake_recorder, "element_info_tooltip")
+	assert recorder.QUIT_TIMEOUT == 10
+	assert capsys.readouterr().out == "The recorder did not stop within 10 seconds.\nQuit\n"
+
+
 @pytest.mark.parametrize("mode, calls, new_mode", [
 	(recorder.RecorderMode.STOP, [], recorder.RecorderMode.INFO),
 	(recorder.RecorderMode.INFO, [], recorder.RecorderMode.STOP),
@@ -628,6 +711,26 @@ def test_tray_menu_is_built_from_the_entries(monkeypatch):
 	tray.command(None, None, entries[0]["wID"], None)
 	tray.command(None, None, submenu_entries[0]["wID"], None)  # a grayed entry has no action
 	assert clicked == ["last", "first"]
+
+
+def test_tray_icon_removed_even_if_on_quit_fails(monkeypatch):
+	"""
+	Tests that the tray icon is removed and run() stopped, even if on_quit raises an exception. Before, the application
+	kept running without its tray icon.
+	"""
+	calls = []
+	monkeypatch.setattr(app, "win32gui", types.SimpleNamespace(
+		NIM_DELETE=2, Shell_NotifyIcon=lambda message, nid: calls.append(("Shell_NotifyIcon", message, nid)),
+		PostQuitMessage=lambda exit_code: calls.append(("PostQuitMessage", exit_code))))
+	tray = object.__new__(app.SysTrayIcon)
+	tray.hwnd = 42
+
+	def on_quit(tray_):
+		raise RuntimeError("The recorded script cannot be written")
+	tray.on_quit = on_quit
+	with pytest.raises(RuntimeError):
+		tray.destroy(42, None, None, None)
+	assert calls == [("Shell_NotifyIcon", 2, (42, 0)), ("PostQuitMessage", 0)]
 
 
 ################################################################################################

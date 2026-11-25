@@ -573,6 +573,9 @@ HOTKEY_ELEMENT_INFO = "CTRL+SHIFT+D"
 HOTKEY_COPY_CODE = "CTRL+SHIFT+F"
 """Keyboard shortcut that copies the Python code finding the element to the clipboard (handled by Recorder.__key_on)."""
 
+QUIT_TIMEOUT = 10
+"""Maximum duration, in seconds, of the wait for the end of the loop of the recorder when it quits."""
+
 
 class RecorderMode(str, Enum):
 	"""
@@ -839,7 +842,9 @@ class Recorder(Thread):
 		unique_wrapper_path = None
 		strategies = [Strategy.unique_path, Strategy.array_2D, Strategy.array_1D]
 		i_strategy = 0
-		self.mode = RecorderMode.INFO
+		if self.mode == RecorderMode.INITIALIZING:
+			# a replay of a file, or quit(), may have set the mode while the recorder was initializing
+			self.mode = RecorderMode.INFO
 		#strategy_unique_path_again_done = False
 		previous_loop_error = None
 		while self.mode != RecorderMode.QUIT:
@@ -977,8 +982,6 @@ class Recorder(Thread):
 				time.sleep(0.1)  # same pace as a loop without error: do not loop at full speed
 			finally:
 				previous_loop_error = loop_error
-		if self.event_list:
-			self.stop_recording()
 		mouse.unhook_all()
 		keyboard.unhook_all()
 		self.main_overlay.quit()
@@ -1132,13 +1135,21 @@ class Recorder(Thread):
 	
 	def quit(self):
 		"""
-		The function clears the main and info overlays, sets the mode to 'Quit', and then joins the thread.
+		It writes the recording in progress, clears the main overlay, stops the loop of the recorder, and then stops the
+		element information tooltip.
+
+		The end of the loop is waited for at most QUIT_TIMEOUT seconds, because an application that does not respond
+		may block it. The thread of the recorder is a daemon thread: it does not prevent the application from exiting.
 		"""
+		if self.mode == RecorderMode.RECORD:
+			self.stop_recording()  # before, the recording in progress was lost
 		self.main_overlay.clear_all()
 		self.main_overlay.refresh()
-		del self.element_info_tooltip
 		self.mode = RecorderMode.QUIT
-		self.join()
+		self.join(timeout=QUIT_TIMEOUT)
+		if self.is_alive():
+			print("The recorder did not stop within " + str(QUIT_TIMEOUT) + " seconds.")
+		del self.element_info_tooltip  # it stops the process of the tooltip, now that the loop does not use it
 		print("Quit")
 
 read_config_file()
