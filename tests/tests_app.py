@@ -291,25 +291,74 @@ def test_help_of_the_command_line(command):
 	assert "--no_splash_screen" in completed.stdout
 
 
+_REPLAY_LAUNCHER = """
+import faulthandler, runpy, sys
+faulthandler.dump_traceback_later(60, exit=True)  # a blocked replay prints the stacks of its threads, then exits
+sys.argv = ["pywinauto-recorder", sys.argv[1]]
+runpy.run_module("pywinauto_recorder", run_name="__main__", alter_sys=True)
+"""
+
+
+def _run_in_a_new_process(command, timeout, cwd):
+	"""
+	Runs a command in a new process, and kills at the end the processes it started.
+
+	The output is written in a file, not in a pipe that a remaining child process could keep open, so that a blocked
+	process cannot block the tests.
+
+	:return: The exit code, or None if the process did not end within the timeout, the output, and the number of the
+		child processes still running when the process ended
+	"""
+	import psutil
+	import tempfile
+	import time
+	with tempfile.TemporaryFile() as output:
+		process = subprocess.Popen(command, stdout=output, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, cwd=cwd)
+		children = set()
+		deadline = time.monotonic() + timeout
+		while process.poll() is None and time.monotonic() < deadline:
+			try:
+				children.update(psutil.Process(process.pid).children(recursive=True))
+			except psutil.Error:
+				pass
+			time.sleep(0.2)
+		exit_code = process.poll()
+		if exit_code is None:
+			process.kill()
+			process.wait()
+		remaining_children = 0
+		for child in children:
+			try:
+				if child.is_running():
+					remaining_children += 1
+					child.kill()
+			except psutil.Error:
+				pass
+		output.seek(0)
+		return exit_code, output.read().decode(errors="replace"), remaining_children
+
+
 @pytest.mark.skipif(sys.platform != "win32", reason="The recorder needs Windows")
-@pytest.mark.parametrize("script, exit_code", [
+@pytest.mark.parametrize("script, expected_exit_code", [
 	("print('The script is replayed')\n", app.EXIT_OK),
 	("raise RuntimeError('The script fails')\n", app.EXIT_REPLAY_FAILED),
 ])
-def test_replay_of_a_file_in_a_new_process(tmp_path, script, exit_code):
+def test_replay_of_a_file_in_a_new_process(tmp_path, script, expected_exit_code):
 	"""
-	Tests 'python -m pywinauto_recorder recorded.py' in a new process: the process ends with the exit code of the
-	replay. Before, the process of the element information tooltip kept the application running after the replay.
+	Tests the replay of a file by the command line in a new process: the process ends with the exit code of the
+	replay, and the process of the element information tooltip ends too. Before, the process of the tooltip kept the
+	application running after the replay.
 	"""
 	recorded_file = tmp_path / "recorded.py"
 	recorded_file.write_text(script)
-	completed = subprocess.run(
-		[sys.executable, "-m", "pywinauto_recorder", str(recorded_file)], capture_output=True, text=True, timeout=180,
-		stdin=subprocess.DEVNULL, cwd=str(PACKAGE_DIR.parent))
-	output = completed.stdout + completed.stderr
-	assert completed.returncode == exit_code, output
-	assert "Replaying: " + str(recorded_file) in completed.stdout
-	assert "did not stop" not in completed.stdout, output  # the recorder kept the mode of the replay and quit at once
+	exit_code, output, remaining_children = _run_in_a_new_process(
+		[sys.executable, "-c", _REPLAY_LAUNCHER, str(recorded_file)], timeout=120, cwd=str(PACKAGE_DIR.parent))
+	diagnostic = "AC line status: " + str(app.get_ac_line_status()) + "\n" + output
+	assert exit_code == expected_exit_code, diagnostic
+	assert "Timeout (" not in output, diagnostic  # no stacks printed by faulthandler
+	assert "Replaying: " + str(recorded_file) in output, diagnostic
+	assert "did not stop" not in output, diagnostic  # the loop of the recorder ended at once
+	assert remaining_children == 0, diagnostic
 
 
 ################################################################################################
@@ -976,3 +1025,64 @@ def test_run_interactive(monkeypatch, argv, events):
 	assert fake_recorder.calls == ["toggle_element_info"]
 	tray.on_quit(tray)
 	assert fake_recorder.calls == ["toggle_element_info", "quit"]
+
+
+
+@pytest.mark.parametrize("alive", [False, True])
+def test_element_info_tooltip_does_not_block_the_quit(alive):
+	"""
+	Tests that deleting the tooltip stops its process, waiting for its end at most TOOLTIP_STOP_TIMEOUT seconds, and
+	terminates it if it does not stop. Before, the recorder waited for it without a time limit.
+	"""
+	from pywinauto_recorder import element_observer
+	calls = []
+
+	class FakeProcess:
+		def join(self, timeout=None):
+			calls.append(("join", timeout))
+
+		def is_alive(self):
+			return alive
+
+		def terminate(self):
+			calls.append("terminate")
+
+	quit_event = threading.Event()
+	tooltip = object.__new__(element_observer.ElementInfoTooltip)
+	tooltip.info_mode_quit = quit_event
+	tooltip.process = FakeProcess()
+	del tooltip
+	assert quit_event.is_set()
+	assert calls == [("join", element_observer.TOOLTIP_STOP_TIMEOUT)] + (["terminate"] if alive else [])
+	assert element_observer.TOOLTIP_STOP_TIMEOUT == 5
+
+
+def test_element_info_tooltip_process_stopped_just_after_its_start(monkeypatch):
+	"""
+	Tests that the process of the tooltip ends when it is stopped before its loop starts, without calling quit() of its
+	overlay: quit() of overlay_arrows_and_more never returns if the window of the overlay is not created yet.
+	"""
+	from pywinauto_recorder import element_observer
+	overlays = []
+
+	class FakeOverlay:
+		def __init__(self, transparency=0.0):
+			self.calls = []
+			overlays.append(self)
+
+		def clear_all(self):
+			self.calls.append("clear_all")
+
+		def refresh(self):
+			self.calls.append("refresh")
+
+		def quit(self):
+			raise AssertionError("quit() never returns if the window of the overlay is not created yet")
+
+	monkeypatch.setattr(element_observer.oaam, "Overlay", FakeOverlay)
+	monkeypatch.setattr(element_observer, "Desktop", lambda **kwargs: None)
+	monkeypatch.setattr(element_observer, "GetSystemMetrics", lambda index: 1920)
+	quit_event = threading.Event()
+	quit_event.set()
+	element_observer.task(threading.Event(), quit_event)
+	assert overlays[0].calls == ["clear_all", "refresh"]

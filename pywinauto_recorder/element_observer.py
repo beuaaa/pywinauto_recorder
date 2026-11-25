@@ -186,6 +186,10 @@ def _display_info_tooltip(desktop, info_overlay, screen_width):
 	info_overlay.refresh()
 
 
+TOOLTIP_STOP_TIMEOUT = 5
+"""Maximum duration, in seconds, of the wait for the end of the process of the tooltip when it is deleted."""
+
+
 def task(info_mode_event, info_mode_quit_event):
 	global wrapper_old_info_tip
 	global common_path_info_tip
@@ -208,7 +212,9 @@ def task(info_mode_event, info_mode_quit_event):
 			sleep(2.0)
 	info_overlay.clear_all()
 	info_overlay.refresh()
-	info_overlay.quit()
+	# No info_overlay.quit(): it never returns if the window of the overlay is not created yet, which happens when the
+	# tooltip is stopped just after it started (replay of a short file). The thread of the overlay is a daemon thread,
+	# so it ends with this process.
 
 
 class ElementInfoTooltip:
@@ -233,7 +239,9 @@ class ElementInfoTooltip:
 	
 	def __del__(self):
 		self.info_mode_quit.set()
-		self.process.join()
+		self.process.join(timeout=TOOLTIP_STOP_TIMEOUT)
+		if self.process.is_alive():
+			self.process.terminate()  # a tooltip that does not stop must not block the application
 
 
 if __name__ == '__main__':
