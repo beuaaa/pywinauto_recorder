@@ -738,6 +738,10 @@ class Recorder(Thread):
 				self.event_list.append(FindEvent(path=l_e_e.path, dx=dx, dy=dy, time=time.time()))
 				
 	def __key_on(self, e):
+		if self.mode == RecorderMode.PLAY:
+			# The shortcuts are ignored during a replay: CTRL+ALT+R would record the replayed actions,
+			# and the end of the replay would then lose this recording.
+			return
 		key_to_scan_codes = keyboard.key_to_scan_codes
 		if (
 				(e.name, e.event_type) == ('r', 'up') and
@@ -1097,11 +1101,14 @@ class Recorder(Thread):
 		
 		:param str_code: The code to be played back
 		:param filename: The name of the file corresponding to the code to be played back
+		:return: True if the code was played back without error, False otherwise
 		"""
 		self.mode = RecorderMode.PLAY
 		self.main_overlay.refresh()
-		playback(str_code, filename)
-		self.mode = RecorderMode.STOP
+		try:
+			return playback(str_code, filename)
+		finally:
+			self.mode = RecorderMode.STOP
 	
 	def quit(self):
 		"""

@@ -7,12 +7,13 @@ It is started by main(), with the command "pywinauto-recorder", with "python -m 
 or with pywinauto_recorder.py, the launcher compiled by Nuitka into pywinauto_recorder.exe.
 """
 
-from ctypes import wintypes, windll, Structure, POINTER, pointer, WinError
+from ctypes import wintypes, windll, Structure, POINTER, pointer, c_ubyte
 import argparse
 import overlay_arrows_and_more as oaam
-from os.path import isfile as os_path_isfile
 from pathlib import Path
 import os
+import sys
+import psutil
 import win32con
 import win32gui_struct
 import win32gui
@@ -23,25 +24,115 @@ from win32api import GetSystemMetrics, GetCursorPos
 import time
 
 
-def get_AC_line_status():
-	class SYSTEM_POWER_STATUS(Structure):
-		_fields_ = [
-			('ACLineStatus', wintypes.BYTE),
-			('BatteryFlag', wintypes.BYTE),
-			('BatteryLifePercent', wintypes.BYTE),
-			('Reserved1', wintypes.BYTE),
-			('BatteryLifeTime', wintypes.DWORD),
-			('BatteryFullLifeTime', wintypes.DWORD),
-		]
-	SYSTEM_POWER_STATUS_P = POINTER(SYSTEM_POWER_STATUS)
-	GetSystemPowerStatus = windll.kernel32.GetSystemPowerStatus
-	GetSystemPowerStatus.argtypes = [SYSTEM_POWER_STATUS_P]
-	GetSystemPowerStatus.restype = wintypes.BOOL
-	status = SYSTEM_POWER_STATUS()
-	if not GetSystemPowerStatus(pointer(status)):
-		raise WinError()
+EXIT_OK = 0
+"""Exit code: the script was replayed without error, or the recorder was closed."""
+EXIT_REPLAY_FAILED = 1
+"""Exit code: the replayed script raised an exception."""
+EXIT_FILE_NOT_FOUND = 2
+"""Exit code: the script to replay was not found (2 is also the exit code of argparse for a wrong command line)."""
 
-	return status.ACLineStatus == 1
+AC_LINE_OFFLINE = 0
+"""ACLineStatus of SYSTEM_POWER_STATUS when the computer runs on battery (1: on AC power, 255: unknown)."""
+
+_COMMAND_INTERPRETERS = frozenset((
+	"cmd.exe", "powershell.exe", "pwsh.exe", "bash.exe", "sh.exe", "wsl.exe", "nu.exe", "tcc.exe", "far.exe"))
+"""Programs whose console belongs to the user: the recorder does not minimize it."""
+
+
+class _SYSTEM_POWER_STATUS(Structure):
+	# The fields are unsigned: with wintypes.BYTE (signed), the unknown status 255 would be read as -1
+	_fields_ = [
+		('ACLineStatus', c_ubyte),
+		('BatteryFlag', c_ubyte),
+		('BatteryLifePercent', c_ubyte),
+		('SystemStatusFlag', c_ubyte),
+		('BatteryLifeTime', wintypes.DWORD),
+		('BatteryFullLifeTime', wintypes.DWORD),
+	]
+
+
+def get_ac_line_status():
+	"""
+	Returns the AC power status of the computer.
+
+	:return: 0 if the computer runs on battery, 1 if it is on AC power, 255 if the status is unknown,
+		or None if Windows cannot give the status
+	"""
+	get_system_power_status = windll.kernel32.GetSystemPowerStatus
+	get_system_power_status.argtypes = [POINTER(_SYSTEM_POWER_STATUS)]
+	get_system_power_status.restype = wintypes.BOOL
+	status = _SYSTEM_POWER_STATUS()
+	if not get_system_power_status(pointer(status)):
+		return None
+	return status.ACLineStatus
+
+
+def is_on_battery(ac_line_status):
+	"""
+	Returns True if the computer runs on battery, according to its AC power status.
+
+	:param ac_line_status: The AC power status returned by get_ac_line_status()
+	:return: True only if the status is 'on battery': False when it is unknown
+	"""
+	return ac_line_status == AC_LINE_OFFLINE
+
+
+def warn_if_on_battery():
+	"""It displays a modal message box if the computer runs on battery, because it can slow down the recorder."""
+	if is_on_battery(get_ac_line_status()):
+		windll.user32.MessageBoxW(
+			0, "Not plugging your laptop in the AC Power can dramatically slow down Pywinauto Recorder.",
+			"AC line status is off!", win32con.MB_OK | win32con.MB_ICONEXCLAMATION)
+
+
+def _console_process_ids():
+	"""Returns the IDs of the processes attached to the console of Pywinauto Recorder."""
+	size = 16
+	while True:
+		process_ids = (wintypes.DWORD * size)()
+		count = int(windll.kernel32.GetConsoleProcessList(process_ids, size))
+		if count <= size:
+			return list(process_ids[:count])
+		size = count  # the array was too small: try again with the right size
+
+
+def _other_console_process_names():
+	"""Returns the names of the other processes attached to the console of Pywinauto Recorder."""
+	names = []
+	for process_id in _console_process_ids():
+		if process_id == os.getpid():
+			continue
+		try:
+			names.append(psutil.Process(process_id).name())
+		except psutil.Error:
+			pass
+	return names
+
+
+def should_minimize_console(other_process_names):
+	"""
+	Returns True if the console can be minimized: no command interpreter is attached to it.
+
+	The console was then created for Pywinauto Recorder (double click on the executable, a shortcut...). When the
+	recorder is started from a command interpreter (cmd, PowerShell...), the console belongs to the user and stays as it is.
+
+	:param other_process_names: The names of the other processes attached to the console
+	:return: True if the console can be minimized
+	"""
+	return not any(name.lower() in _COMMAND_INTERPRETERS for name in other_process_names)
+
+
+def minimize_console_if_owned():
+	"""It minimizes the console of Pywinauto Recorder, unless it belongs to a command interpreter."""
+	console_window = windll.kernel32.GetConsoleWindow()
+	if console_window and should_minimize_console(_other_console_process_names()):
+		windll.user32.ShowWindow(console_window, win32con.SW_MINIMIZE)
+
+
+def _wait_for_enter_in_console():
+	"""It waits for the Enter key, so that a message can be read, only if someone can press it in a console."""
+	if sys.stdin is not None and sys.stdin.isatty():
+		input("Press Enter to continue...")
 
 
 class SysTrayIcon(object):
@@ -376,124 +467,163 @@ def display_splash_screen():
 	splash_background.refresh()
 
 
-def main(argv=None):
+def _program_name():
+	"""Returns the name of the program displayed by the help of the command line."""
+	name = os.path.basename(sys.argv[0]) if sys.argv and sys.argv[0] else ""
+	if not name or name == "__main__.py":
+		return "python -m pywinauto_recorder"
+	return name
+
+
+def parse_arguments(argv=None):
 	"""
-	Starts Pywinauto Recorder.
+	It parses the command line.
 
 	:param argv: The command line arguments, without the program name. If None, sys.argv[1:] is used.
-	:return: The exit code of the program
+	:return: The parsed arguments: 'filename' (the script to replay, or '') and 'no_splash_screen'
 	"""
-	# These names are used by SysTrayIcon
-	global recorder, icon_record, icon_stop, icon_play, icon_search, icon_light_on, icon_check, icon_cross, icon_power
-	if not get_AC_line_status():
-		windll.user32.MessageBoxW(0, "Not plugging your laptop in the AC Power can dramatically slow down Pywinauto Recorder.",
-		                                 "AC line status is off!", win32con.MB_OK | win32con.MB_ICONEXCLAMATION)
-		
-	windll.user32.ShowWindow(windll.kernel32.GetConsoleWindow(), 6)
-	parser = argparse.ArgumentParser()
+	parser = argparse.ArgumentParser(
+		prog=_program_name(),
+		description="Records user interface actions in a Python script, or replays a Python script.")
 	parser.add_argument(
 		"filename", metavar='path', help="replay a python script", type=str, action='store', nargs='?', default='')
 	parser.add_argument(
 		"--no_splash_screen", help="Does not display the splash screen", action='store_true')
-	args = parser.parse_args(argv)
+	return parser.parse_args(argv)
+
+
+def replay_file(filename):
+	"""
+	It replays a Python script. The recorder displays the 'play' icon during the replay.
+
+	:param filename: The path of the Python script
+	:return: EXIT_OK if the script was replayed without error, EXIT_REPLAY_FAILED if it raised an exception,
+		EXIT_FILE_NOT_FOUND if the file does not exist
+	"""
+	if not os.path.isfile(filename):
+		print("Error: file '" + filename + "' not found.")
+		_wait_for_enter_in_console()
+		return EXIT_FILE_NOT_FOUND
 	recorder = Recorder()
-	if args.filename:
-		if os_path_isfile(args.filename):
-			print("Replaying: " + args.filename)
-			recorder.playback(filename=args.filename)
-		else:
-			print("Error: file '" + args.filename + "' not found.")
-			input("Press Enter to continue...")
-		print("Exit")
-	else:
+	print("Replaying: " + filename)
+	succeeded = recorder.playback(filename=filename)
+	print("Exit")
+	return EXIT_OK if succeeded else EXIT_REPLAY_FAILED
+
+
+def run_interactive(args):
+	"""
+	It starts the recorder with its tray icon, and waits until the user clicks on "Quit" in the tray menu.
+
+	:param args: The parsed command line arguments
+	:return: EXIT_OK
+	"""
+	# These names are used by SysTrayIcon
+	global recorder, icon_record, icon_stop, icon_play, icon_search, icon_light_on, icon_check, icon_cross, icon_power
+	recorder = Recorder()
+	if not args.no_splash_screen:
 		display_splash_screen()
-		path_icons = Path(__file__).parent.absolute() / Path("Icons")
-		# print("ICONS PATH: " + str(path_icons))
-		icon_pywinauto_recorder = str(path_icons / Path("IconPyRec.ico"))
-		icon_record = str(path_icons / Path("record.ico"))
-		icon_stop = str(path_icons / Path("stop.ico"))
-		icon_play = str(path_icons / Path("play.ico"))
-		icon_folder = str(path_icons / Path("folder.ico"))
-		icon_search = str(path_icons / Path("search.ico"))
-		icon_light_on = str(path_icons / Path("light-on.ico"))
-		icon_settings = str(path_icons / Path("settings.ico"))
-		icon_check = str(path_icons / Path("check.ico"))
-		icon_cross = str(path_icons / Path("cross.ico"))
-		icon_power = str(path_icons / Path("power.ico"))
-		icon_help = str(path_icons / Path("help.ico"))
-		icon_comments = str(path_icons / Path("comments.ico"))
-		icon_favourite = str(path_icons / Path("favourite.ico"))
-		hover_text = "Pywinauto recorder"
-		
-		def action_record(sys_tray_icon):
-			if recorder.mode == RecorderMode.RECORD:
-				recorder.stop_recording()
-			else:
-				recorder.start_recording()
+	path_icons = Path(__file__).parent.absolute() / Path("Icons")
+	# print("ICONS PATH: " + str(path_icons))
+	icon_pywinauto_recorder = str(path_icons / Path("IconPyRec.ico"))
+	icon_record = str(path_icons / Path("record.ico"))
+	icon_stop = str(path_icons / Path("stop.ico"))
+	icon_play = str(path_icons / Path("play.ico"))
+	icon_folder = str(path_icons / Path("folder.ico"))
+	icon_search = str(path_icons / Path("search.ico"))
+	icon_light_on = str(path_icons / Path("light-on.ico"))
+	icon_settings = str(path_icons / Path("settings.ico"))
+	icon_check = str(path_icons / Path("check.ico"))
+	icon_cross = str(path_icons / Path("cross.ico"))
+	icon_power = str(path_icons / Path("power.ico"))
+	icon_help = str(path_icons / Path("help.ico"))
+	icon_comments = str(path_icons / Path("comments.ico"))
+	icon_favourite = str(path_icons / Path("favourite.ico"))
+	hover_text = "Pywinauto recorder"
+	
+	def action_record(sys_tray_icon):
+		if recorder.mode == RecorderMode.RECORD:
+			recorder.stop_recording()
+		else:
+			recorder.start_recording()
 
-		def action_replay(sys_tray_icon):
-			if recorder.mode != RecorderMode.PLAY:
-				recorder.playback(pyperclip.paste())
+	def action_replay(sys_tray_icon):
+		if recorder.mode != RecorderMode.PLAY:
+			recorder.playback(pyperclip.paste())
 
-		def action_display_element_info(sys_tray_icon):
-			if recorder.mode == RecorderMode.STOP:
-				recorder.mode = RecorderMode.INFO
-			else:
-				recorder.mode = RecorderMode.STOP
-
-		def action_smart_mode(sys_tray_icon):
-			recorder.smart_mode = not recorder.smart_mode
-
-		def action_relative_coordinates(sys_tray_icon):
-			recorder.relative_coordinate_mode = not recorder.relative_coordinate_mode
-
-		def action_process_menu_click(sys_tray_icon):
-			recorder.process_menu_click_mode = not recorder.process_menu_click_mode
-
-		def action_open_explorer(sys_tray_icon):
-			pywinauto_recorder_path = Path.home() / Path("Pywinauto recorder")
-			os.system('explorer "' + str(pywinauto_recorder_path) + '"')
-
-		def action_display_help(sys_tray_icon):
+	def action_display_element_info(sys_tray_icon):
+		if recorder.mode == RecorderMode.STOP:
+			recorder.mode = RecorderMode.INFO
+		else:
 			recorder.mode = RecorderMode.STOP
-			display_splash_screen()
 
-		def action_display_web_site(sys_tray_icon):
-			os.system('rundll32 url.dll,FileProtocolHandler "https://pywinauto-recorder.readthedocs.io"')
-			
-		def hello(sys_tray_icon):
-			print("Menu 2")
+	def action_smart_mode(sys_tray_icon):
+		recorder.smart_mode = not recorder.smart_mode
 
+	def action_relative_coordinates(sys_tray_icon):
+		recorder.relative_coordinate_mode = not recorder.relative_coordinate_mode
 
-		menu_options = [['Start recording\t\tCTRL+ALT+R', icon_stop, action_record],
-		                ['Replay clipboard', icon_pywinauto_recorder, action_replay],
-		                ['Start displaying element info\tCTRL+SHIFT+D', icon_play, action_display_element_info],
-		                ['Start Smart mode\t\tCTRL+ALT+S', icon_stop, action_smart_mode],
-		                ['- - - - - -', None, hello],
-		                ['Open output folder', icon_folder, action_open_explorer],
-		                ['Process events', icon_settings, [
-			                ['% relative coordinates', icon_cross, action_relative_coordinates],
-			                ['menu_click', icon_cross, action_process_menu_click],
-			                ['set_text', icon_cross, hello],
-			                ['set_combobox', icon_cross, hello], ]],
-		                ['- - - - - -', None, hello],
-		                ['Help', icon_help, [
-			                ['About', icon_comments, action_display_help],
-			                ['Web site', icon_favourite, action_display_web_site], ]]
-		                ]
+	def action_process_menu_click(sys_tray_icon):
+		recorder.process_menu_click_mode = not recorder.process_menu_click_mode
+
+	def action_open_explorer(sys_tray_icon):
+		pywinauto_recorder_path = Path.home() / Path("Pywinauto recorder")
+		os.system('explorer "' + str(pywinauto_recorder_path) + '"')
+
+	def action_display_help(sys_tray_icon):
+		recorder.mode = RecorderMode.STOP
+		display_splash_screen()
+
+	def action_display_web_site(sys_tray_icon):
+		os.system('rundll32 url.dll,FileProtocolHandler "https://pywinauto-recorder.readthedocs.io"')
 		
-		def bye(sys_tray_icon):
-			print("bye---->")
-			recorder.quit()
-			while recorder.is_alive():
-				time.sleep(0.5)
-			print("Exit")
-			print("<----bye")
+	def hello(sys_tray_icon):
+		print("Menu 2")
 
-		SysTrayIcon(icon_pywinauto_recorder, hover_text, menu_options, on_quit=bye, default_menu_index=2)
-		
+
+	menu_options = [['Start recording\t\tCTRL+ALT+R', icon_stop, action_record],
+	                ['Replay clipboard', icon_pywinauto_recorder, action_replay],
+	                ['Start displaying element info\tCTRL+SHIFT+D', icon_play, action_display_element_info],
+	                ['Start Smart mode\t\tCTRL+ALT+S', icon_stop, action_smart_mode],
+	                ['- - - - - -', None, hello],
+	                ['Open output folder', icon_folder, action_open_explorer],
+	                ['Process events', icon_settings, [
+		                ['% relative coordinates', icon_cross, action_relative_coordinates],
+		                ['menu_click', icon_cross, action_process_menu_click],
+		                ['set_text', icon_cross, hello],
+		                ['set_combobox', icon_cross, hello], ]],
+	                ['- - - - - -', None, hello],
+	                ['Help', icon_help, [
+		                ['About', icon_comments, action_display_help],
+		                ['Web site', icon_favourite, action_display_web_site], ]]
+	                ]
+	
+	def bye(sys_tray_icon):
+		print("bye---->")
+		recorder.quit()
 		while recorder.is_alive():
 			time.sleep(0.5)
-		print("Exit2")
+		print("Exit")
+		print("<----bye")
 
-	return 0
+	SysTrayIcon(icon_pywinauto_recorder, hover_text, menu_options, on_quit=bye, default_menu_index=2)
+	
+	while recorder.is_alive():
+		time.sleep(0.5)
+	print("Exit2")
+	return EXIT_OK
+
+
+def main(argv=None):
+	"""
+	Starts Pywinauto Recorder: it replays the Python script given on the command line, or else it starts the recorder.
+
+	:param argv: The command line arguments, without the program name. If None, sys.argv[1:] is used.
+	:return: The exit code of the program: EXIT_OK, EXIT_REPLAY_FAILED or EXIT_FILE_NOT_FOUND
+	"""
+	args = parse_arguments(argv)
+	warn_if_on_battery()
+	minimize_console_if_owned()
+	if args.filename:
+		return replay_file(args.filename)
+	return run_interactive(args)
