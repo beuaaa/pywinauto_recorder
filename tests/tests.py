@@ -109,8 +109,9 @@ def test_uipath_nested():
 
 def test_uipath_absolute_path_with_nested_uipath():
 	"""
-	Tests that a UIPath nested in a UIPath having absolute_path=True does not restore
-	the path saved by the absolute UIPath when it exits.
+	Tests a UIPath nested in a UIPath having absolute_path=True.
+
+	It must not restore the path saved by the absolute UIPath when it exits.
 	"""
 	with UIPath("W1||Window"):
 		with UIPath("W2||Window", absolute_path=True):
@@ -164,8 +165,9 @@ def test_uipath_restored_after_exception():
 
 def test_uipath_regex_title_is_deprecated():
 	"""
-	Tests that the parameter 'regex_title' of UIPath, ignored since Pywinauto Recorder 0.6.0,
-	is still accepted but emits a warning, and that it does not change the path.
+	Tests the parameter 'regex_title' of UIPath, ignored since Pywinauto Recorder 0.6.0.
+
+	It is still accepted but emits a warning, and it does not change the path.
 	"""
 	with pytest.warns(FutureWarning, match="regex_title"):
 		ui_path = UIPath(".* - Notepad||Window", regex_title=True)
@@ -190,6 +192,7 @@ def test_uipath_without_regex_title_does_not_warn():
 
 class _FakePathElement:
 	"""Stands for a Pywinauto wrapper in the tests of get_wrapper_path. It counts the comparisons of elements."""
+
 	comparisons = 0
 
 	def __init__(self, name, control_type, parent=None):
@@ -235,8 +238,10 @@ def test_get_wrapper_path(capsys):
 ])
 def test_get_wrapper_path_of_an_element_that_vanished(capsys, names, control_types):
 	"""
-	Tests that the path of an element that vanished, a menu that was closed for example, is '', without printing anything:
-	UI Automation gives None as the name or the control type of a vanished element. Before, a traceback was printed.
+	Tests that the path of an element that vanished, a menu that was closed for example, is ''.
+
+	Nothing is printed: UI Automation gives None as the name or the control type of a vanished element. Before, a
+	traceback was printed.
 	"""
 	element = _fake_path_elements(names, control_types)[-1]
 	_FakePathElement.comparisons = 0
@@ -282,6 +287,7 @@ class _FakeWrapper:
 def test_click_restores_use_cache_when_the_search_fails(monkeypatch, use_cache):
 	"""
 	Tests that 'click' restores PlayerSettings.use_cache when the element is not found.
+
 	'click' disables the cache while it searches the element and waits until it is ready.
 	"""
 	def move_raising_failed_search(*args, **kwargs):
@@ -330,6 +336,7 @@ def test_click_restores_use_cache_when_it_succeeds(monkeypatch, use_cache):
 
 class _FakeRectangle:
 	"""Stands for the rectangle of a Pywinauto wrapper."""
+
 	def __init__(self, left, top, width, height):
 		self.left, self.top, self.right, self.bottom = left, top, left + width, top + height
 
@@ -345,6 +352,7 @@ class _FakeRectangle:
 
 class _FakeElement:
 	"""Stands for a Pywinauto wrapper returned by 'find_elements' in the tests of '_find'."""
+
 	def __init__(self, name, left=0, top=0, width=50, height=20, visible=True, parent=None):
 		self.name = name
 		self._rectangle = _FakeRectangle(left, top, width, height)
@@ -362,9 +370,8 @@ class _FakeElement:
 
 
 class _FakeFindElements:
-	"""
-	Replaces 'find_elements': each call returns the next list of 'results', the last one is repeated.
-	"""
+	"""Replaces 'find_elements': each call returns the next list of 'results', the last one is repeated."""
+
 	def __init__(self, *results):
 		self.results = list(results)
 		self.call_count = 0
@@ -397,8 +404,9 @@ def test_find_returns_a_unique_element_with_a_single_search(fake_find_elements):
 
 def test_find_searches_again_when_several_elements_match(fake_find_elements):
 	"""
-	Tests that '_find' searches again when several elements match a path without index:
-	the element is returned as soon as it is the only one that matches the path.
+	Tests that '_find' searches again when several elements match a path without index.
+
+	The element is returned as soon as it is the only one that matches the path.
 	"""
 	ok = _FakeElement("Window||Window->OK||Button")
 	closing = _FakeElement("Closing window||Window->OK||Button")
@@ -431,8 +439,9 @@ def test_find_fails_when_several_elements_still_match_after_the_timeout(fake_fin
 
 def test_find_pauses_between_two_searches_when_several_elements_match(fake_find_elements):
 	"""
-	Tests that '_find' pauses between two searches when several elements match the path,
-	and that the default pause is 1 second.
+	Tests that '_find' pauses between two searches when several elements match the path.
+
+	The default pause is 1 second.
 	"""
 	assert player._SEARCH_AGAIN_PAUSE == 1.0
 	ok_1 = _FakeElement("Window 1||Window->OK||Button")
@@ -478,8 +487,9 @@ def test_find_with_index(fake_find_elements):
 @pytest.mark.parametrize("index", ["#[2,0]", "#[0,2]", "#[7,7]"])
 def test_find_fails_when_the_index_is_out_of_range(fake_find_elements, index):
 	"""
-	Tests that '_find' raises FailedSearch, not IndexError, when the row or the column
-	of the [] operator is out of range after the timeout.
+	Tests that '_find' raises FailedSearch, not IndexError, when an index of the [] operator is out of range.
+
+	The row or the column is out of range after the timeout.
 	"""
 	fake = fake_find_elements(list(_two_rows_of_buttons()))
 	with pytest.raises(FailedSearch) as exc_info:
@@ -510,8 +520,9 @@ def test_find_fails_when_no_element_is_visible_with_an_index(fake_find_elements)
 
 def test_find_fails_when_the_column_is_out_of_range_with_a_reference_element(monkeypatch):
 	"""
-	Tests that '_find' raises FailedSearch, not IndexError, when the column is out of range
-	and the row is given by a reference element: "...#[UIPath of the reference element,column]".
+	Tests that '_find' raises FailedSearch, not IndexError, when the column is out of range.
+
+	The row is given by a reference element: "...#[UIPath of the reference element,column]".
 	"""
 	a, b, c, d = _two_rows_of_buttons()
 	label = _FakeElement("Label||Text", left=200, top=35, height=30)  # on the row of c and d
@@ -536,8 +547,9 @@ def test_get_sorted_region_without_visible_element():
 @pytest.mark.parametrize("encoding, expected", [("utf-8", "🔎"), ("cp1252", "?")])
 def test_find_prints_its_progress_whatever_the_encoding_of_stdout(monkeypatch, fake_find_elements, encoding, expected):
 	"""
-	Tests that '_find' does not raise UnicodeEncodeError when the encoding of stdout cannot display
-	the progress symbols (output redirected to a file or a pipe on Windows): ASCII symbols are printed instead.
+	Tests that '_find' does not raise UnicodeEncodeError when stdout cannot display the progress symbols.
+
+	ASCII symbols are printed instead, for example when the output is redirected to a file or a pipe on Windows.
 	"""
 	ok = _FakeElement("Window||Window->OK||Button")
 	fake_find_elements([ok])
@@ -584,6 +596,7 @@ def _assert_message_is_a_sentence(exception):
 
 class _FakeMenu:
 	"""Replaces 'find_all', 'move', 'click' and the mouse cursor position in the tests of 'menu_click'."""
+
 	def __init__(self, monkeypatch, items_by_name, cursor_pos=(100, 100)):
 		self.items_by_name = items_by_name
 		self.clicked_positions = []
@@ -607,8 +620,9 @@ def _menu_item(name, mid_x, mid_y):
 
 def test_menu_click_clicks_on_the_nearest_item(monkeypatch, no_sleep, native_window_handle):
 	"""
-	Tests that 'menu_click' clicks on the item that is the nearest to the mouse cursor
-	when several items have the same name: the vertical distance must be taken into account.
+	Tests that 'menu_click' clicks on the item that is the nearest to the mouse cursor.
+
+	Several items have the same name: the vertical distance must be taken into account.
 	"""
 	far_below = _menu_item("Open", 100, 500)  # same x as the mouse cursor, but 400 pixels below
 	near = _menu_item("Open", 150, 110)
@@ -630,8 +644,9 @@ def test_menu_click_restores_the_path_and_the_window_handle(monkeypatch, no_slee
 
 def test_menu_click_fails_when_a_menu_item_is_not_found(monkeypatch, no_sleep, native_window_handle):
 	"""
-	Tests that 'menu_click' raises FailedSearch, not IndexError, when a menu item is not found,
-	and that it restores the current UIPath and the native window handle.
+	Tests that 'menu_click' raises FailedSearch, not IndexError, when a menu item is not found.
+
+	It must restore the current UIPath and the native window handle.
 	"""
 	_FakeMenu(monkeypatch, {"File": [_menu_item("File", 20, 10)]})
 	with UIPath("Window||Window"):
@@ -647,8 +662,10 @@ def test_menu_click_fails_when_a_menu_item_is_not_found(monkeypatch, no_sleep, n
 class _FakeMouse:
 	"""
 	Replaces 'move', the mouse events, the mouse cursor position and 'time.sleep' in the tests of 'drag_and_drop'.
+
 	'log' is the sequence of what 'drag_and_drop' did.
 	"""
+
 	SCREEN_SIZE = (1920, 1080)
 
 	def __init__(self, monkeypatch, positions):
@@ -684,8 +701,10 @@ class _FakeMouse:
 
 def test_drag_and_drop_sequence(monkeypatch):
 	"""
-	Tests the sequence of 'drag_and_drop': the button is pressed on the source, then there is a pause, the move to
-	the destination, a small move back and forth on the path that was followed, and a pause before the release.
+	Tests the sequence of 'drag_and_drop'.
+
+	The button is pressed on the source, then there is a pause, the move to the destination, a small move back and
+	forth on the path that was followed, and a pause before the release.
 	Some applications ignore the drop when the button is released as soon as the mouse arrives on the destination.
 	"""
 	mouse = _FakeMouse(monkeypatch, {"Source||Pane": (100, 100), "Destination||Pane": (300, 100)})
@@ -715,8 +734,9 @@ def test_drag_and_drop_moves_back_and_forth_on_the_path(monkeypatch):
 
 def test_drag_and_drop_does_not_move_back_and_forth_when_the_mouse_does_not_move(monkeypatch):
 	"""
-	Tests that 'drag_and_drop' does not add a move when the destination is the source,
-	or when the duration is -1 (the mouse cursor doesn't move).
+	Tests that 'drag_and_drop' does not move back and forth when the mouse cursor does not move.
+
+	The destination is the source, or the duration is -1 (the mouse cursor doesn't move).
 	"""
 	mouse = _FakeMouse(monkeypatch, {"Source||Pane": (100, 100), "Destination||Pane": (100, 100)})
 	player.drag_and_drop("Source||Pane", "Destination||Pane", duration=0)
@@ -741,6 +761,7 @@ def test_drag_and_drop_releases_the_button_when_the_destination_is_not_found(mon
 
 class _FakeFileDialog:
 	"""Replaces 'find', the clicks and 'send_keys' in the tests of 'select_file'."""
+
 	def __init__(self, monkeypatch, current_folder):
 		self.current_folder = current_folder
 		self.sent_keys = []
@@ -803,6 +824,7 @@ def test_exe_name(cmd_line, exe_name):
 
 class _FakeProcess:
 	"""Stands for a psutil.Process."""
+
 	def __init__(self, fake_psutil, pid, name, create_time=0.0, parent_pid=None, running=True):
 		self.fake_psutil = fake_psutil
 		self.pid = pid
@@ -826,6 +848,7 @@ class _FakeProcess:
 
 class _FakePsutil:
 	"""Replaces the 'psutil' module: 'processes' are the processes of the system, by ID."""
+
 	class Error(Exception):
 		pass
 
@@ -850,8 +873,10 @@ class _FakePsutil:
 
 def test_candidate_pids(monkeypatch):
 	"""
-	Tests that the candidate processes are the launcher, its descendants and the processes of the same executable
-	started after the launcher, but not the older processes of this executable nor the other processes.
+	Tests the processes that may own the window of a started application.
+
+	They are the launcher, its descendants and the processes of the same executable started after the launcher, but
+	not the older processes of this executable nor the other processes.
 	"""
 	fake_psutil = _FakePsutil()
 	fake_psutil.add(100, "launcher.exe", create_time=1000.0)
@@ -876,11 +901,13 @@ def test_candidate_pids_when_the_launcher_has_exited(monkeypatch):
 
 class _FakeDesktopForStart:
 	"""
-	Replaces pywinauto.Application, findwindows.find_windows, GetWindowThreadProcessId, psutil and time
-	in the tests of 'start_application'.
+	Replaces pywinauto.Application, findwindows.find_windows, GetWindowThreadProcessId, psutil and time.
+
+	It is used in the tests of 'start_application'.
 	Each search of the windows returns the next list of 'windows_lists' (the last one is repeated). A window is a tuple
 	(handle, pid of the process that owns it, title).
 	"""
+
 	def __init__(self, monkeypatch, *windows_lists, launcher_pid=100, launcher_running=True):
 		self.windows_lists = windows_lists
 		self.search_count = 0
@@ -930,8 +957,9 @@ class _FakeDesktopForStart:
 
 def test_start_application_returns_the_new_window_of_the_application(monkeypatch, native_window_handle):
 	"""
-	Tests that 'start_application' returns the first new window of the started process, and ignores the windows
-	that were already there and the new windows of other applications.
+	Tests that 'start_application' returns the first new window of the started process.
+
+	It ignores the windows that were already there and the new windows of other applications.
 	"""
 	desktop = _FakeDesktopForStart(
 		monkeypatch,
@@ -948,8 +976,9 @@ def test_start_application_returns_the_new_window_of_the_application(monkeypatch
 
 def test_start_application_with_a_launcher_that_exits(monkeypatch, native_window_handle):
 	"""
-	Tests 'start_application' with a launcher that starts the real executable then exits:
-	the window of the executable started after the launcher is returned, not the window of an older instance.
+	Tests 'start_application' with a launcher that starts the real executable then exits.
+
+	The window of the executable started after the launcher is returned, not the window of an older instance.
 	"""
 	desktop = _FakeDesktopForStart(monkeypatch, [(1, 201, "Old instance")], [(1, 201, "Old instance"), (2, 200, "App")])
 	desktop.fake_psutil.add(201, "app.exe", create_time=900.0)
@@ -960,8 +989,10 @@ def test_start_application_with_a_launcher_that_exits(monkeypatch, native_window
 
 def test_start_application_with_a_uwp_application(monkeypatch, native_window_handle):
 	"""
-	Tests 'start_application' with a UWP application like the Calculator: the launcher exits at once and the
-	main window belongs to ApplicationFrameHost.exe, a process of the system that is not related to the launcher.
+	Tests 'start_application' with a UWP application like the Calculator.
+
+	The launcher exits at once and the main window belongs to ApplicationFrameHost.exe, a process of the system that is
+	not related to the launcher.
 	"""
 	desktop = _FakeDesktopForStart(
 		monkeypatch,
@@ -974,8 +1005,9 @@ def test_start_application_with_a_uwp_application(monkeypatch, native_window_han
 
 def test_start_application_ignores_uwp_windows_while_the_launcher_is_running(monkeypatch, native_window_handle):
 	"""
-	Tests that 'start_application' does not take a new window of ApplicationFrameHost.exe while the launcher is still
-	running: it is the window of another UWP application, not the window of the started application.
+	Tests that 'start_application' ignores the new windows of ApplicationFrameHost.exe while the launcher is running.
+
+	Such a window belongs to another UWP application, not to the started application.
 	"""
 	desktop = _FakeDesktopForStart(
 		monkeypatch,
@@ -1032,6 +1064,7 @@ def test_start_application_fails_at_once_when_timeout_is_0(monkeypatch, native_w
 
 class _FakeWindow:
 	"""Stands for a top level window in the test of 'start_application' with main_window_uipath."""
+
 	def __init__(self, handle):
 		self.handle = handle
 
@@ -1039,8 +1072,10 @@ class _FakeWindow:
 class _FakePywinautoWithDesktop:
 	"""
 	Replaces the 'pywinauto' module in the test of 'start_application' with main_window_uipath.
+
 	Each call to 'Desktop().windows()' returns the next list of 'windows_lists', the last one is repeated.
 	"""
+
 	def __init__(self, *windows_lists):
 		self.windows_lists = windows_lists
 		self.call_count = 0
@@ -1061,8 +1096,9 @@ class _FakePywinautoWithDesktop:
 
 def test_start_application_with_main_window_uipath(monkeypatch, no_sleep, native_window_handle):
 	"""
-	Tests that 'start_application' with main_window_uipath connects to the main window found with this UIPath,
-	excluding the main windows that were there before the start.
+	Tests that 'start_application' with main_window_uipath connects to the main window found with this UIPath.
+
+	The main windows that were there before the start are excluded.
 	"""
 	old_window, splash_screen = _FakeWindow(1), _FakeWindow(2)
 	connect_kwargs = []
@@ -1187,8 +1223,9 @@ def test_playback_returns_true_when_the_script_succeeds(playback_environment):
 @pytest.mark.parametrize("stdin", [_FakeStdin(interactive=False), None])
 def test_playback_does_not_wait_for_enter_when_nobody_can_press_it(monkeypatch, capsys, playback_environment, stdin):
 	"""
-	Tests that 'playback' returns False and prints the error when the script fails, and that it does not
-	wait for the Enter key when the input is not a console (scheduled task, CI, pythonw.exe).
+	Tests that 'playback' returns False and prints the error when the script fails.
+
+	It must not wait for the Enter key when the input is not a console (scheduled task, CI, pythonw.exe).
 	"""
 	monkeypatch.setattr(sys, "stdin", stdin)
 	assert player.playback(str_code="raise ValueError('error raised by the script')") is False
@@ -1211,6 +1248,7 @@ def test_playback_waits_for_enter_in_a_console(monkeypatch, capsys, playback_env
 def test_version_info_rc_has_the_version_of_the_package():
 	"""
 	Tests that bin/VersionInfo.rc gives the version of the package, read the same way as by app.get_latest_version.
+
 	app.get_latest_version reads this file on the 'master' branch to tell the users that a new version is available.
 	"""
 	import pywinauto_recorder

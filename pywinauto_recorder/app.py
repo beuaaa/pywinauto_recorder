@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-The Pywinauto Recorder application: the tray icon and its menu, the splash screen, and the replay of a Python script
-given on the command line.
+The Pywinauto Recorder application: the tray icon and its menu, the splash screen, and the replay of a script given on the command line.
 
 It is started by main(), with the command "pywinauto-recorder", with "python -m pywinauto_recorder",
 or with pywinauto_recorder.py, the launcher compiled by Nuitka into pywinauto_recorder.exe.
@@ -54,6 +53,7 @@ _COMMAND_INTERPRETERS = frozenset((
 
 class _SYSTEM_POWER_STATUS(Structure):
 	"""The SYSTEM_POWER_STATUS structure filled by GetSystemPowerStatus."""
+
 	# The fields are unsigned: with wintypes.BYTE (signed), the unknown status 255 would be read as -1
 	_fields_ = [
 		('ACLineStatus', c_ubyte),
@@ -160,8 +160,11 @@ class MenuItem(object):
 	'text', 'icon' and 'enabled' are values, or functions without argument that return the value. They are evaluated
 	each time the menu is displayed, so that the menu shows the current state of the recorder.
 	"""
+
 	def __init__(self, text, icon=None, action=None, submenu=None, enabled=True):
 		"""
+		Creates an entry of the menu.
+
 		:param text: The text of the entry, or a function that returns it
 		:param icon: The path of the .ico file of the entry, or a function that returns it, or None
 		:param action: The function called with the SysTrayIcon when the entry is clicked
@@ -197,11 +200,14 @@ class SysTrayIcon(object):
 
 	It creates a hidden window that receives the messages of the icon. run() processes these messages until quit() is called.
 	"""
+
 	FIRST_ID = 1023
 	_WM_NOTIFY_ICON = win32con.WM_USER + 20
 
 	def __init__(self, icon, hover_text, menu, on_quit=None, default_action=None, window_class_name="SysTrayIconPy"):
 		"""
+		Creates the hidden window that receives the messages of the icon, and adds the icon to the notification area.
+
 		:param icon: The path of the .ico file of the icon
 		:param hover_text: The text displayed when the mouse cursor is over the icon
 		:param menu: The entries of the menu: a list of MenuItem and MENU_SEPARATOR
@@ -275,6 +281,7 @@ class SysTrayIcon(object):
 	def destroy(self, hwnd, msg, wparam, lparam):
 		"""
 		Called when the hidden window is destroyed: it calls on_quit, removes the icon and stops run().
+
 		The icon is removed and run() is stopped even if on_quit raises an exception.
 		"""
 		try:
@@ -376,8 +383,11 @@ class SysTrayIcon(object):
 
 class TrayIcons(object):
 	"""The paths of the icons of the tray icon and of its menu."""
+
 	def __init__(self, folder=ICONS_FOLDER):
 		"""
+		Gives the paths of the icons of a folder.
+
 		:param folder: The folder of the .ico files
 		"""
 		self.pywinauto_recorder = str(folder / "IconPyRec.ico")
@@ -397,11 +407,12 @@ class TrayIcons(object):
 
 
 class ClipboardReplay(object):
-	"""
-	It replays the Python code of the clipboard in a thread, so that the tray menu keeps working during the replay.
-	"""
+	"""It replays the Python code of the clipboard in a thread, so that the tray menu keeps working during the replay."""
+
 	def __init__(self, recorder):
 		"""
+		Creates the replay of the clipboard. The replay is started by start().
+
 		:param recorder: The Recorder that replays the code: it displays the 'play' icon during the replay
 		"""
 		self.recorder = recorder
@@ -586,6 +597,7 @@ def version_messages(installed_version, latest_version):
 def check_version():
 	"""
 	It checks whether a newer version of Pywinauto Recorder is available, and prints the result in the console.
+
 	The check is done only once: the next calls return the same line, without printing it again.
 
 	:return: The line about the version displayed by the splash screen
@@ -700,6 +712,7 @@ def _draw_splash_foreground(overlay, rectangle, text_lines, n):
 def display_splash_screen():
 	"""
 	It displays the splash screen, with the version and the keyboard shortcuts, until the mouse cursor moves out of it.
+
 	If the mouse cursor is not over the splash screen when it is displayed, it waits until the mouse cursor moves over it.
 	"""
 	text_lines = _splash_screen_text_lines(check_version())

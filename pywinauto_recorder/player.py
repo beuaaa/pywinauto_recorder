@@ -1,4 +1,4 @@
-"""This module contains functions to replay a sequence of user actions automatically."""
+"""Functions that replay a sequence of user actions automatically."""
 
 # print('__file__={0:<35} | __name__={1:<20} | __package__={2:<20}'.format(__file__, __name__, str(__package__)))
 from enum import Enum
@@ -42,11 +42,13 @@ UI_Selector = Union[UI_Path, PYWINAUTO_Wrapper, UI_Coordinates]
 
 class PywinautoRecorderException(Exception):
 	"""Base class for other exceptions."""
+
 	...
 
 
 class FailedSearch(PywinautoRecorderException):
 	"""FailedSearch is a subclass of *PywinautoRecorderException* that is raised when a search for a control fails."""
+
 	...
 
 
@@ -183,7 +185,8 @@ def full_definition(str_shortcut: str) -> str:
 
 def wait_is_ready_try1(wrapper, timeout=120):
 	"""
-	Waits until element is ready (wait while greyed, not enabled, not visible, not ready, ...) :
+	Waits until element is ready (wait while greyed, not enabled, not visible, not ready, ...).
+
 	So far, I didn't find better than wait_cpu_usage_lower when greyed but must be enhanced.
 	"""
 	t0 = time.time()
@@ -250,13 +253,14 @@ class UIPath(object):
 				click("One||Button")
 				click("Two||Button")
 	"""
+
 	_stack = []
 	_path_list = []
 	
 	@staticmethod
 	def get_full_path(element_path: Optional[UI_Path] = None) -> UI_Path:
 		"""
-		If the element_path is None, return the full path of the current UI element
+		If the element_path is None, return the full path of the current UI element.
 
 		:param element_path: Optional[UI_Path] = None
 		:type element_path: Optional[UI_Path]
@@ -270,6 +274,13 @@ class UIPath(object):
 			return element_path
 	
 	def __init__(self, relative_path=None, regex_title=False,absolute_path=False):
+		"""
+		Creates a UIPath, used with the 'with' statement.
+
+		:param relative_path: The path added to the current path in the 'with' block
+		:param regex_title: Deprecated and ignored: a path is searched as a regular expression when it starts with 'RegEx: '
+		:param absolute_path: If True, relative_path replaces the current path in the 'with' block, instead of being added
+		"""
 		if regex_title:
 			warnings.warn(
 				"The parameter 'regex_title' of UIPath is ignored since Pywinauto Recorder 0.6.0: "
@@ -281,6 +292,7 @@ class UIPath(object):
 		self.absolute_path = absolute_path
 	
 	def __enter__(self):
+		"""Adds relative_path to the current path, or replaces the current path when absolute_path is True."""
 		if self.absolute_path:
 			UIPath._stack.append(UIPath._path_list)
 			UIPath._path_list = []
@@ -289,6 +301,7 @@ class UIPath(object):
 		return self
 	
 	def __exit__(self, exc_type, exc_value, exc_traceback):
+		"""Restores the current path."""
 		if self.relative_path:
 			UIPath._path_list = UIPath._path_list[0:-1]
 		# Only the UIPath that saved the path in __enter__ (absolute_path=True) restores it.
@@ -348,9 +361,7 @@ def _find_elements_or(full_element_path, default):
 
 
 def find_cache_clear():
-	"""
-	Clears the cache of the :func:`find` function.
-	"""
+	"""Clears the cache of the :func:`find` function."""
 	_cached_find.cache_clear()
 
 
@@ -621,7 +632,7 @@ def move_window(
 		width: Optional[int] = 0,
 		height: Optional[int] = 0):
 	"""
-	Moves and resizes a window
+	Moves and resizes a window.
 
 	:param element_path: element path
 	:param x: new x coordinate of the upper left corner of the window
@@ -683,6 +694,7 @@ def _move(x, y, xd, yd, duration=1, refresh_rate=25):
 def _move_back_and_forth(x_from, y_from, distance=2):
 	"""
 	It moves the mouse cursor 'distance' pixels back towards (x_from, y_from), then forth to its current position.
+
 	The mouse cursor stays on the straight line between (x_from, y_from) and its current position.
 	Nothing is done if (x_from, y_from) is closer than 'distance' pixels.
 	
@@ -966,7 +978,7 @@ def menu_click(
 		duration: Optional[float] = None,
 		timeout: Optional[float] = None,
 		absolute_path = False) -> PYWINAUTO_Wrapper:
-	"""
+	r"""
 	Clicks on the menu items.
 	
 	.. code-block:: python
@@ -975,7 +987,7 @@ def menu_click(
 		
 		from pywinauto_recorder.player import UIPath, find, click, menu_click
 	
-		with UIPath("RegEx: .* - Notepad\\+\\+$||Window"):
+		with UIPath("RegEx: .* - Notepad\+\+$||Window"):
 			find().set_focus()
 			menu_click("Language->P->Python")
 		
@@ -990,7 +1002,9 @@ def menu_click(
 			click("*->File tab||Button")
 			menu_click("New")
 			
-	In the above code, the 'File tab' element that opens the menu is not of type 'MenuItem', so it is not possible to call 'menu_click("File tab->New")'. In this case the menu must be opened with 'click("*->File tab||Button")' before calling :func:`menu_click`.
+	In the above code, the 'File tab' element that opens the menu is not of type 'MenuItem', so it is not possible to call
+	'menu_click("File tab->New")'. In this case the menu must be opened with 'click("*->File tab||Button")' before calling
+	:func:`menu_click`.
 	
 	:param menu_path: menu item path
 	:param duration: duration in seconds of the mouse move (it doesn't take into account the time it takes to find)
@@ -1063,7 +1077,8 @@ def send_keys(
 		turn_off_numlock: bool = True,
 		vk_packet: bool = True) -> None:
 	"""
-	Parses the keys and type them
+	Parses the keys and types them.
+
 	You can use any Unicode characters (on Windows) and some special keys.
 	See https://pywinauto.readthedocs.io/en/latest/code/pywinauto.keyboard.html
 	
@@ -1150,6 +1165,7 @@ def exists(
 		timeout: Optional[float] = None) -> PYWINAUTO_Wrapper:
 	"""
 	Tests if the user interface element exists. It returns the element if it exists, None otherwise.
+
 	In both cases no exception is thrown as for the :func:`find` function.
 	
 	:param element_path: element path
@@ -1221,7 +1237,7 @@ def select_file(
 
 def playback(str_code='', filename=''):
 	"""
-	This function plays back a string of code or a Python file.
+	Plays back a string of code or a Python file.
 
 	If the played back code raises an exception, the error is printed. Then, when the function is run in a console,
 	it waits for the Enter key so that the error can be read. It does not wait when nobody can press the key
@@ -1267,7 +1283,15 @@ def playback(str_code='', filename=''):
 
 
 class UIApplication(object):
+	"""An application started by :func:`start_application`, or connected by :func:`connect_application`."""
+
 	def __init__(self, app, native_window_handle=None):
+		"""
+		Creates the object that represents an application.
+
+		:param app: The pywinauto Application
+		:param native_window_handle: The handle of the main window of the application
+		"""
 		self.app = app
 		self.native_window_handle = native_window_handle
 
@@ -1279,6 +1303,7 @@ _APPLICATION_FRAME_HOST = "applicationframehost.exe"
 def _exe_name(cmd_line):
 	"""
 	Returns the lowercase file name of the executable started by a command line, or None if it cannot be found.
+
 	".exe" is added when the executable is given without extension, like "calc" or "notepad".
 
 	:param cmd_line: The command line that starts the application
@@ -1378,8 +1403,7 @@ def _window_process_id(handle):
 
 def _new_windows_of_application(launcher_pid, exe_name, t_start, windows_before, title_re=None):
 	"""
-	Returns the handles of the visible top level windows that appeared since the application was started
-	and that belong to it.
+	Returns the handles of the visible top level windows that appeared since the application was started and belong to it.
 
 	:param launcher_pid: The ID of the process started by the command line
 	:param exe_name: The lowercase file name of the executable started by the command line, or None
@@ -1406,6 +1430,7 @@ def _new_windows_of_application(launcher_pid, exe_name, t_start, windows_before,
 def _start_application_with_main_window_uipath(cmd_line, timeout, wait_for_idle, main_window_uipath):
 	"""
 	Starts an application, waits for a new window, then connects to the main window found with main_window_uipath.
+
 	See :func:`start_application`.
 	"""
 	desktop = pywinauto.Desktop(backend='uia', allow_magic_lookup=False)
@@ -1445,7 +1470,7 @@ def start_application(cmd_line, timeout=10, wait_for_idle=True, main_window_uipa
 		It is also the maximum duration to wait for the window of the application to appear.
 	:param wait_for_idle: If True, waits for the application to become idle before proceeding. Default is True.
 	:param main_window_uipath: The UI path of the main window. This parameter is mandatory if the application has multiple main windows,
-        starts with a splash screen, or has any intermediate windows else it is optional.
+		starts with a splash screen, or has any intermediate windows else it is optional.
 	:param title_re: (optional) regular expression that the title of the main window must match.
 		It is not used when main_window_uipath is given.
 	:return: UIApplication Returns a UIApplication object representing the started application.
@@ -1492,8 +1517,9 @@ _PYWINAUTO_RENAMED_KWARGS = {
 
 def _translate_pywinauto_kwargs(kwargs):
 	"""
-	Returns a copy of kwargs where the search keywords renamed in pywinauto 1.0
-	(process, title, title_re, visible_only, enabled_only) are replaced by their new names.
+	Returns a copy of kwargs where the search keywords renamed in pywinauto 1.0 are replaced by their new names.
+
+	The renamed keywords are process, title, title_re, visible_only and enabled_only.
 	visible_only=False and enabled_only=False mean "no filter", so they are dropped.
 	"""
 	translated = {}
@@ -1511,7 +1537,8 @@ def _translate_pywinauto_kwargs(kwargs):
 
 
 def connect_application(**kwargs):
-	"""Connect to an already running application
+	"""
+	Connects to an already running application.
 
 	The action is performed according to only one of parameters:
 
@@ -1519,21 +1546,21 @@ def connect_application(**kwargs):
 	:param handle: a native window handle of the target
 	:param path: a path used to launch the target
 	:param main_window_uipath: The UI path of the main window. This parameter is mandatory if the application has multiple main windows,
-        starts with a splash screen, or has any intermediate windows else it is optional.
-	
+		starts with a splash screen, or has any intermediate windows else it is optional.
+
 	Then the following optional parameters can be used:
-	
-  :param timeout: a timeout (in seconds) for process start (relevant if path is specified)
-  :param exclude_main_windows: A list of main windows to exclude from the search. This list could come from `find_main_windows`.
-        All windows in this list will be excluded to find the main window of the application to be connected.
-        
+
+	:param timeout: a timeout (in seconds) for process start (relevant if path is specified)
+	:param exclude_main_windows: A list of main windows to exclude from the search. This list could come from `find_main_windows`.
+		All windows in this list will be excluded to find the main window of the application to be connected.
+
 	:return: Returns a UIApplication object representing the connected application.
-	
+
 	.. seealso::
-		 :func:`pywinauto.findwindows.find_elements` - the keyword arguments that
-		 are also can be used instead of **pid**, **handle** or **path**.
-		 The keywords renamed in pywinauto 1.0 (``title``, ``title_re``, ``process``, ``visible_only``,
-		 ``enabled_only``) are still accepted and translated to their new names.
+		:func:`pywinauto.findwindows.find_elements` - the keyword arguments that
+		are also can be used instead of **pid**, **handle** or **path**.
+		The keywords renamed in pywinauto 1.0 (``title``, ``title_re``, ``process``, ``visible_only``,
+		``enabled_only``) are still accepted and translated to their new names.
 	"""
 	kwargs = _translate_pywinauto_kwargs(kwargs)
 	if 'exclude_main_windows' in kwargs or 'main_window_uipath' in kwargs:
@@ -1568,12 +1595,13 @@ def connect_application(**kwargs):
 def focus_on_application(application_or_window=None):
 	"""
 	Focuses on a specified application by bringing its main window to the foreground.
+
 	If 'application_or_window' is None, it clears the focus, allowing subsequent automation commands
 	to target any window without restrictions.
 
 	:param application_or_window: UIApplication object, UIAWrapper object of a main window or None
-	    The object to focus on the main window.
-	    If None, the focus is cleared.
+		The object to focus on the main window.
+		If None, the focus is cleared.
 	"""
 	if application_or_window is None:
 		set_native_window_handle(None)
@@ -1592,23 +1620,23 @@ def focus_on_application(application_or_window=None):
 
 def find_main_windows(main_window_uipath='*'):
 	"""
-	  Finds the main windows matching the specified UI path.
+	Finds the main windows matching the specified UI path.
 
-	  :param main_window_uipath: The UI path to search for main windows. Default is '*' to match all windows.
-	  :return: Returns a list of windows matching the specified UI path.
-	  
-	  .. seealso::
-				:func:`connect_application` - Connects to an already running application.
-	  """
+	:param main_window_uipath: The UI path to search for main windows. Default is '*' to match all windows.
+	:return: Returns a list of windows matching the specified UI path.
+
+	.. seealso::
+		:func:`connect_application` - Connects to an already running application.
+	"""
 	return find_window_candidates(main_window_uipath, handle=None)
 
 
 def kill_application(application, timeout=10):
 	"""
-		This function kills an application.
+	Kills an application.
 
-		:param application: UIApplication object
-		:param timeout: timeout of the connection process
-		"""
+	:param application: UIApplication object
+	:param timeout: timeout of the connection process
+	"""
 	application.app.connect(handle=application.native_window_handle, timeout=timeout)
 	application.app.kill()

@@ -30,9 +30,7 @@ def test_uipath_filtering_with_regex_and_index(start_kill_app):
 
 @pytest.mark.parametrize('start_kill_app', ["calc"], indirect=True)
 def test_dictionary(start_kill_app):
-	"""
-	It opens the calculator, clicks 1, +, 2, and =, and then checks that the result is 3.
-	"""
+	"""It opens the calculator, clicks 1, +, 2, and =, and then checks that the result is 3."""
 	load_dictionary("Calculator.key", "Calculator.def")
 	with UIPath(shortcut("Calculator")):
 		with UIPath(shortcut("Number pad")):
@@ -52,6 +50,7 @@ def test_dictionary(start_kill_app):
 def test_asterisk(start_kill_app):
 	"""
 	It clicks the "1" button, then the "+" button, then the "2" button, then the "=" button.
+
 	Then is does it again, but this time it searches within all the windows with UIPath("*").
 	"""
 	for root_path in ["Calculator||Window->*", "*->*"]:
@@ -64,7 +63,7 @@ def test_asterisk(start_kill_app):
 
 @pytest.mark.parametrize('start_kill_app', ["calc"], indirect=True)
 def test_recorder_click(start_kill_app, wait_recorder_ready):
-	""" Tests the ability to record all clicks. """
+	"""Tests the ability to record all clicks."""
 	focus_on_application(None)
 	move_window("Calculator||Window", x=0, y=100, width=400, height=400)
 	move("Calculator||Window->*->Zero||Button", duration=0)
@@ -122,7 +121,7 @@ def test_recorder_click(start_kill_app, wait_recorder_ready):
 
 @pytest.mark.parametrize('start_kill_app', ["calc"], indirect=True)
 def test_recorder_performance(start_kill_app, wait_recorder_ready):
-	""" Tests the performance to find a unique path. """
+	"""Tests the performance to find a unique path."""
 	focus_on_application(None)
 	move("Calculator||Window->*->Zero||Button", duration=0)
 	recorder = Recorder()
@@ -142,7 +141,7 @@ def test_recorder_performance(start_kill_app, wait_recorder_ready):
 
 @pytest.mark.parametrize('start_kill_app', ["calc"], indirect=True)
 def test_player_performance(start_kill_app):
-	""" Tests the performance to find a unique path. """
+	"""Tests the performance to find a unique path."""
 	old_mouse_move_duration = PlayerSettings.mouse_move_duration
 	iterations = 22
 	result_wrapper = find("Calculator||Window->*->RegEx: Display is||Text")
@@ -169,9 +168,7 @@ def test_player_performance(start_kill_app):
 
 @pytest.mark.parametrize('start_kill_app', ["calc"], indirect=True)
 def test_ocr(start_kill_app):
-	"""
-	Searches the text of some elements of type "Text" and compares it with the text found by the OCR method.
-	"""
+	"""Searches the text of some elements of type "Text" and compares it with the text found by the OCR method."""
 	test_data = (
 		"Calculator||Window->||Custom->Scientific Calculator mode||Text",
 		"Calculator||Window->||Custom->||Group->*->Trigonometry||Text",
@@ -191,13 +188,13 @@ def test_multi_instances():
 
 	1. Starts two instances of Calculator.
 	2. Performs actions on the first instance:
-	    - Focuses on the application.
-	    - Moves its window to a specified position and size.
-	    - Clicks the 'One' button.
+		- Focuses on the application.
+		- Moves its window to a specified position and size.
+		- Clicks the 'One' button.
 	3. Performs actions on the second instance using a UIPath context:
-	    - Focuses on the application using an asterisk in UIPath.
-	    - Moves the window to a different position and size.
-	    - Performs a series of button clicks: 'Three', 'Minus', 'One', 'Equals'.
+		- Focuses on the application using an asterisk in UIPath.
+		- Moves the window to a different position and size.
+		- Performs a series of button clicks: 'Three', 'Minus', 'One', 'Equals'.
 	4. Waits for 2 seconds to observe the changes.
 	5. Closes both instances of the Calculator application.
 	"""
@@ -226,8 +223,9 @@ def test_multi_instances():
 
 def test_new_window_connection():
 	"""
-	Opens a new application within an application, navigating through UI elements,
-	and then connecting to the new window that opens as a result of a user action.
+	Opens a new application within an application.
+
+	It navigates through UI elements, and then connects to the new window that opens as a result of a user action.
 
 	Steps:
 	1. Start the application "calc" (calculator).

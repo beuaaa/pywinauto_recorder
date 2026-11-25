@@ -83,6 +83,7 @@ def test_element_info_properties_used_by_recorder():
 def test_visible_top_windows_uses_the_keywords_of_pywinauto_1_0():
 	"""
 	Tests that the search of the windows by 'start_application' calls pywinauto 1.0 without any renamed keyword.
+
 	'_visible_top_windows' catches the exceptions, so the warnings are recorded instead of being raised.
 	"""
 	import warnings

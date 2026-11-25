@@ -1,4 +1,6 @@
-"""This module contains functions and classes allowing to record a sequence of user actions.
+"""
+Functions and classes that record a sequence of user actions.
+
 All these functions and classes are private except the Recorder class.
 """
 
@@ -42,7 +44,8 @@ MenuEvent = namedtuple('MenuEvent', ['path', 'menu_path'])
 
 
 class IconSet:
-	""" It loads the icons from the Icons folder of the package and stores them in the class."""
+	"""It loads the icons from the Icons folder of the package and stores them in the class."""
+
 	path_icons = os.path.dirname(os.path.realpath(__file__))
 	hicon_clipboard = oaam.load_ico(path_icons + r'\Icons\paste.ico', 48, 48)
 	hicon_light_on = oaam.load_ico(path_icons + r'\Icons\light-on.ico', 48, 48)
@@ -55,11 +58,13 @@ class IconSet:
 
 def _escape_special_char(string):
 	"""
-		Is called on all paths to remove all special characters but it's not good.
-		Should be moved in core
-		Should be called only in get_wrapper_path and unescape_special_char in get_entry
-		and in script += 'menu_click... in menu_click as it's already done
-		should replace -> by _>
+	Escapes the special characters of a path, so that it can be written between the quotes of a string in a script.
+
+	It is called on all paths to remove all special characters but it's not good.
+	Should be moved in core.
+	Should be called only in get_wrapper_path and unescape_special_char in get_entry,
+	and in script += 'menu_click... in menu_click as it's already done.
+	Should replace -> by _>.
 	"""
 	for r in (("\\", "\\\\"), ("\t", "\\t"), ("\n", "\\n"), ("\r", "\\r"), ("\v", "\\v"), ("\f", "\\f"), ('"', '\\"')):
 		string = string.replace(*r)
@@ -216,9 +221,11 @@ def _get_script_line(event, common_path, relative_coordinate_mode):
 
 
 def _clean_events(events, remove_first_up=False):
-	""""
-	removes duplicate or useless events
-	removes all the last down events due or not to (CTRL+ALT+r) when ending record mode
+	"""
+	Removes duplicate or useless events.
+
+	It removes all the last down events due or not to (CTRL+ALT+r) when ending record mode.
+
 	:param remove_first_up: when True, removes the 2 first up events due to (CTRL+ALT+r) when starting record mode
 	:param events: the copy of recorded event list
 	"""
@@ -478,7 +485,7 @@ def _process_menu_select_events(events, i):
 
 
 def _common_start(sa, sb):
-	""" returns the longest common substring from the beginning of sa and sb """
+	"""Returns the longest common substring from the beginning of sa and sb."""
 	
 	def _iter():
 		for a, b in zip(sa, sb):
@@ -538,10 +545,11 @@ def _get_typed_keys(keyboard_events):
 def _get_typed_strings(keyboard_events, allow_backspace=True):
 	"""
 	Given a sequence of events, tries to deduce what strings were typed.
+
 	Strings are separated when a non-textual key is pressed (such as tab or
 	enter). Characters are converted to uppercase according to shift and
 	capslock status. If `allow_backspace` is True, backspaces remove the last
-	character typed. Control keys are converted into pywinauto.keyboard key codes
+	character typed. Control keys are converted into pywinauto.keyboard key codes.
 	"""
 	backspace_name = 'backspace'
 	
@@ -696,8 +704,7 @@ def _is_cursor_in(rectangle):
 
 class _ElementSearch:
 	"""
-	The state of the search of a unique path of the element under the mouse cursor, kept from a loop of the recorder to
-	the next one.
+	The state of the search of a unique path of the element under the mouse cursor, kept from a loop to the next one.
 
 	The strategies are tried one after the other, a strategy at each loop, while the mouse cursor stays on the same
 	element and no unique path is found. The strategy Strategy.array_1d is used only in Smart mode.
@@ -742,6 +749,7 @@ class RecorderMode(str, Enum):
 	It is a 'str' enumeration, so a mode is equal to its value: RecorderMode.RECORD == "Record".
 	The code that compares the mode of the recorder with a string keeps working.
 	"""
+
 	INITIALIZING = "Initializing"
 	RECORD = "Record"
 	PLAY = "Play"
@@ -776,7 +784,9 @@ class Recorder(Thread):
 	The above code clicks on the text field and then on 'utf8'.
 	All these events are recorded in a file. Then the file is replayed.
 	"""
+
 	def __init__(self):
+		"""Creates the recorder, and starts its loop in a thread, then the process of the element information tooltip."""
 		from .element_observer import ElementInfoTooltip
 		Thread.__init__(self)
 		from win32api import GetSystemMetrics
@@ -1131,6 +1141,7 @@ class Recorder(Thread):
 	def smart_mode(self):
 		"""
 		If True, the smart mode is activated.
+
 		:return: The state of the smart mode.
 		"""
 		return self._smart_mode
@@ -1165,6 +1176,8 @@ class Recorder(Thread):
 
 	def start_recording(self):
 		"""
+		It starts the recording: the mode of the recorder becomes "Record".
+
 		It adds a mouse move event to the event list, displays the record icon to the main overlay,
 		clears and refreshes the main and info overlays, and then sets the mode to "Record".
 		"""
@@ -1179,8 +1192,11 @@ class Recorder(Thread):
 
 	def stop_recording(self):
 		"""
+		It stops the recording, and writes the Python script: the mode of the recorder becomes "Stop".
+
 		It cleans the event list, displays the stop icon to the main overlay,
 		clears and refreshes the main and info overlays, writes the Python script, and then sets the mode to "Stop".
+
 		:return: The name of the file that was created.
 		"""
 		if self.mode == RecorderMode.RECORD and len(self.event_list) > 2:
@@ -1205,6 +1221,7 @@ class Recorder(Thread):
 	def get_last_element_event(self):
 		"""
 		It returns the last element of the event.
+
 		:return: The last element event.
 		"""
 		return self.last_element_event
@@ -1224,7 +1241,7 @@ class Recorder(Thread):
 
 	def playback(self, str_code='', filename=''):
 		"""
-		This function plays back a string of code or a Python file.
+		It plays back a string of code or a Python file.
 		
 		:param str_code: The code to be played back
 		:param filename: The name of the file corresponding to the code to be played back
@@ -1239,9 +1256,10 @@ class Recorder(Thread):
 	
 	def quit(self):
 		"""
+		It quits the recorder: it ends its loop and stops the element information tooltip.
+
 		It writes the recording in progress, clears the main overlay, stops the loop of the recorder, and then stops the
 		element information tooltip.
-
 		The end of the loop is waited for at most QUIT_TIMEOUT seconds, because an application that does not respond
 		may block it. The thread of the recorder is a daemon thread: it does not prevent the application from exiting.
 		"""

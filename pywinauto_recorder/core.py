@@ -56,8 +56,9 @@ class Strategy(Enum):
 
 def get_wrapper_path(wrapper, wrapper_top_level_parent=None):
 	"""
-	Returns the path of an element: the names and control types of the element and of its ancestors, from its top level
-	window, for example "Calculator||Window->Number pad||Group->One||Button".
+	Returns the path of an element, for example "Calculator||Window->Number pad||Group->One||Button".
+
+	The path gives the names and control types of the element and of its ancestors, from its top level window.
 
 	It returns '' if the element vanished, for example a menu that was closed: UI Automation then gives None as its name
 	or control type, or raises a COMError. Before, a traceback was printed, and comparing the vanished element with its
@@ -85,7 +86,8 @@ def get_wrapper_path(wrapper, wrapper_top_level_parent=None):
 
 def get_entry_list(path):
 	"""
-	It splits the path into a list of entries
+	It splits the path into a list of entries.
+
 	It only handles one #[y,x] at the end. It does not handle the #[y,x] in the middle.
 	
 	:param path: the path to the element
@@ -105,11 +107,11 @@ def get_entry_list(path):
 
 def is_int(s):
 	"""
-	"If the string can be converted to an integer, return True, otherwise return False."
+	Returns True if the string can be converted to an integer, otherwise False.
 
 	The try statement is used to catch exceptions. In this case, if the string can be converted to an integer, the int()
 	function will return the integer. If the string cannot be converted to an integer, the int() function will raise a
-	ValueError exception
+	ValueError exception.
 
 	:param s: the string to check
 	:return: True or False
@@ -127,7 +129,7 @@ def is_absolute_path(entry):
 
 def get_entry(entry):
 	"""
-	It takes a string of the form "name"#["y",x]%(dx,dy)~Absolute_UIPath and returns a tuple of the form (name, type, [y,x], (dx,dy))
+	It takes a string of the form "name"#["y",x]%(dx,dy)~Absolute_UIPath and returns a tuple (name, type, [y,x], (dx,dy)).
 	
 	:param entry: the string that is the entry in the listbox
 	:return: The name of the entry, the type of the entry, the size of the entry, and the dx and dy of the entry.
@@ -183,7 +185,7 @@ def get_entry(entry):
 
 def is_regex_entry(entry):
 	"""
-	It returns True if the first seven characters of the string entry are "RegEx: " and False otherwise
+	It returns True if the first seven characters of the string entry are "RegEx: " and False otherwise.
 	
 	:param entry: The entry to check
 	:return: A boolean value.
@@ -193,7 +195,7 @@ def is_regex_entry(entry):
 
 def match_entry(entry, template):
 	"""
-	It returns true if the entry matches the template, and false otherwise
+	It returns True if the entry matches the template, and False otherwise.
 	
 	:param entry: the entry to be matched
 	:param template: the template to match against
@@ -210,7 +212,7 @@ def match_entry(entry, template):
 
 def match_entry_list(l1, l2):
 	"""
-	It takes an entry list and a template list, and returns True if the entry list matches the template list
+	It takes an entry list and a template list, and returns True if the entry list matches the template list.
 
 	:param l1: the entry list of an element
 	:param l2: the template list (already completed with UIPath)
@@ -233,24 +235,14 @@ def match_entry_list(l1, l2):
 
 def is_filter_criteria_ok(child, min_height=8, max_height=200, min_width=8, max_width=800):
 	"""
-	"Return True if the child is visible and its height and width are within the specified ranges."
-	
-	The function is_filter_criteria_ok() takes four arguments:
-	
-	child: the child to check
-	min_height: the minimum height of the child
-	max_height: the maximum height of the child
-	min_width: the minimum width of the child
-	max_width: the maximum width of the child
-	The function returns True if the child is visible and its height and width are within the specified ranges. Otherwise,
-	it returns False
+	Returns True if the child is visible and its height and width are within the specified ranges.
 	
 	:param child: the child element to check
 	:param min_height: The minimum height of the element, defaults to 8 (optional)
 	:param max_height: The maximum height of the element, defaults to 200 (optional)
 	:param min_width: The minimum width of the element, defaults to 8 (optional)
 	:param max_width: The maximum width of the element, defaults to 800 (optional)
-	:return: A list of all the visible elements that meet the filter criteria.
+	:return: True if the element meets the filter criteria.
 	"""
 	if child.is_visible():
 		r = child.rectangle()
@@ -263,7 +255,7 @@ def is_filter_criteria_ok(child, min_height=8, max_height=200, min_width=8, max_
 
 def all_height_equal(iterator):
 	"""
-	It returns True if all the elements in the iterator have the same height, and False otherwise
+	It returns True if all the elements in the iterator have the same height, and False otherwise.
 	
 	:param iterator: an iterable object
 	:return: A boolean value.
@@ -282,8 +274,9 @@ def all_height_equal(iterator):
 
 def get_sorted_region(elements, min_height=8, max_height=9999, min_width=8, max_width=9999, line_tolerance=20):
 	"""
-	It takes a list of elements, filters them based on the given criteria, sorts them by top and left, and then returns a
-	list of lists of elements, where each list is a row of elements
+	Sorts the elements in rows: a list of lists of elements, where each list is a row of elements.
+
+	The elements are filtered with the given criteria (see is_filter_criteria_ok), then sorted by top and left.
 	
 	:param elements: the list of elements to be sorted
 	:param min_height: The minimum height of the elements to be considered, defaults to 8 (optional)
@@ -325,7 +318,7 @@ def get_sorted_region(elements, min_height=8, max_height=9999, min_width=8, max_
 
 def find_window_candidates(root_entry, handle=None):
 	"""
-	It returns a list of windows that match the given root entry
+	It returns a list of windows that match the given root entry.
 	
 	:return: A list of window candidates.
 	"""
@@ -342,7 +335,7 @@ def find_window_candidates(root_entry, handle=None):
 
 def filter_window_candidates(window_candidates):
 	"""
-	It filters out windows that are not in the list of admitted windows, or that are in the list of ignored windows
+	It filters out windows that are not in the list of admitted windows, or that are in the list of ignored windows.
 	
 	:param window_candidates: a list of Window objects
 	:return: A list of window candidates that have been filtered.
@@ -368,11 +361,11 @@ last_parent_element_info, last_parent_element_info_path = None, None
 
 def get_element_info_path(element_info, element_info_top_level_parent=None):
 	"""
-	It takes an element_info object and returns a string that represents the path to the element from the root of
-	the UI Automation tree
+	Returns the path of an element_info object, from its top level parent to the element.
 
-	:param wrapper: The UIAutomation wrapper object
-	:return: The path of the wrapper from the top level parent to the wrapper.
+	:param element_info: The UI Automation element_info object
+	:param element_info_top_level_parent: The element_info of the top level parent of the element, if it is known
+	:return: The path of the element from its top level parent.
 	"""
 	global last_parent_element_info, last_parent_element_info_path
 	first_parent = True
@@ -413,7 +406,7 @@ def filter_with_match_entry_list(window, descendants, entry_list):
 
 def find_elements(full_element_path=None):
 	"""
-	It returns the elements (UIAWrapper list) that match the full_element_path
+	It returns the elements (UIAWrapper list) that match the full_element_path.
 
 	:param full_element_path: full path of the element(s) to find
 	:return: The elements found
@@ -451,9 +444,7 @@ def find_elements(full_element_path=None):
 
 # The following code should be called in recorder.py because it's useful only when recording
 def read_config_file():
-	"""
-	It reads the configuration file and stores the settings in the global variable `core_settings`
-	"""
+	"""It reads the configuration file and stores the settings in the global variable `core_settings`."""
 	global core_settings
 	config_file_content = (
 		"[window_filtering]\n"

@@ -13,8 +13,9 @@ import os
 @pytest.mark.parametrize('start_kill_app', ["Notepad"], indirect=True)
 def test_send_keys(start_kill_app):
 	"""
-	Opens Notepad, clicks on the text editor, and sends the keys "This is a error" followed
-	by 5 backspaces, "test.", and an enter.
+	Opens Notepad, clicks on the text editor, and types a text with corrections.
+
+	It sends the keys "This is a error" followed by 5 backspaces, "test.", and an enter.
 	"""
 	with UIPath("Untitled - Notepad||Window"):
 		# edit = click("Text Editor||Edit")  # Windows 10
@@ -28,13 +29,13 @@ def test_send_keys(start_kill_app):
 @pytest.mark.parametrize('start_kill_app', ["Notepad"], indirect=True)
 def test_wheel(start_kill_app):
 	"""
-	It opens the font dialog of Notepad,
-	scrolls to the top of the font size list using the mouse wheel,  clicks on the first item in the list box,
+	Tests the mouse wheel in the font dialog of Notepad.
+
+	It scrolls to the top of the font size list using the mouse wheel, clicks on the first item in the list box,
 	and asserts that the selected item is the first one.
 	Then it scrolls to the bottom of the font size list using the mouse wheel, clicks on the last item in the list box,
 	and then asserts that the selected item is the last one.
 	"""
-		
 	with UIPath("Untitled - Notepad||Window"):
 		menu_click("Edit->Font")
 		

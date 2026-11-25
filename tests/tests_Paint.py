@@ -16,7 +16,8 @@ import os
 
 def percentage_white_pixels(recorded_image):
 	"""
-	It opens the image, counts the number of white pixels, and returns the percentage of white pixels
+	It opens the image, counts the number of white pixels, and returns the percentage of white pixels.
+
 	:param recorded_image: the path to the image you want to analyze
 	:return: The percentage of white pixels in the image.
 	"""
@@ -36,6 +37,7 @@ def percentage_white_pixels(recorded_image):
 def test_recorder_mouse_move(start_kill_app):
 	"""
 	Tests the accuracy of the relative coordinates of an element.
+
 	It records a series of drag-and-drops to draw lines and then plays them back to overlay the lines in white.
 	"""
 	with UIPath("Untitled - Paint||Window"):

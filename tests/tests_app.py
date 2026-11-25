@@ -73,6 +73,7 @@ def test_recorder_mode_is_equal_to_its_value(mode, value):
 
 class _FakeRecorder:
 	"""Has the attribute used by the 'mode' property of the Recorder, without starting a recorder."""
+
 	_mode = None
 
 
@@ -358,9 +359,10 @@ def _run_in_a_new_process(command, timeout, cwd):
 ])
 def test_replay_of_a_file_in_a_new_process(tmp_path, script, expected_exit_code):
 	"""
-	Tests the replay of a file by the command line in a new process: the process ends with the exit code of the
-	replay, and the process of the element information tooltip ends too. Before, the process of the tooltip kept the
-	application running after the replay.
+	Tests the replay of a file by the command line in a new process.
+
+	The process ends with the exit code of the replay, and the process of the element information tooltip ends too.
+	Before, the process of the tooltip kept the application running after the replay.
 	"""
 	recorded_file = tmp_path / "recorded.py"
 	recorded_file.write_text(script)
@@ -408,6 +410,7 @@ def test_recorder_playback_stops_when_the_replay_is_interrupted(monkeypatch):
 
 class _FakeKeyboard:
 	"""Replaces the 'keyboard' module: CTRL and ALT (or CTRL and SHIFT) are pressed."""
+
 	SCAN_CODES = {"ctrl": 29, "alt": 56, "shift": 42}
 
 	def __init__(self, *pressed):
@@ -419,9 +422,12 @@ class _FakeKeyboard:
 
 class _FakeKeyboardHooks:
 	"""
-	Replaces the keyboard hooks and keybd_event. The releases of the Shift key whose numbers are in received_releases
-	are received by the hook, after delay seconds, by another thread like the thread of the 'keyboard' library.
+	Replaces the keyboard hooks and keybd_event.
+
+	The releases of the Shift key whose numbers are in received_releases are received by the hook, after delay seconds,
+	by another thread like the thread of the 'keyboard' library.
 	"""
+
 	def __init__(self, received_releases, delay=0.0):
 		self.received_releases = received_releases
 		self.delay = delay
@@ -464,9 +470,10 @@ def test_keyboard_hooks_work_at_once(monkeypatch):
 
 def test_keyboard_hooks_installed_late(monkeypatch):
 	"""
-	Tests that the release of the Shift key is sent again until the hook receives it: the hook is installed by a thread
-	of the 'keyboard' library, which may not be ready yet. Before, a single release was sent, and the result was read
-	at once.
+	Tests that the release of the Shift key is sent again until the hook receives it.
+
+	The hook is installed by a thread of the 'keyboard' library, which may not be ready yet. Before, a single release
+	was sent, and the result was read at once.
 	"""
 	fake_hooks = _FakeKeyboardHooks(received_releases={3})
 	result, _ = _check_keyboard_hooks(monkeypatch, fake_hooks, timeout=5.0, interval=0.1)
@@ -520,6 +527,7 @@ import threading
 
 class _FakeRecorderForMenu:
 	"""Replaces the Recorder in the tests of the menu: it records the calls of its methods."""
+
 	def __init__(self, mode=recorder.RecorderMode.STOP):
 		self.mode = mode
 		self.smart_mode = False
@@ -541,6 +549,7 @@ class _FakeRecorderForMenu:
 
 class _FakeClipboardReplay:
 	"""Replaces the ClipboardReplay in the tests of the menu."""
+
 	def __init__(self, running=False):
 		self.running = running
 		self.started = []
@@ -603,8 +612,9 @@ def test_menu_depends_on_the_state_of_the_recorder():
 
 def test_menu_during_a_replay_of_the_clipboard():
 	"""
-	Tests that, during a replay of the clipboard, the entries that would interfere with the replay are grayed,
-	"Quit" included, and that the others stay enabled.
+	Tests that, during a replay of the clipboard, the entries that would interfere with the replay are grayed.
+
+	"Quit" is grayed too. The other entries stay enabled.
 	"""
 	menu, icons = _menu(replay=_FakeClipboardReplay(running=True))
 	entries = _entries(menu)
@@ -703,6 +713,7 @@ def test_show_about_stops_the_recording_first(monkeypatch, mode, calls):
 
 class _FakeRecorderForQuit:
 	"""Replaces the Recorder in the tests of Recorder.quit: it records the calls in their order."""
+
 	def __init__(self, mode, alive_after_join=False):
 		self.mode = mode
 		self.calls = []
@@ -726,8 +737,10 @@ class _FakeRecorderForQuit:
 	(recorder.RecorderMode.RECORD, ["stop_recording"]), (recorder.RecorderMode.INFO, []), (recorder.RecorderMode.STOP, [])])
 def test_recorder_quit(capsys, mode, calls):
 	"""
-	Tests that quit() writes the recording in progress, stops the loop of the recorder and waits for its end at most
-	QUIT_TIMEOUT seconds, and then stops the element information tooltip. Before, the recording in progress was lost.
+	Tests that quit() writes the recording in progress, stops the recorder, and then stops the tooltip.
+
+	It waits for the end of the loop of the recorder at most QUIT_TIMEOUT seconds, and then stops the element
+	information tooltip. Before, the recording in progress was lost.
 	"""
 	fake_recorder = _FakeRecorderForQuit(mode)
 	recorder.Recorder.quit(fake_recorder)
@@ -753,8 +766,9 @@ def test_recorder_quit_does_not_wait_forever(capsys):
 ])
 def test_recorder_toggle_element_info(mode, calls, new_mode):
 	"""
-	Tests that displaying element information stops the recording in progress with stop_recording(), so that the
-	recorded script is written. Before, the recording was lost (menu and CTRL+SHIFT+D).
+	Tests that displaying element information stops the recording in progress with stop_recording().
+
+	The recorded script is written. Before, the recording was lost (menu and CTRL+SHIFT+D).
 	"""
 	fake_recorder = _FakeRecorderForMenu(mode)
 	recorder.Recorder.toggle_element_info(fake_recorder)
@@ -764,6 +778,7 @@ def test_recorder_toggle_element_info(mode, calls, new_mode):
 
 class _BlockingRecorder:
 	"""A recorder whose replay lasts until 'finish' is set."""
+
 	def __init__(self):
 		self.finish = threading.Event()
 		self.codes = []
@@ -776,8 +791,10 @@ class _BlockingRecorder:
 
 def test_clipboard_replay_runs_in_a_thread():
 	"""
-	Tests that the clipboard is replayed in a thread: start() returns at once, is_running() is True until the end of
-	the replay, and a second replay cannot start meanwhile.
+	Tests that the clipboard is replayed in a thread.
+
+	start() returns at once, is_running() is True until the end of the replay, and a second replay cannot start
+	meanwhile.
 	"""
 	blocking_recorder = _BlockingRecorder()
 	replay = app.ClipboardReplay(blocking_recorder)
@@ -796,6 +813,7 @@ def test_clipboard_replay_runs_in_a_thread():
 
 class _FakeWin32Gui:
 	"""Records the native menus built by SysTrayIcon._fill_menu."""
+
 	def __init__(self):
 		self.menus = {}
 
@@ -846,9 +864,10 @@ def test_tray_menu_is_built_from_the_entries(monkeypatch):
 
 def test_tray_icon_message_handlers_return_an_int(monkeypatch):
 	"""
-	Tests that the handlers of the messages of the tray icon return an int: the result of the window procedure. Before,
-	restart, destroy and command returned None, which recent versions of pywin32 refuse: "WNDPROC return value cannot be
-	converted to LRESULT" was printed, twice when quitting for example.
+	Tests that the handlers of the messages of the tray icon return an int: the result of the window procedure.
+
+	Before, restart, destroy and command returned None, which recent versions of pywin32 refuse: "WNDPROC return value
+	cannot be converted to LRESULT" was printed, twice when quitting for example.
 	"""
 	calls = []
 	monkeypatch.setattr(app, "win32gui", types.SimpleNamespace(
@@ -876,8 +895,9 @@ def test_tray_icon_message_handlers_return_an_int(monkeypatch):
 
 def test_tray_icon_removed_even_if_on_quit_fails(monkeypatch):
 	"""
-	Tests that the tray icon is removed and run() stopped, even if on_quit raises an exception. Before, the application
-	kept running without its tray icon.
+	Tests that the tray icon is removed and run() stopped, even if on_quit raises an exception.
+
+	Before, the application kept running without its tray icon.
 	"""
 	calls = []
 	monkeypatch.setattr(app, "win32gui", types.SimpleNamespace(
@@ -944,14 +964,17 @@ def test_version_key_same_version(version, same_version):
 ])
 def test_version_messages(installed, latest, console_message, version_line):
 	"""
-	Tests the messages of the console and of the splash screen. Before, a development version was "not up to date"
-	because it was not the latest published version, and "up to date" when the version could not be checked.
+	Tests the messages of the console and of the splash screen.
+
+	Before, a development version was "not up to date" because it was not the latest published version, and "up to
+	date" when the version could not be checked.
 	"""
 	assert app.version_messages(installed, latest) == (console_message, version_line)
 
 
 class _FakeResponse:
 	"""Replaces the response of urllib.request.urlopen."""
+
 	def __init__(self, content):
 		self.content = content
 
@@ -995,8 +1018,10 @@ def test_get_latest_version_unexpected_content(monkeypatch, content):
 	ConnectionResetError("connection reset"), ValueError("unknown url type")])
 def test_get_latest_version_network_errors(monkeypatch, error):
 	"""
-	Tests that the errors are ignored. Before, only URLError was caught: another error, a connection reset while
-	reading the response for example, stopped Pywinauto Recorder at startup.
+	Tests that the errors are ignored.
+
+	Before, only URLError was caught: another error, a connection reset while reading the response for example, stopped
+	Pywinauto Recorder at startup.
 	"""
 	def urlopen(url, timeout=None):
 		raise error
@@ -1006,8 +1031,9 @@ def test_get_latest_version_network_errors(monkeypatch, error):
 
 def test_check_version_is_done_once(monkeypatch, capsys, version_not_checked):
 	"""
-	Tests that check_version() prints the message in the console and returns the line of the splash screen, and that
-	the version is checked only once: "About" displays the splash screen again without a new request.
+	Tests that check_version() prints the message in the console and returns the line of the splash screen.
+
+	The version is checked only once: "About" displays the splash screen again without a new request.
 	"""
 	requests = []
 	monkeypatch.setattr(app, "get_latest_version", lambda: requests.append("request") or "0.0.1")
@@ -1034,6 +1060,7 @@ def test_splash_screen_text_lines():
 
 class _FakeSplashOverlay:
 	"""Replaces overlay_arrows_and_more.Overlay: it keeps what is displayed at each refresh, and whether it is closed."""
+
 	def __init__(self, transparency=0.0):
 		self.items = []
 		self.frames = []
@@ -1115,8 +1142,9 @@ def test_splash_screen_closed_when_the_mouse_cursor_moves_over_it(monkeypatch):
 
 def test_splash_screen_closed_after_an_error(monkeypatch):
 	"""
-	Tests that the overlays of the splash screen are closed, even after an error. Before, they were only cleared: two
-	more overlays stayed open at each display of the splash screen ("About").
+	Tests that the overlays of the splash screen are closed, even after an error.
+
+	Before, they were only cleared: two more overlays stayed open at each display of the splash screen ("About").
 	"""
 	def get_cursor_pos():
 		raise RuntimeError("GetCursorPos failed")
@@ -1138,6 +1166,7 @@ def test_splash_screen_is_centered(monkeypatch):
 def test_run_interactive(monkeypatch, argv, events):
 	"""
 	Tests that the recorder starts with the splash screen, unless --no_splash_screen is given, then runs the tray icon.
+
 	Its double click displays element information, except during a replay of the clipboard, and "Quit" stops the
 	recorder.
 	"""
@@ -1172,8 +1201,10 @@ def test_run_interactive(monkeypatch, argv, events):
 @pytest.mark.parametrize("alive", [False, True])
 def test_element_info_tooltip_does_not_block_the_quit(alive):
 	"""
-	Tests that deleting the tooltip stops its process, waiting for its end at most TOOLTIP_STOP_TIMEOUT seconds, and
-	terminates it if it does not stop. Before, the recorder waited for it without a time limit.
+	Tests that deleting the tooltip stops its process, or terminates it if it does not stop.
+
+	The end of the process is waited for at most TOOLTIP_STOP_TIMEOUT seconds. Before, the recorder waited for it
+	without a time limit.
 	"""
 	from pywinauto_recorder import element_observer
 	calls = []
@@ -1200,8 +1231,10 @@ def test_element_info_tooltip_does_not_block_the_quit(alive):
 
 def test_element_info_tooltip_process_stopped_just_after_its_start(monkeypatch):
 	"""
-	Tests that the process of the tooltip ends when it is stopped before its loop starts, without calling quit() of its
-	overlay: quit() of overlay_arrows_and_more never returns if the window of the overlay is not created yet.
+	Tests that the process of the tooltip ends when it is stopped before its loop starts.
+
+	quit() of its overlay is not called: quit() of overlay_arrows_and_more never returns if the window of the overlay
+	is not created yet.
 	"""
 	from pywinauto_recorder import element_observer
 	overlays = []
