@@ -18,7 +18,7 @@ import win32gui_struct
 import win32gui
 import win32ui
 import pyperclip
-from .recorder import Recorder, IconSet, _overlay_add_mode_icon, _overlay_add_progress_icon
+from .recorder import Recorder, RecorderMode, IconSet, _overlay_add_mode_icon, _overlay_add_progress_icon
 from win32api import GetSystemMetrics, GetCursorPos
 import time
 
@@ -153,19 +153,19 @@ class SysTrayIcon(object):
 
 	def create_menu(self, menu, menu_options):
 		if len(menu_options) > 9:
-			if recorder.mode != "Record":
+			if recorder.mode != RecorderMode.RECORD:
 				menu_options[0][0] = "Start recording\t\tCTRL+ALT+R"
 				menu_options[0][1] = icon_record
 			else:
 				menu_options[0][0] = "Stop recording\t\tCTRL+ALT+R"
 				menu_options[0][1] = icon_stop
-			if recorder.mode == "Play":
+			if recorder.mode == RecorderMode.PLAY:
 				menu_options[1][0] = "Wait end of replay" # disabled
 				menu_options[1][1] = icon_stop
 			else:
 				menu_options[1][0] = "Start replaying clipboard"
 				menu_options[1][1] = icon_play
-			if not recorder.mode == "Info":
+			if not recorder.mode == RecorderMode.INFO:
 				menu_options[2][0] = "Start displaying element information\tCTRL+SHIFT+D"
 				menu_options[2][1] = icon_search
 			else:
@@ -426,20 +426,20 @@ def main(argv=None):
 		hover_text = "Pywinauto recorder"
 		
 		def action_record(sys_tray_icon):
-			if recorder.mode == 'Record':
+			if recorder.mode == RecorderMode.RECORD:
 				recorder.stop_recording()
 			else:
 				recorder.start_recording()
 
 		def action_replay(sys_tray_icon):
-			if recorder.mode != "Play":
+			if recorder.mode != RecorderMode.PLAY:
 				recorder.playback(pyperclip.paste())
 
 		def action_display_element_info(sys_tray_icon):
-			if recorder.mode == "Stop":
-				recorder.mode = "Info"
+			if recorder.mode == RecorderMode.STOP:
+				recorder.mode = RecorderMode.INFO
 			else:
-				recorder.mode = "Stop"
+				recorder.mode = RecorderMode.STOP
 
 		def action_smart_mode(sys_tray_icon):
 			recorder.smart_mode = not recorder.smart_mode
@@ -455,7 +455,7 @@ def main(argv=None):
 			os.system('explorer "' + str(pywinauto_recorder_path) + '"')
 
 		def action_display_help(sys_tray_icon):
-			recorder.mode = "Stop"
+			recorder.mode = RecorderMode.STOP
 			display_splash_screen()
 
 		def action_display_web_site(sys_tray_icon):

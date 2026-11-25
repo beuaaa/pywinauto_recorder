@@ -14,6 +14,7 @@ import overlay_arrows_and_more as oaam
 import keyboard
 import mouse
 from collections import namedtuple
+from enum import Enum
 import pyperclip
 import codecs
 from .core import path_separator, type_separator, Strategy, is_int, \
@@ -563,6 +564,21 @@ def _overlay_add_mode_icon(main_overlay, hicon, x, y):
 		geometry=oaam.Shape.image, hicon=hicon, x=int(x+2), y=int(y+2))
 
 
+class RecorderMode(str, Enum):
+	"""
+	The modes of the recorder.
+
+	It is a 'str' enumeration, so a mode is equal to its value: RecorderMode.RECORD == "Record".
+	The code that compares the mode of the recorder with a string keeps working.
+	"""
+	INITIALIZING = "Initializing"
+	RECORD = "Record"
+	PLAY = "Play"
+	INFO = "Info"
+	STOP = "Stop"
+	QUIT = "Quit"
+
+
 class Recorder(Thread):
 	"""
 	Recorder is a class thread used to record UI events in clipboard or in a file.
@@ -601,7 +617,7 @@ class Recorder(Thread):
 		self.daemon = True
 		self.event_list = []
 		self._copy_count = 0
-		self._mode = "Initializing"
+		self._mode = RecorderMode.INITIALIZING
 		self._process_menu_click_mode = False
 		self._smart_mode = False
 		self._relative_coordinate_mode = False
@@ -681,24 +697,24 @@ class Recorder(Thread):
 		return unique_array_2d
 
 	def __mouse_on(self, mouse_event):
-		if self.mode == "Record":
+		if self.mode == RecorderMode.RECORD:
 			if isinstance(mouse_event, mouse.MoveEvent) and (len(self.event_list) > 0):
 				if isinstance(self.event_list[-1], mouse.MoveEvent):
 					self.event_list = self.event_list[:-1]
 			self.event_list.append(mouse_event)
 			
 	def __start_stop_recording_by_key(self):
-		if self.mode != "Record":
+		if self.mode != RecorderMode.RECORD:
 			self.started_recording_with_keyboard = True
 			self.start_recording()
 		else:
 			self.stop_recording()
 	
 	def __start_stop_displaying_info_by_key(self):
-		if self.mode == "Info":
-			self.mode = "Stop"
+		if self.mode == RecorderMode.INFO:
+			self.mode = RecorderMode.STOP
 		else:
-			self.mode = "Info"
+			self.mode = RecorderMode.INFO
 			
 	def __display_found_element_by_key(self):
 		if self.last_element_event:
@@ -718,7 +734,7 @@ class Recorder(Thread):
 			code += '")\n'
 			code += '\twrapper.draw_outline()\n'
 			pyperclip.copy(code)
-			if self.event_list and self.mode == "Record":
+			if self.event_list and self.mode == RecorderMode.RECORD:
 				self.event_list.append(FindEvent(path=l_e_e.path, dx=dx, dy=dy, time=time.time()))
 				
 	def __key_on(self, e):
@@ -739,7 +755,7 @@ class Recorder(Thread):
 				(e.name, e.event_type) == ('D', 'up') and
 				set([key_to_scan_codes("shift")[0], key_to_scan_codes("ctrl")[0]]).issubset(keyboard._pressed_events)):
 			self.__start_stop_displaying_info_by_key()
-		elif self.mode == "Record":
+		elif self.mode == RecorderMode.RECORD:
 			self.event_list.append(e)
 
 
@@ -812,10 +828,10 @@ class Recorder(Thread):
 		unique_wrapper_path = None
 		strategies = [Strategy.unique_path, Strategy.array_2D, Strategy.array_1D]
 		i_strategy = 0
-		self.mode = "Info"
+		self.mode = RecorderMode.INFO
 		#strategy_unique_path_again_done = False
 		previous_loop_error = None
-		while self.mode != "Quit":
+		while self.mode != RecorderMode.QUIT:
 			i = i + 1
 			loop_error = None
 			try:
@@ -899,30 +915,30 @@ class Recorder(Thread):
 				if unique_wrapper_path is not None:
 					#self.last_element_event = ElementEvent(strategy, wrapper.rectangle(), unique_wrapper_path)
 					self.last_element_event = ElementEvent(strategy, wrapper_rectangle, unique_wrapper_path)
-					if self.event_list and self.mode == "Record":
+					if self.event_list and self.mode == RecorderMode.RECORD:
 						self.event_list.append(self.last_element_event)
 				nb_icons = 0
-				if self.mode == "Record":
+				if self.mode == RecorderMode.RECORD:
 					_overlay_add_mode_icon(self.main_overlay, IconSet.hicon_record, 10, 10)
 					nb_icons += 1
-				elif self.mode == "Stop":
+				elif self.mode == RecorderMode.STOP:
 					self.element_info_tooltip.hide()
 					self.main_overlay.clear_all()
 					_overlay_add_mode_icon(self.main_overlay, IconSet.hicon_stop, 10, 10)
 					self.main_overlay.refresh()
-					while self.mode == "Stop":
+					while self.mode == RecorderMode.STOP:
 						time.sleep(0.1)
-				elif self.mode == "Play":
+				elif self.mode == RecorderMode.PLAY:
 					self.element_info_tooltip.hide()
 					self.main_overlay.clear_all()
 					_overlay_add_mode_icon(self.main_overlay, IconSet.hicon_play, 10, 10)
 					self.main_overlay.refresh()
-					while self.mode == "Play":
+					while self.mode == RecorderMode.PLAY:
 						time.sleep(1.0)
-				if self.mode in ("Record", "Info"):
+				if self.mode in (RecorderMode.RECORD, RecorderMode.INFO):
 					_overlay_add_progress_icon(self.main_overlay, i, 10 + 60 * nb_icons, 10)
 					nb_icons += 1
-				if self.mode == "Info":
+				if self.mode == RecorderMode.INFO:
 					self.element_info_tooltip.show()
 				if self.smart_mode:
 					_overlay_add_mode_icon(self.main_overlay, IconSet.hicon_light_on, 10 + 60 * nb_icons, 10)
@@ -1013,20 +1029,21 @@ class Recorder(Thread):
 	@property
 	def mode(self):
 		"""
-    It returns the mode of the recorder: "Record", "Play", "Info", "Stop", "Quit"
-			
-		:return: The mode of the recorder.
+		It returns the mode of the recorder.
+
+		:return: The mode of the recorder, a RecorderMode. It is equal to its value, for example "Record".
 		"""
 		return self._mode
 	
 	@mode.setter
 	def mode(self, value):
 		"""
-		It sets the mode of the recorder: "Record", "Play", "Info", "Stop", "Quit"
-		
-		:param value: The mode of the recorder.
+		It sets the mode of the recorder.
+
+		:param value: A RecorderMode, or its value: "Record", "Play", "Info", "Stop" or "Quit"
+		:raises ValueError: if the value is not a mode of the recorder
 		"""
-		self._mode = value
+		self._mode = RecorderMode(value)
 
 	def start_recording(self):
 		"""
@@ -1040,7 +1057,7 @@ class Recorder(Thread):
 		self.element_info_tooltip.hide()
 		self.main_overlay.clear_all()
 		self.main_overlay.refresh()
-		self.mode = "Record"
+		self.mode = RecorderMode.RECORD
 
 	def stop_recording(self):
 		"""
@@ -1048,10 +1065,10 @@ class Recorder(Thread):
 		clears and refreshes the main and info overlays, writes the Python script, and then sets the mode to "Stop".
 		:return: The name of the file that was created.
 		"""
-		if self.mode == "Record" and len(self.event_list) > 2:
+		if self.mode == RecorderMode.RECORD and len(self.event_list) > 2:
 			events = list(self.event_list)
 			self.event_list = []
-			self.mode = "Stop"
+			self.mode = RecorderMode.STOP
 			time.sleep(0.6)  # wait the recorder to be fully ready
 			if self.started_recording_with_keyboard:
 				_clean_events(events, remove_first_up=True)
@@ -1064,7 +1081,7 @@ class Recorder(Thread):
 		self.main_overlay.clear_all()
 		_overlay_add_mode_icon(self.main_overlay, IconSet.hicon_stop, 10, 10)
 		self.main_overlay.refresh()
-		self.mode = "Stop"
+		self.mode = RecorderMode.STOP
 		return None
 
 	def get_last_element_event(self):
@@ -1081,10 +1098,10 @@ class Recorder(Thread):
 		:param str_code: The code to be played back
 		:param filename: The name of the file corresponding to the code to be played back
 		"""
-		self.mode = "Play"
+		self.mode = RecorderMode.PLAY
 		self.main_overlay.refresh()
 		playback(str_code, filename)
-		self.mode = "Stop"
+		self.mode = RecorderMode.STOP
 	
 	def quit(self):
 		"""
@@ -1093,7 +1110,7 @@ class Recorder(Thread):
 		self.main_overlay.clear_all()
 		self.main_overlay.refresh()
 		del self.element_info_tooltip
-		self.mode = 'Quit'
+		self.mode = RecorderMode.QUIT
 		self.join()
 		print("Quit")
 

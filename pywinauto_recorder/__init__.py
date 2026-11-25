@@ -13,6 +13,6 @@
 __version__ = "1.0.0.dev0"
 
 from .player import *
-from .recorder import Recorder
+from .recorder import Recorder, RecorderMode
 
 
