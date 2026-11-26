@@ -192,23 +192,21 @@ def match_entry_list(l1, l2):
 	"""
 	It takes an entry list and a template list, and returns True if the entry list matches the template list
 
+	A '*' entry of the template list matches any number of entries, zero included. The entries of the element are
+	always compared with the entries of the template in this order: before, they were compared in the reverse order
+	after a '*', so an entry of the template without control type, like "*->One", matched no element.
+
 	:param l1: the entry list of an element
 	:param l2: the template list (already completed with UIPath)
 	:return: True if the entry list matches the template list.
 	"""
-	if (l1 == []):
-		return (l2 == [] or l2 == ['*'])
-	if (l2 == [] or l2[0] == '*'):
-		return match_entry_list(l2, l1)
-	if (l1[0] == '*'):
-		return (match_entry_list(l1, l2[1:]) or match_entry_list(l1[1:], l2))
-	if is_regex_entry(l1[0]):
-		if match_entry(l2[0], l1[0]):
-			return match_entry_list(l1[1:], l2[1:])
-	elif match_entry(l1[0], l2[0]):
-		return match_entry_list(l1[1:], l2[1:])
-	else:
+	if not l2:
+		return not l1
+	if l2[0] == '*':
+		return match_entry_list(l1, l2[1:]) or (bool(l1) and match_entry_list(l1[1:], l2))
+	if not l1:
 		return False
+	return bool(match_entry(l1[0], l2[0])) and match_entry_list(l1[1:], l2[1:])
 
 
 def is_filter_criteria_ok(child, min_height=8, max_height=200, min_width=8, max_width=800):

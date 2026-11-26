@@ -87,6 +87,48 @@ def test_match_entry_list():
 		assert match_entry_list(get_entry_list(entry_path[0]), template_list) == entry_path[1]
 
 
+@pytest.mark.parametrize("template, expected", [
+	("Calculator||Window->Number pad||Group->One", True),
+	("Calculator||Window->*->One", True),
+	("*->One", True),
+	("Calculator->*->One", True),
+	("Calculator||Window->*->Number pad->One||Button", True),
+	("Calculator||Window->*->Number pad||Group->One", True),
+	("Calculator||Window->*->One||", True),
+	("Calculator||Window->*->Two", False),
+	("Calculator||Window->*->One||Text", False),
+	("Calculator||Window->*->||Button", False),
+	("Calculator||Window->*->Number pad->Two", False),
+])
+def test_match_entry_list_with_an_entry_without_control_type(template, expected):
+	"""
+	An entry without control type matches the elements that have its name, whatever their control type.
+
+	Before, it matched no element after a '*' (found while documenting the paths, issue #35).
+	"""
+	element = "Calculator||Window->Number pad||Group->One||Button"
+	assert match_entry_list(get_entry_list(element), get_entry_list(template)) == expected
+
+
+@pytest.mark.parametrize("template, expected", [
+	("*", True),
+	("Calculator||Window->*", True),
+	("Calculator||Window->*->*", True),
+	("Calculator||Window->Number pad||Group->One||Button->*", True),
+	("Calculator||Window->Number pad||Group->One||Button->*->*", True),
+	("Calculator||Window->*->Number pad||Group->*->One||Button", True),
+	("Calculator||Window", False),
+	("Calculator||Window->Number pad||Group", False),
+	("Calculator||Window->*->Number pad||Group", False),
+	("Calculator||Window->Number pad||Group->One||Button->Two||Button", False),
+	("Calculator||Window->*->Two||Button->*", False),
+])
+def test_match_entry_list_with_stars(template, expected):
+	"""A '*' entry matches any number of entries, zero included, at any place of the path."""
+	element = "Calculator||Window->Number pad||Group->One||Button"
+	assert match_entry_list(get_entry_list(element), get_entry_list(template)) == expected
+
+
 
 ################################################################################################
 #                                       Tests of UIPath                                        #
