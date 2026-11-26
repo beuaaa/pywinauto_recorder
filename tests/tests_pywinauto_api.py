@@ -115,12 +115,20 @@ def _usable_name(name):
 
 
 def _window_and_child():
-	"""Returns a top level window and one of its visible children whose name can be written in a path, or None."""
+	"""
+	Returns a top level window and one of its visible children, whose names can be written in a path.
+
+	When no window has such a child, the child is None and the window is the first one.
+	"""
 	windows = core.get_window_candidates("*")
 	if not windows:
 		pytest.skip("No top level window in this session")
-	children = [child for child in windows[0].element_info.children() if child.visible and _usable_name(child.name)]
-	return windows[0], children[0] if children else None
+	for window in windows:
+		if _usable_name(window.element_info.name):
+			for child in window.element_info.children():
+				if child.visible and _usable_name(child.name):
+					return window, child
+	return windows[0], None
 
 
 def test_find_elements_in_the_windows_given_and_among_the_descendants_of_an_element():
@@ -144,8 +152,8 @@ def test_a_unique_element_of_a_block_is_searched_in_the_window_kept_for_the_bloc
 	from pywinauto_recorder.player import UIPath
 	window, child = _window_and_child()
 	assert player._exists(window.element_info)
-	if child is None or not _usable_name(window.element_info.name):
-		pytest.skip("No window, or no child, whose name can be written in a path")
+	if child is None:
+		pytest.skip("No window with a visible child whose names can be written in a path")
 	child_entry = child.name + "||" + child.control_type
 	with UIPath(window.element_info.name + "||" + window.element_info.control_type):
 		for _ in range(2):  # the second search is done in the window kept for the block

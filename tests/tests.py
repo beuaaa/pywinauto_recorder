@@ -1181,6 +1181,19 @@ def test_an_element_that_is_not_in_the_element_of_its_block_is_searched_in_the_w
 	assert desktop.window_searches == 1
 
 
+def test_the_element_of_an_inner_block_stays_the_same_when_the_name_of_its_window_changes(desktop):
+	"""
+	Tests that the element kept for an inner block is used until the end of the block, even if the name of its window
+	changes. The searches in the window check the path from the window: like before, they find nothing.
+	"""
+	with UIPath("Calculator||Window"):
+		with UIPath("*->Number pad||Group"):
+			player.find("One||Button")
+			desktop.element("Calculator")._name = "Calculator - renamed"
+			assert player.find("Two||Button").element_info is desktop.element("Calculator - renamed->->Number pad->Two")
+		assert player._search_elements(UIPath.get_full_path("*->Plus||Button"), one_element=True) == []
+
+
 def test_the_ancestors_of_an_element_that_vanished_are_not_kept(desktop):
 	"""Tests that _keep_block_elements keeps nothing when the element vanished before its ancestors were read."""
 	key = (None, ("Calculator||Window->*->Number pad||Group",))
