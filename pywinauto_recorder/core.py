@@ -18,7 +18,7 @@ except ImportError:  # not on Windows
 
 __all__ = [
 	'path_separator', 'type_separator', 'ABSOLUTE_PATH_SUFFIX', 'Strategy', 'is_int', 'is_absolute_path',
-	'get_wrapper_path', 'get_entry_list', 'get_entry', 'match_entry_list', 'get_sorted_region',
+	'get_wrapper_path', 'get_entry_list', 'get_entry', 'match_entry_list', 'get_sorted_region', 'get_sorted_rectangles',
 	'find_elements', 'read_config_file', 'get_native_window_handle', 'set_native_window_handle']
 
 desktop = PywinautoDesktop(backend='uia', allow_magic_lookup=False)
@@ -279,12 +279,56 @@ def all_height_equal(iterator):
 	return True
 
 
+def get_sorted_rectangles(elements, min_height=8, max_height=9999, min_width=8, max_width=9999, line_tolerance=20):
+	"""
+	Sorts the elements in rows, like get_sorted_region, and gives the rectangles of the elements.
+
+	The rectangle of each element is read once: it is a request to the application, like is_visible(). Before, it was read
+	up to 8 times by get_sorted_region, at each loop of the recorder: the requests could make an application
+	unresponsive (issue #68).
+
+	:param elements: the list of elements to be sorted
+	:param min_height: The minimum height of the elements to be considered, defaults to 8 (optional)
+	:param max_height: The maximum height of the elements in the region, defaults to 9999 (optional)
+	:param min_width: The minimum width of the elements to be considered, defaults to 8 (optional)
+	:param max_width: The maximum width of the elements in the region, defaults to 9999 (optional)
+	:param line_tolerance: This is the maximum distance between two elements in the same row, defaults to 20 (optional)
+	:return: The number of rows, the number of columns, and the rows: lists of (rectangle, element)
+	"""
+	candidates = []
+	for element in elements:
+		if element.is_visible():
+			rectangle = element.rectangle()
+			if (min_height <= rectangle.height() <= max_height) and (min_width <= rectangle.width() <= max_width):
+				candidates.append((rectangle, element))
+	if not candidates:
+		return 0, 0, []
+	candidates.sort(key=lambda candidate: (candidate[0].top, candidate[0].left))
+	if len({rectangle.height() for rectangle, _ in candidates}) == 1:
+		line_tolerance = candidates[0][0].height()
+	rows = [[]]
+	nb_x = -1
+	y = candidates[0][0].top
+	for candidate in candidates:
+		if (candidate[0].top - y) < line_tolerance:
+			rows[-1].append(candidate)
+			nb_x = max(nb_x, len(rows[-1]))
+		else:
+			rows.append([candidate])
+			y = candidate[0].top
+	for row in rows:
+		row.sort(key=lambda candidate: (candidate[0].left, -candidate[0].width()))
+	return len(rows), nb_x, rows
+
+
 def get_sorted_region(elements, min_height=8, max_height=9999, min_width=8, max_width=9999, line_tolerance=20):
 	"""
 	Sorts the elements in rows: a list of lists of elements, where each list is a row of elements.
 
 	The elements are filtered with the given criteria (see is_filter_criteria_ok), then sorted by top and left.
-	
+	The rows and the columns give the indices of the [] operator of the paths: "#[row,column]" (see
+	get_sorted_rectangles).
+
 	:param elements: the list of elements to be sorted
 	:param min_height: The minimum height of the elements to be considered, defaults to 8 (optional)
 	:param max_height: The maximum height of the elements in the region, defaults to 9999 (optional)
@@ -293,34 +337,8 @@ def get_sorted_region(elements, min_height=8, max_height=9999, min_width=8, max_
 	:param line_tolerance: This is the maximum distance between two elements in the same row, defaults to 20 (optional)
 	:return: The number of rows, the number of columns, and the sorted elements.
 	"""
-	filtered_elements = list(filter(
-		lambda e: is_filter_criteria_ok(e, min_height, max_height, min_width, max_width), elements))
-	filtered_elements.sort(key=lambda widget: (widget.rectangle().top, widget.rectangle().left))
-	arrays = [[]]
-	
-	if filtered_elements and all_height_equal(filtered_elements):
-		line_tolerance = filtered_elements[0].rectangle().height()
-	
-	h = 0
-	w = -1
-	if len(filtered_elements) > 0:
-		y = filtered_elements[0].rectangle().top
-		for e in filtered_elements:
-			if (e.rectangle().top - y) < line_tolerance:
-				arrays[h].append(e)
-				if len(arrays[h]) > w:
-					w = len(arrays[h])
-			else:
-				if w > -1:
-					arrays[h].sort(key=lambda widget: (widget.rectangle().left, -widget.rectangle().width()))
-				arrays.append([])
-				h = h + 1
-				arrays[h].append(e)
-				y = e.rectangle().top
-		arrays[h].sort(key=lambda widget: (widget.rectangle().left, -widget.rectangle().width()))
-	else:
-		return 0, 0, []
-	return h + 1, w, arrays
+	nb_y, nb_x, rows = get_sorted_rectangles(elements, min_height, max_height, min_width, max_width, line_tolerance)
+	return nb_y, nb_x, [[element for _, element in row] for row in rows]
 
 
 def find_window_candidates(root_entry, handle=None):

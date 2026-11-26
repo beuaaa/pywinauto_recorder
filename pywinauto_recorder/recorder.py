@@ -22,8 +22,8 @@ from enum import Enum
 import pyperclip
 import codecs
 from .core import path_separator, type_separator, Strategy, is_int, \
-	get_wrapper_path, get_entry_list, get_entry, get_sorted_region, \
-	read_config_file, SPECIAL_CHARACTERS, ABSOLUTE_PATH_SUFFIX
+	get_wrapper_path, get_entry_list, get_entry, get_sorted_rectangles, \
+	read_config_file, SPECIAL_CHARACTERS, ABSOLUTE_PATH_SUFFIX, COMError
 from .core import find_elements as not_ttl_cached_find_elements
 from .player import playback
 from cachetools import func
@@ -1022,17 +1022,41 @@ def _is_hotkey_released(event, key, modifiers):
 
 
 def _top_level_window(wrapper):
-	"""Returns the top level window of an element: the element itself, or its ancestor whose parent is the desktop."""
-	window = wrapper
-	while window.parent() is not None and window.parent().parent() is not None:
-		window = window.parent()
+	"""
+	Returns the top level window of an element: the element itself, or its ancestor whose parent is the desktop.
+
+	The parent of each ancestor is asked once: it is a request to the application. Before, it was asked 4 times at each
+	loop of the recorder.
+	"""
+	window, parent = wrapper, wrapper.parent()
+	while parent is not None:
+		grandparent = parent.parent()
+		if grandparent is None:
+			break
+		window, parent = parent, grandparent
 	return window
 
 
 def _is_cursor_in(rectangle):
 	"""Returns True if the mouse cursor is inside the rectangle, and not on its border."""
-	x, y = win32api.GetCursorPos()
+	try:
+		x, y = win32api.GetCursorPos()
+	except win32api.error:  # the position is not available (see Recorder.__cursor_position)
+		return False
 	return rectangle.left < x < rectangle.right and rectangle.top < y < rectangle.bottom
+
+
+_UIA_E_ELEMENTNOTAVAILABLE = 0x80040201
+"""
+The error of UI Automation for an element that does not exist anymore. Its message is misleading: "An event was unable to
+invoke any of the subscribers".
+"""
+
+
+def _is_vanished_element_error(error):
+	"""Returns True if an error is the one of UI Automation for an element that vanished: the application changed."""
+	return isinstance(error, COMError) and bool(error.args) and isinstance(error.args[0], int) and \
+		error.args[0] & 0xFFFFFFFF == _UIA_E_ELEMENTNOTAVAILABLE
 
 
 def _no_tray_icon(x, y):
@@ -1071,6 +1095,7 @@ class _ElementSearch:
 		self.previous_window_handle = None
 		self.unique_wrapper_path = None
 		self.i_strategy = 0
+		self.searched_again_rectangle = None
 
 	def next_strategy(self, wrapper_path, smart_mode, window_handle=None):
 		"""
@@ -1094,8 +1119,29 @@ class _ElementSearch:
 			self.previous_wrapper_path = wrapper_path
 			self.previous_window_handle = window_handle
 			self.elements = find_elements(wrapper_path, window_handle)
+			self.searched_again_rectangle = None
 		self.unique_wrapper_path = None
 		return self.STRATEGIES[self.i_strategy]
+
+	def search_again(self, wrapper_rectangle):
+		"""
+		Searches again the elements of the path of the element under the mouse cursor, without the cache of find_elements.
+
+		The elements found are kept 10 seconds by find_elements, and while the mouse cursor stays on elements of the same
+		path: they may not be the elements of the application anymore, if it changed (another page, for example). Then
+		the element under the mouse cursor is not among them, or one of them vanished. The elements are searched again
+		once for each element under the mouse cursor, and the search starts again with the first strategy.
+
+		:param wrapper_rectangle: The rectangle of the element under the mouse cursor
+		:return: True if the elements were searched again, False if they were already searched again for this element
+		"""
+		if self.searched_again_rectangle is not None and self.searched_again_rectangle == wrapper_rectangle:
+			return False
+		self.searched_again_rectangle = wrapper_rectangle
+		find_elements.cache_clear()
+		self.elements = find_elements(self.previous_wrapper_path, self.previous_window_handle)
+		self.i_strategy = 0
+		return True
 
 
 class RecorderMode(str, Enum):
@@ -1170,6 +1216,7 @@ class Recorder(Thread):
 		self._mouse_position = None
 		self._ignored_buttons = set()
 		self._window_handle = None
+		self._cursor_position_unavailable = False
 		self.element_info_tooltip = ElementInfoTooltip()
 		self.start()
 	
@@ -1184,56 +1231,70 @@ class Recorder(Thread):
 				geometry=oaam.Shape.rectangle, x=x, y=y, width=width, height=height,
 				thickness=0, color=(0, 128, 0), brush=oaam.Brush.solid, brush_color=color)
 		
-	def __find_unique_element_array_1d(self, wrapper_rectangle, elements):
-		nb_y, nb_x, candidates = get_sorted_region(elements)
-		window_title = get_entry_list((get_wrapper_path(elements[0])))[0]
-		for r_y in range(nb_y):
-			for r_x in range(nb_x):
-				try:
-					r = candidates[r_y][r_x].rectangle()
-				except IndexError:
-					continue
-				if r == wrapper_rectangle:
-					xx, yy = r.left, r.mid_point()[1]
-					previous_wrapper_path2 = None
-					while xx > 0:  # TODO: limiter la recherche à la fenêtre courante
-						xx = xx - 9
-						wrapper2 = self.desktop.from_point(xx, yy)
-						if wrapper2 is None:
-							continue
-						wrapper2_rectangle = wrapper2.rectangle()
-						if wrapper2_rectangle.height() > wrapper_rectangle.height() * 2:
-							continue
-						wrapper_path2 = get_wrapper_path(wrapper2)
-						if not wrapper_path2:
-							continue
-						if wrapper_path2 == previous_wrapper_path2:
-							continue
-						if get_entry_list(wrapper_path2)[0] != window_title:
-							continue
-						previous_wrapper_path2 = wrapper_path2
-						
-						if find_elements(get_wrapper_path(wrapper2), self._window_handle):
-							self.__overlay_add_bold_rectangle(wrapper2_rectangle, color=(0, 0, 255))
-							self.__overlay_add_bold_rectangle(wrapper_rectangle, color=(255, 200, 0))
-							return '#[' + wrapper_path2 + ',' + str(r_x) + ']'
-					return None
+	def __find_unique_element_array_1d(self, wrapper_rectangle, elements, wrapper_path):
+		"""
+		Searches a reference element for the element under the mouse cursor (Strategy.array_1d, used in Smart mode).
+
+		:param wrapper_rectangle: The rectangle of the element under the mouse cursor
+		:param elements: The elements found with the path of the element
+		:param wrapper_path: The path of the element: the reference element must be in the same window
+		:return: The [] operator: "#[path of the reference element,column]", or None if no reference element is found
+		"""
+		window_title = get_entry_list(wrapper_path)[0]
+		for row in get_sorted_rectangles(elements)[2]:
+			for r_x, (rectangle, _) in enumerate(row):
+				if rectangle == wrapper_rectangle:
+					return self.__find_reference_element(rectangle, r_x, window_title)
+		return None
+
+	def __find_reference_element(self, wrapper_rectangle, column, window_title):
+		"""
+		Searches the reference element of an element: an element with a unique path, on its left, in the same window.
+
+		:param wrapper_rectangle: The rectangle of the element
+		:param column: The column of the element (see get_sorted_rectangles)
+		:param window_title: The first entry of the path of the element: its window
+		:return: The [] operator: "#[path of the reference element,column]", or None if no reference element is found
+		"""
+		xx, yy = wrapper_rectangle.left, wrapper_rectangle.mid_point()[1]
+		previous_wrapper_path2 = None
+		while xx > 0:  # TODO: limiter la recherche à la fenêtre courante
+			xx = xx - 9
+			wrapper2 = self.desktop.from_point(xx, yy)
+			if wrapper2 is None:
+				continue
+			wrapper2_rectangle = wrapper2.rectangle()
+			if wrapper2_rectangle.height() > wrapper_rectangle.height() * 2:
+				continue
+			wrapper_path2 = get_wrapper_path(wrapper2)
+			if not wrapper_path2 or wrapper_path2 == previous_wrapper_path2 or get_entry_list(wrapper_path2)[0] != window_title:
+				continue
+			previous_wrapper_path2 = wrapper_path2
+			if find_elements(wrapper_path2, self._window_handle):
+				self.__overlay_add_bold_rectangle(wrapper2_rectangle, color=(0, 0, 255))
+				self.__overlay_add_bold_rectangle(wrapper_rectangle, color=(255, 200, 0))
+				return '#[' + wrapper_path2 + ',' + str(column) + ']'
 		return None
 
 	def __find_unique_element_array_2d(self, wrapper_rectangle, elements):
-		nb_y, nb_x, candidates = get_sorted_region(elements)
-		unique_array_2d = ''
-		for r_y in range(nb_y):
-			for r_x in range(nb_x):
-				try:
-					r = candidates[r_y][r_x].rectangle()
-				except IndexError:
-					continue
-				if r == wrapper_rectangle:
-					self.__overlay_add_bold_rectangle(r, color=(255, 200, 0))
+		"""
+		Searches the element under the mouse cursor among the elements sorted in rows and columns (Strategy.array_2d).
+
+		The element under the mouse cursor is displayed in orange, and the other elements in red.
+
+		:param wrapper_rectangle: The rectangle of the element under the mouse cursor
+		:param elements: The elements found with the path of the element
+		:return: The [] operator: "#[row,column]", or None if the element is not among the sorted elements. Before, it
+			was '': the path, which matches several elements, was taken for a unique path (issue #68).
+		"""
+		unique_array_2d = None
+		for r_y, row in enumerate(get_sorted_rectangles(elements)[2]):
+			for r_x, (rectangle, _) in enumerate(row):
+				if rectangle == wrapper_rectangle:
+					self.__overlay_add_bold_rectangle(rectangle, color=(255, 200, 0))
 					unique_array_2d = '#[' + str(r_y) + ',' + str(r_x) + ']'
 				else:
-					self.__overlay_add_bold_rectangle(r, color=(255, 0, 0))
+					self.__overlay_add_bold_rectangle(rectangle, color=(255, 0, 0))
 		return unique_array_2d
 
 	def __mouse_on(self, mouse_event):
@@ -1347,12 +1408,14 @@ class Recorder(Thread):
 			loop_error = None
 			try:
 				self.__loop(search, i)
-			except Exception:
-				exc_type, exc_value, exc_traceback = sys.exc_info()
-				loop_error = repr(traceback.format_exception(exc_type, exc_value, exc_traceback))
-				if loop_error != previous_loop_error:
-					# An error that is raised again at each loop is printed only once
-					print(loop_error)
+			except Exception as error:
+				# An element that vanished is not an error: the application changed, the next loop searches again
+				if not _is_vanished_element_error(error):
+					exc_type, exc_value, exc_traceback = sys.exc_info()
+					loop_error = repr(traceback.format_exception(exc_type, exc_value, exc_traceback))
+					if loop_error != previous_loop_error:
+						# An error that is raised again at each loop is printed only once
+						print(loop_error)
 				self.common_path_info_tip = ""
 				self.wrapper_old_info_tip = None
 				time.sleep(0.1)  # same pace as a loop without error: do not loop at full speed
@@ -1362,6 +1425,25 @@ class Recorder(Thread):
 		keyboard.unhook_all()
 		self.main_overlay.quit()
 		print("Run end")
+
+	def __cursor_position(self):
+		"""
+		Returns the position of the mouse cursor, or None if Windows does not give it.
+
+		Windows refuses it ("Access is denied") while the secure desktop is displayed: locked session, UAC prompt or
+		CTRL+ALT+DEL screen. Then a message is printed once, instead of an error at each loop (issue #68).
+		"""
+		try:
+			position = win32api.GetCursorPos()
+		except win32api.error:
+			if not self._cursor_position_unavailable:
+				print(
+					"The position of the mouse cursor is not available (locked session, UAC prompt or CTRL+ALT+DEL "
+					"screen): the recorder waits.")
+			self._cursor_position_unavailable = True
+			return None
+		self._cursor_position_unavailable = False
+		return position
 
 	def __loop(self, search, i):
 		"""
@@ -1375,7 +1457,11 @@ class Recorder(Thread):
 		"""
 		self._loop_t0 = time.time()
 		self.main_overlay.clear_all()
-		wrapper = self.desktop.from_point(*win32api.GetCursorPos())
+		position = self.__cursor_position()
+		if position is None:
+			time.sleep(0.1)  # same pace as a loop
+			return
+		wrapper = self.desktop.from_point(*position)
 		if wrapper is None:
 			time.sleep(0.01)
 			return
@@ -1388,8 +1474,12 @@ class Recorder(Thread):
 			return
 		strategy = search.next_strategy(wrapper_path, self.smart_mode, self._window_handle)
 		wrapper_rectangle = wrapper.rectangle()
-		strategy, unique_wrapper_path = self.__search_unique_path(
-			search.elements, strategy, wrapper, wrapper_path, wrapper_rectangle)
+		strategy, unique_wrapper_path, in_elements = self.__search_unique_path(
+			search.elements, strategy, wrapper_path, wrapper_rectangle)
+		if not in_elements and search.search_again(wrapper_rectangle):
+			self.main_overlay.clear_all()  # the elements found before are not displayed
+			strategy, unique_wrapper_path, _ = self.__search_unique_path(
+				search.elements, Strategy.unique_path, wrapper_path, wrapper_rectangle)
 		if strategy is None:
 			search.i_strategy = 0  # the mouse cursor left the element: the search starts again with the first strategy
 			return
@@ -1407,43 +1497,57 @@ class Recorder(Thread):
 			loop_duration = time.time() - self._loop_t0
 		time.sleep(0.01)  # main_overlay.clear_all() doit attendre la fin de main_overlay.refresh()
 
-	def __search_unique_path(self, elements, strategy, wrapper, wrapper_path, wrapper_rectangle):
+	def __search_unique_path(self, elements, strategy, wrapper_path, wrapper_rectangle):
 		"""
 		Searches a unique path of the element under the mouse cursor with a strategy, and displays the elements found.
 
 		:param elements: The elements found with wrapper_path
 		:param strategy: The strategy of the search
-		:param wrapper: The element under the mouse cursor
 		:param wrapper_path: The path of the element
 		:param wrapper_rectangle: The rectangle of the element
-		:return: The strategy that was used, and the unique path, or None if it is not found.
-			(None, None) if the mouse cursor left the element.
+		:return: The strategy that was used, the unique path or None if it is not found, and False if the element under
+			the mouse cursor is not among the elements found, or if one of them vanished: they may be the result of a
+			previous search (see _ElementSearch.search_again). (None, None, True) if the mouse cursor left the element.
 		"""
-		unique_wrapper_path = None
-		if strategy is Strategy.unique_path:
-			if not _is_cursor_in(wrapper_rectangle):
-				return None, None
-			if len(elements) == 1:
-				unique_wrapper_path = wrapper_path
-				self.__overlay_add_bold_rectangle(wrapper_rectangle, color=(0, 255, 0))
-			else:
-				for e in elements:
-					self.__overlay_add_bold_rectangle(e.rectangle(), color=(255, 0, 0))
-		if strategy == Strategy.array_1d and elements:
-			if not _is_cursor_in(wrapper_rectangle):
-				return None, None
-			unique_array_1d = self.__find_unique_element_array_1d(wrapper.rectangle(), elements)
-			if unique_array_1d is not None:
-				unique_wrapper_path = wrapper_path + unique_array_1d
-			else:
+		try:
+			if strategy is Strategy.unique_path:
+				if not _is_cursor_in(wrapper_rectangle):
+					return None, None, True
+				return self.__search_with_unique_path(elements, wrapper_path, wrapper_rectangle)
+			if strategy == Strategy.array_1d and elements:
+				if not _is_cursor_in(wrapper_rectangle):
+					return None, None, True
+				unique_array_1d = self.__find_unique_element_array_1d(wrapper_rectangle, elements, wrapper_path)
+				if unique_array_1d is not None:
+					return strategy, wrapper_path + unique_array_1d, True
 				strategy = Strategy.array_2d
-		if strategy == Strategy.array_2d and elements:
-			if not _is_cursor_in(wrapper_rectangle):
-				return None, None
-			unique_array_2d = self.__find_unique_element_array_2d(wrapper.rectangle(), elements)
-			if unique_array_2d is not None:
-				unique_wrapper_path = wrapper_path + unique_array_2d
-		return strategy, unique_wrapper_path
+			if strategy == Strategy.array_2d and elements:
+				if not _is_cursor_in(wrapper_rectangle):
+					return None, None, True
+				unique_array_2d = self.__find_unique_element_array_2d(wrapper_rectangle, elements)
+				if unique_array_2d is not None:
+					return strategy, wrapper_path + unique_array_2d, True
+			return strategy, None, False
+		except COMError:  # an element found vanished: the application changed since the search
+			return strategy, None, False
+
+	def __search_with_unique_path(self, elements, wrapper_path, wrapper_rectangle):
+		"""
+		Searches the element under the mouse cursor with its path (Strategy.unique_path).
+
+		The path is unique if only one element has this path: it is displayed in green. Otherwise, the elements found are
+		displayed in red.
+
+		:return: Strategy.unique_path, the path or None if it is not unique, and False if the element under the mouse
+			cursor is not among the elements found
+		"""
+		rectangles = [element.rectangle() for element in elements]
+		if len(rectangles) == 1:
+			self.__overlay_add_bold_rectangle(wrapper_rectangle, color=(0, 255, 0))
+			return Strategy.unique_path, wrapper_path, rectangles[0] == wrapper_rectangle
+		for rectangle in rectangles:
+			self.__overlay_add_bold_rectangle(rectangle, color=(255, 0, 0))
+		return Strategy.unique_path, None, wrapper_rectangle in rectangles
 
 	def __display_mode_icons(self, i):
 		"""

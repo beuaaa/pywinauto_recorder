@@ -544,6 +544,110 @@ def test_get_sorted_region_without_visible_element():
 	assert get_sorted_region([_FakeElement("OK||Button", visible=False)]) == (0, 0, [])
 
 
+class _CountedElement:
+	"""An element whose visibility and rectangle are counted: each one is a request to the application."""
+
+	requests = 0
+
+	def __init__(self, left, top, width, height, visible=True):
+		self._rectangle = _FakeRectangle(left, top, width, height)
+		self._visible = visible
+
+	def rectangle(self):
+		_CountedElement.requests += 1
+		return self._rectangle
+
+	def is_visible(self):
+		_CountedElement.requests += 1
+		return self._visible
+
+
+def _get_sorted_region_of_0_6_9(elements, min_height=8, max_height=9999, min_width=8, max_width=9999, line_tolerance=20):
+	"""The sort of Pywinauto Recorder 0.6.9: the reference of the indices "#[row,column]" of the recorded scripts."""
+	def is_filter_criteria_ok(child):
+		if child.is_visible():
+			r = child.rectangle()
+			if (min_height <= r.height() <= max_height) and (min_width <= r.width() <= max_width):
+				return True
+		return False
+
+	filtered_elements = list(filter(is_filter_criteria_ok, elements))
+	filtered_elements.sort(key=lambda widget: (widget.rectangle().top, widget.rectangle().left))
+	arrays = [[]]
+	if filtered_elements and all(e.rectangle().height() == filtered_elements[0].rectangle().height() for e in filtered_elements):
+		line_tolerance = filtered_elements[0].rectangle().height()
+	h = 0
+	w = -1
+	if len(filtered_elements) > 0:
+		y = filtered_elements[0].rectangle().top
+		for e in filtered_elements:
+			if (e.rectangle().top - y) < line_tolerance:
+				arrays[h].append(e)
+				if len(arrays[h]) > w:
+					w = len(arrays[h])
+			else:
+				if w > -1:
+					arrays[h].sort(key=lambda widget: (widget.rectangle().left, -widget.rectangle().width()))
+				arrays.append([])
+				h = h + 1
+				arrays[h].append(e)
+				y = e.rectangle().top
+		arrays[h].sort(key=lambda widget: (widget.rectangle().left, -widget.rectangle().width()))
+	else:
+		return 0, 0, []
+	return h + 1, w, arrays
+
+
+def _generated_elements(rng):
+	"""Returns elements in rows, in a column, at random places or at the same places, some of them small or hidden."""
+	kind = rng.choice(["rows", "rows of the same height", "same places", "column", "random"])
+	elements = []
+	for k in range(rng.randint(0, 40)):
+		if kind.startswith("rows"):
+			height = 20 if kind == "rows of the same height" else rng.choice([20, 22, 30])
+			rectangle = (10 + 70 * (k % 6) + rng.randint(-3, 3), 10 + 28 * (k // 6) + rng.randint(-12, 12), rng.choice([50, 4]), height)
+		elif kind == "same places":
+			rectangle = (rng.choice([0, 50, 100]), rng.choice([0, 15, 30]), rng.choice([40, 50]), rng.choice([20, 25]))
+		elif kind == "column":
+			rectangle = (5, 10 + 25 * k + rng.randint(-5, 5), 200, rng.choice([20, 24, 7]))
+		else:
+			rectangle = (rng.randint(-50, 800), rng.randint(-50, 600), rng.randint(0, 120), rng.randint(0, 60))
+		elements.append(_CountedElement(*rectangle, visible=rng.random() > 0.1))
+	return elements
+
+
+def test_get_sorted_region_gives_the_indices_of_0_6_9():
+	"""
+	Tests that the rows and the columns are the ones of Pywinauto Recorder 0.6.9, with generated elements and criteria.
+
+	They are the indices "#[row,column]" of the recorded scripts: the scripts recorded before must still be replayed.
+	"""
+	import random
+	rng = random.Random(68)
+	for _ in range(3000):
+		elements = _generated_elements(rng)
+		criteria = {}
+		if rng.random() < 0.2:
+			criteria = dict(
+				min_height=rng.choice([0, 8, 21]), max_height=rng.choice([25, 9999]), min_width=rng.choice([0, 8]),
+				max_width=rng.choice([55, 9999]), line_tolerance=rng.choice([-5, 0, 1, 20, 40]))
+		assert get_sorted_region(elements, **criteria) == _get_sorted_region_of_0_6_9(elements, **criteria)
+
+
+def test_get_sorted_rectangles_reads_each_rectangle_once():
+	"""
+	Tests that the visibility and the rectangle of each element are asked once: they are requests to the application.
+
+	Before, the rectangle was read up to 8 times, at each loop of the recorder, which could make an application
+	unresponsive (issue #68).
+	"""
+	elements = [_CountedElement(10 + 60 * (i % 10), 10 + 30 * (i // 10), 50, 25) for i in range(100)]
+	_CountedElement.requests = 0
+	nb_y, nb_x, rows = core.get_sorted_rectangles(elements)
+	assert (nb_y, nb_x, _CountedElement.requests) == (10, 10, 200)
+	assert rows[1] == [(element._rectangle, element) for element in elements[10:20]]
+
+
 @pytest.mark.parametrize("encoding, expected", [("utf-8", "🔎"), ("cp1252", "?")])
 def test_find_prints_its_progress_whatever_the_encoding_of_stdout(monkeypatch, fake_find_elements, encoding, expected):
 	"""

@@ -1697,6 +1697,80 @@ def test_element_search_in_the_window_under_the_mouse_cursor(monkeypatch):
 	assert searches == [("N||Window->B||Button", 1), ("N||Window->B||Button", 2)]
 
 
+class _FakeOverlayForTheLoop:
+	"""Replaces the overlay of the recorder: it keeps what is drawn."""
+
+	def __init__(self):
+		self.shapes = []
+
+	def clear_all(self):
+		self.shapes = []
+
+	def add(self, **kwargs):
+		self.shapes.append(kwargs)
+
+	def refresh(self):
+		pass
+
+
+def _recorder_for_the_loop(wrapper, mode=recorder.RecorderMode.RECORD):
+	"""
+	Returns a Recorder whose thread and tooltip are not started, to test its loop.
+
+	:param wrapper: The element under the mouse cursor, given by its desktop
+	"""
+	fake_recorder = object.__new__(recorder.Recorder)
+	fake_recorder._mode = mode
+	fake_recorder._smart_mode = False
+	fake_recorder._copy_count = 0
+	fake_recorder.main_overlay = _FakeOverlayForTheLoop()
+	fake_recorder.desktop = types.SimpleNamespace(from_point=lambda x, y: wrapper)
+	fake_recorder.event_list = [recorder.mouse.MoveEvent(0, 0, 0.0)]
+	fake_recorder.last_element_event = None
+	fake_recorder._window_handle = None
+	fake_recorder._cursor_position_unavailable = False
+	return fake_recorder
+
+
+class _SizedElement:
+	"""An element found by a search: it has a rectangle, and it is visible."""
+
+	def __init__(self, rectangle):
+		self._rectangle = _Rectangle(rectangle)
+
+	def rectangle(self):
+		return self._rectangle
+
+	def is_visible(self):
+		return True
+
+
+class _VanishedElement:
+	"""An element found by a search that does not exist anymore: UI Automation raises UIA_E_ELEMENTNOTAVAILABLE."""
+
+	def rectangle(self):
+		raise recorder.COMError(-2147220991, "An event was unable to invoke any of the subscribers", None)
+
+	def is_visible(self):
+		return self.rectangle()
+
+
+class _FakeCachedFindElements:
+	"""Replaces the find_elements of the recorder: it gives its results one after the other, and has a cache."""
+
+	def __init__(self, *results):
+		self.results = list(results)
+		self.calls = []
+		self.cache_clears = 0
+
+	def __call__(self, path, window_handle=None):
+		self.calls.append((path, window_handle))
+		return self.results.pop(0) if len(self.results) > 1 else self.results[0]
+
+	def cache_clear(self):
+		self.cache_clears += 1
+
+
 def test_loop_does_not_restrict_the_searches_of_the_player(monkeypatch):
 	"""
 	Tests that the loop of the recorder does not set the window where the player searches the elements.
@@ -1709,13 +1783,189 @@ def test_loop_does_not_restrict_the_searches_of_the_player(monkeypatch):
 	monkeypatch.setattr(recorder.win32api, "GetCursorPos", lambda: (1, 2))
 	monkeypatch.setattr(recorder, "get_wrapper_path", lambda wrapper: "")  # no path: the loop ends at once
 	monkeypatch.setattr(recorder.time, "sleep", lambda seconds: None)
-	wrapper = types.SimpleNamespace(handle=5, parent=lambda: None)
-	fake_recorder = types.SimpleNamespace(
-		main_overlay=types.SimpleNamespace(clear_all=lambda: None),
-		desktop=types.SimpleNamespace(from_point=lambda x, y: wrapper))
-	recorder.Recorder._Recorder__loop(fake_recorder, recorder._ElementSearch(), 1)
+	fake_recorder = _recorder_for_the_loop(types.SimpleNamespace(handle=5, parent=lambda: None))
+	fake_recorder._Recorder__loop(recorder._ElementSearch(), 1)
 	assert fake_recorder._window_handle == 5
 	assert core.get_native_window_handle() is None
+
+
+def test_loop_searches_again_when_the_elements_are_the_ones_of_a_previous_search(monkeypatch):
+	"""
+	Tests the loop of the recorder when the elements found are the ones of a previous search, kept by the cache: the
+	application changed, and the element under the mouse cursor is not among them.
+
+	The elements are searched again without the cache, and the element is found with the [] operator. Before, the path,
+	which matches 2 elements, was recorded as a unique path, and the replay failed (issue #68).
+	"""
+	under_the_cursor = _Rectangle((60, 0, 110, 20))
+	previous_page = [_SizedElement((0, 300, 50, 320)), _SizedElement((60, 300, 110, 320))]
+	find_elements = _FakeCachedFindElements(previous_page, [_SizedElement((0, 0, 50, 20)), _SizedElement(under_the_cursor)])
+	monkeypatch.setattr(recorder, "find_elements", find_elements)
+	monkeypatch.setattr(recorder, "get_wrapper_path", lambda wrapper: "W||Window->B||Button")
+	monkeypatch.setattr(recorder, "_is_cursor_in", lambda rectangle: True)
+	monkeypatch.setattr(recorder.win32api, "GetCursorPos", lambda: (70, 10))
+	wrapper = types.SimpleNamespace(handle=5, parent=lambda: None, rectangle=lambda: under_the_cursor)
+	fake_recorder = _recorder_for_the_loop(wrapper)
+	search = recorder._ElementSearch()
+	fake_recorder._Recorder__loop(search, 1)  # Strategy.unique_path: the elements are searched again, 2 elements
+	fake_recorder._Recorder__loop(search, 2)  # Strategy.array_2d
+	assert find_elements.cache_clears == 1
+	assert fake_recorder.event_list[1:] == [
+		recorder.ElementEvent(recorder.Strategy.array_2d, under_the_cursor, "W||Window->B||Button#[0,1]")]
+
+
+def test_element_search_again_without_the_cache(monkeypatch):
+	"""Tests that the elements are searched again without the cache once for each element under the mouse cursor."""
+	find_elements = _FakeCachedFindElements(["old 1", "old 2"], ["new"])
+	monkeypatch.setattr(recorder, "find_elements", find_elements)
+	search = recorder._ElementSearch()
+	search.next_strategy("W||Window->B||Button", False, 7)
+	search.i_strategy = 1
+	assert search.search_again(_Rectangle((0, 0, 50, 20)))
+	assert (search.elements, search.i_strategy, find_elements.cache_clears) == (["new"], 0, 1)
+	assert find_elements.calls == [("W||Window->B||Button", 7)] * 2
+	assert not search.search_again(_Rectangle((0, 0, 50, 20)))  # once for the element under the mouse cursor
+	assert search.search_again(_Rectangle((60, 0, 110, 20)))  # another element that has the same path
+	search.next_strategy("W||Window->C||Button", False, 7)
+	assert search.search_again(_Rectangle((60, 0, 110, 20)))  # an element that has another path
+	assert find_elements.cache_clears == 3
+
+
+_UNDER_THE_CURSOR = (0, 0, 50, 20)
+_ELSEWHERE = (0, 30, 50, 50)
+_PATH = "W||Window->B||Button"
+
+
+@pytest.mark.parametrize("rectangles, strategy, expected", [
+	([_UNDER_THE_CURSOR], recorder.Strategy.unique_path, (recorder.Strategy.unique_path, _PATH, True)),
+	([_ELSEWHERE], recorder.Strategy.unique_path, (recorder.Strategy.unique_path, _PATH, False)),
+	([], recorder.Strategy.unique_path, (recorder.Strategy.unique_path, None, False)),
+	([_UNDER_THE_CURSOR, (60, 0, 110, 20)], recorder.Strategy.unique_path, (recorder.Strategy.unique_path, None, True)),
+	([_ELSEWHERE, (60, 30, 110, 50)], recorder.Strategy.unique_path, (recorder.Strategy.unique_path, None, False)),
+	([_UNDER_THE_CURSOR, (60, 0, 110, 20)], recorder.Strategy.array_2d, (recorder.Strategy.array_2d, _PATH + "#[0,0]", True)),
+	([_ELSEWHERE, (60, 30, 110, 50)], recorder.Strategy.array_2d, (recorder.Strategy.array_2d, None, False)),
+	([(0, 0, 6, 6), (10, 0, 16, 6)], recorder.Strategy.array_2d, (recorder.Strategy.array_2d, None, False)),  # too small
+	([], recorder.Strategy.array_2d, (recorder.Strategy.array_2d, None, False)),
+])
+def test_search_unique_path(monkeypatch, rectangles, strategy, expected):
+	"""
+	Tests the search of a unique path, and that it tells when the element under the mouse cursor is not among the
+	elements found: they may be the ones of a previous search.
+
+	Before, the search with the [] operator gave the path itself when the element under the mouse cursor was not among
+	the elements sorted in rows: a path that matches several elements was taken for a unique path (issue #68).
+	"""
+	monkeypatch.setattr(recorder, "_is_cursor_in", lambda rectangle: True)
+	fake_recorder = _recorder_for_the_loop(None)
+	elements = [_SizedElement(rectangle) for rectangle in rectangles]
+	if rectangles == [(0, 0, 6, 6), (10, 0, 16, 6)]:
+		under_the_cursor = _Rectangle((0, 0, 6, 6))
+	else:
+		under_the_cursor = _Rectangle(_UNDER_THE_CURSOR)
+	assert fake_recorder._Recorder__search_unique_path(elements, strategy, _PATH, under_the_cursor) == expected
+
+
+@pytest.mark.parametrize("strategy", [recorder.Strategy.unique_path, recorder.Strategy.array_2d])
+def test_search_unique_path_with_a_vanished_element(monkeypatch, strategy):
+	"""Tests that an element found that vanished is reported: the elements found may be the ones of a previous search."""
+	monkeypatch.setattr(recorder, "_is_cursor_in", lambda rectangle: True)
+	fake_recorder = _recorder_for_the_loop(None)
+	elements = [_SizedElement(_UNDER_THE_CURSOR), _VanishedElement()]
+	assert fake_recorder._Recorder__search_unique_path(elements, strategy, _PATH, _Rectangle(_UNDER_THE_CURSOR)) == (
+		strategy, None, False)
+
+
+def test_search_unique_path_when_the_mouse_cursor_left_the_element(monkeypatch):
+	"""Tests that nothing is searched when the mouse cursor left the element."""
+	monkeypatch.setattr(recorder, "_is_cursor_in", lambda rectangle: False)
+	fake_recorder = _recorder_for_the_loop(None)
+	assert fake_recorder._Recorder__search_unique_path(
+		[_VanishedElement()], recorder.Strategy.array_2d, _PATH, _Rectangle(_UNDER_THE_CURSOR)) == (None, None, True)
+
+
+class _FakeAncestor:
+	"""An element whose parent can be asked: each call is a request to the application."""
+
+	calls = 0
+
+	def __init__(self, parent=None):
+		self._parent = parent
+
+	def parent(self):
+		_FakeAncestor.calls += 1
+		return self._parent
+
+
+@pytest.mark.parametrize("depth", [0, 1, 2, 5])
+def test_top_level_window(depth):
+	"""
+	Tests the top level window of an element: its ancestor whose parent is the desktop.
+
+	The parent of each ancestor is asked once. Before, 4 times, at each loop of the recorder (issue #68).
+	"""
+	desktop = _FakeAncestor()
+	window = element = _FakeAncestor(desktop)
+	for _ in range(depth):
+		element = _FakeAncestor(element)
+	_FakeAncestor.calls = 0
+	assert recorder._top_level_window(element) is window
+	assert _FakeAncestor.calls == depth + 2
+	assert recorder._top_level_window(desktop) is desktop
+
+
+class _FakeWin32Error(Exception):
+	"""Replaces pywintypes.error, raised by the functions of win32api."""
+
+
+def test_loop_when_the_position_of_the_mouse_cursor_is_not_available(monkeypatch, capsys):
+	"""
+	Tests the loop while Windows does not give the position of the mouse cursor: locked session, UAC prompt or
+	CTRL+ALT+DEL screen. A message is printed once, and the loop waits. Before, an error was printed at each loop
+	(issue #68).
+	"""
+	positions = [_FakeWin32Error(5, "GetCursorPos", "Access is denied."), _FakeWin32Error(5, "GetCursorPos", ""), (1, 2)]
+
+	def get_cursor_pos():
+		position = positions.pop(0)
+		if isinstance(position, Exception):
+			raise position
+		return position
+
+	monkeypatch.setattr(recorder, "win32api", types.SimpleNamespace(GetCursorPos=get_cursor_pos, error=_FakeWin32Error))
+	monkeypatch.setattr(recorder, "get_wrapper_path", lambda wrapper: "")  # no path: the loop ends at once
+	sleeps = []
+	monkeypatch.setattr(recorder.time, "sleep", sleeps.append)
+	fake_recorder = _recorder_for_the_loop(types.SimpleNamespace(handle=5, parent=lambda: None))
+	for i in range(3):
+		fake_recorder._Recorder__loop(recorder._ElementSearch(), i)
+	assert capsys.readouterr().out == (
+		"The position of the mouse cursor is not available (locked session, UAC prompt or CTRL+ALT+DEL screen): "
+		"the recorder waits.\n")
+	assert sleeps[:2] == [0.1, 0.1]
+	assert (fake_recorder._cursor_position_unavailable, fake_recorder._window_handle) == (False, 5)
+
+
+def test_is_cursor_in_when_the_position_of_the_mouse_cursor_is_not_available(monkeypatch):
+	"""Tests that the mouse cursor is not in an element when Windows does not give its position."""
+	def get_cursor_pos():
+		raise _FakeWin32Error(5, "GetCursorPos", "Access is denied.")
+
+	monkeypatch.setattr(recorder, "win32api", types.SimpleNamespace(GetCursorPos=get_cursor_pos, error=_FakeWin32Error))
+	assert recorder._is_cursor_in(_Rectangle((0, 0, 100, 100))) is False
+
+
+@pytest.mark.parametrize("error, vanished", [
+	(recorder.COMError(-2147220991, "An event was unable to invoke any of the subscribers", (None, None, None, 0, None)), True),
+	(recorder.COMError(0x80040201, "", None), True),
+	(recorder.COMError(-2147467259, "Unspecified error", None), False),
+	(RuntimeError("other error"), False),
+])
+def test_is_vanished_element_error(error, vanished):
+	"""
+	Tests the error of UI Automation for an element that vanished (UIA_E_ELEMENTNOTAVAILABLE): the loop of the recorder
+	does not print it. Its message is misleading: "An event was unable to invoke any of the subscribers" (issue #68).
+	"""
+	assert recorder._is_vanished_element_error(error) is vanished
 
 
 def _fake_recorder_for_mouse(mode=recorder.RecorderMode.RECORD, tray_icon=None):
