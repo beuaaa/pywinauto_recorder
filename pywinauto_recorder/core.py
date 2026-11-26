@@ -19,7 +19,8 @@ except ImportError:  # not on Windows
 __all__ = [
 	'path_separator', 'type_separator', 'ABSOLUTE_PATH_SUFFIX', 'Strategy', 'is_int', 'is_absolute_path',
 	'get_wrapper_path', 'get_entry_list', 'get_entry', 'match_entry_list', 'get_sorted_region', 'get_sorted_rectangles',
-	'find_elements', 'read_config_file', 'get_native_window_handle', 'set_native_window_handle']
+	'find_elements', 'find_elements_in', 'get_window_candidates', 'read_config_file', 'get_native_window_handle',
+	'set_native_window_handle']
 
 desktop = PywinautoDesktop(backend='uia', allow_magic_lookup=False)
 native_window_handle = None
@@ -380,18 +381,30 @@ def find_ocr_elements(ocr_text, window, entry_list):
 
 
 last_parent_element_info, last_parent_element_info_path = None, None
+"""The parent of the last element whose path was computed by get_element_info_path, and its path."""
+
+last_top_level_parent = None
+"""
+The element from which last_parent_element_info_path begins: the path of the parent is used only for the paths computed
+from the same element. A path computed from a window must not be used for a path computed from an element of the window
+(see find_elements_in), and the reverse.
+"""
 
 
 def get_element_info_path(element_info, element_info_top_level_parent=None):
 	"""
 	Returns the path of an element_info object, from its top level parent to the element.
 
+	The path of the parent of the last element is kept: the path of the next element that has the same parent is
+	computed without reading the names and the control types of their ancestors again.
+
 	:param element_info: The UI Automation element_info object
-	:param element_info_top_level_parent: The element_info of the top level parent of the element, if it is known
+	:param element_info_top_level_parent: The element_info of the top level parent of the element, if it is known, or
+		of the element of a 'with UIPath' block where the path begins
 	:return: The path of the element from its top level parent.
 	"""
-	global last_parent_element_info, last_parent_element_info_path
-	first_parent = True
+	global last_parent_element_info, last_parent_element_info_path, last_top_level_parent
+	first_parent, element_entry = None, ''
 	try:
 		path = ''
 		if element_info_top_level_parent is None:
@@ -399,21 +412,37 @@ def get_element_info_path(element_info, element_info_top_level_parent=None):
 		while element_info != element_info_top_level_parent:
 			path = path_separator + element_info.name + type_separator + element_info.control_type + path
 			element_info = element_info.parent
-			if first_parent:
+			if first_parent is None:
+				first_parent, element_entry = element_info, path
 				if last_parent_element_info and last_parent_element_info.auto_id in [None, '']:
 					last_parent_element_info, last_parent_element_info_path = None, None
-				if element_info == last_parent_element_info:
+				if element_info == last_parent_element_info and (
+						last_top_level_parent is element_info_top_level_parent
+						or last_top_level_parent == element_info_top_level_parent):
 					return last_parent_element_info_path + path
-				last_parent_element_info = element_info
-				first_parent = False
-		last_parent_element_info_path = element_info.name + type_separator + element_info.control_type + path
-		last_parent_element_info_path = last_parent_element_info_path[:last_parent_element_info_path.rfind(path_separator)]
-		return element_info.name + type_separator + element_info.control_type + path
+		element_path = element_info.name + type_separator + element_info.control_type + path
+		if first_parent is not None:
+			# The path of the parent is kept only when it is complete, and it is the path without the entry of the
+			# element. Before, the parent was kept even when an exception stopped the computation of its path, or when
+			# the element was the top level parent itself: the path of another element was then used for it.
+			last_parent_element_info = first_parent
+			last_parent_element_info_path = element_path[:-len(element_entry)]
+			last_top_level_parent = element_info_top_level_parent
+		return element_path
 	except Exception:
 		return ''
 
 
-def filter_with_match_entry_list(window, descendants, entry_list):
+def filter_with_match_entry_list(window, descendants, entry_list, relative=False):
+	"""
+	Returns the descendants of an element whose path from this element matches an entry list.
+
+	:param window: The element_info of the window, or of the element, where the descendants were found
+	:param descendants: The element_info objects of the descendants
+	:param entry_list: The entries of the path
+	:param relative: True if the entries are relative to the element: the path begins with its children
+	:return: The descendants that match the entry list
+	"""
 	result = []
 	ds = {}
 	for d in descendants:
@@ -422,12 +451,47 @@ def filter_with_match_entry_list(window, descendants, entry_list):
 			ds[wp] = []
 		ds[wp].append(d)
 	for k in ds.keys():
-		if match_entry_list(get_entry_list(k), entry_list):
+		if not k:
+			continue  # the path could not be read: the element vanished, or it is not a descendant of the element
+		entries = get_entry_list(k)
+		if match_entry_list(entries[1:] if relative else entries, entry_list):
 			result += ds[k]
 	return result
 
 
-def find_elements(full_element_path=None, window_handle=None):
+def _find_last_entry_elements(entry_list, parent, top_level_only):
+	"""
+	Returns the element_info objects that match the last entry of a path.
+
+	:param entry_list: The entries of the path
+	:param parent: The window, or the element, among whose descendants the elements are searched, or None
+	:param top_level_only: True if the elements are searched among the top level windows
+	"""
+	criteria = dict(backend="uia", visible=True, parent=parent, top_level_only=top_level_only)
+	if entry_list[-1] != '*':
+		title, control_type, _, _ = get_entry(entry_list[-1])
+		criteria['name_re' if is_regex_entry(entry_list[-1]) else 'name'] = title
+		criteria['control_type'] = control_type
+	return findwindows.find_elements(**criteria)
+
+
+def get_window_candidates(root_entry, window_handle=None):
+	"""
+	Returns the windows that match the first entry of a path, and that the window filtering settings admit.
+
+	:param root_entry: The first entry of the path
+	:param window_handle: The handle of the window where the elements are searched, see find_elements
+	:return: The windows
+	"""
+	if window_handle is None:
+		window_handle = native_window_handle
+	window_candidates = find_window_candidates(root_entry, handle=window_handle)
+	if window_candidates == []:
+		return []
+	return filter_window_candidates(window_candidates)
+
+
+def find_elements(full_element_path=None, window_handle=None, window_candidates=None):
 	"""
 	It returns the elements (UIAWrapper list) that match the full_element_path.
 
@@ -435,15 +499,15 @@ def find_elements(full_element_path=None, window_handle=None):
 	:param window_handle: The handle of the window where the elements are searched. If it is None, they are searched in
 		the window set by set_native_window_handle (the window of the application given to focus_on_application), or in
 		all the windows if it is None too.
+	:param window_candidates: The windows that match the first entry of the path, given by get_window_candidates, if
+		they are known: they are not searched again among the windows of the desktop
 	:return: The elements found
 	"""
 	entry_list = get_entry_list(full_element_path)
-	if window_handle is None:
-		window_handle = native_window_handle
-	window_candidates = find_window_candidates(entry_list[0], handle=window_handle)
+	if window_candidates is None:
+		window_candidates = get_window_candidates(entry_list[0], window_handle)
 	if window_candidates == []:
 		return []
-	window_candidates = filter_window_candidates(window_candidates)
 	if len(entry_list) == 1 and len(window_candidates) == 1:
 		if entry_list == ['*']:
 			return [window_candidates[0]]
@@ -454,19 +518,33 @@ def find_elements(full_element_path=None, window_handle=None):
 	candidates = []
 	title, control_type, _, _ = get_entry(entry_list[-1])
 	for window in window_candidates:
-		if entry_list[-1] == '*':
-			eis = findwindows.find_elements(backend="uia", parent=window, top_level_only=False, visible=True)
-			candidates += filter_with_match_entry_list(window.element_info, eis, entry_list)
-		elif is_regex_entry(entry_list[-1]):
-			eis = findwindows.find_elements(name_re=title, control_type=control_type, backend="uia", visible=True,
-											parent=None if len(entry_list)==1 else window, top_level_only=len(entry_list)==1)
-			candidates += filter_with_match_entry_list(window.element_info, eis, entry_list)
-		elif control_type == "OCR_Text":
+		if control_type == "OCR_Text" and entry_list[-1] != '*' and not is_regex_entry(entry_list[-1]):
 			candidates += find_ocr_elements(title, window, entry_list)
-		else:
-			eis = findwindows.find_elements(name=title, control_type=control_type, backend="uia", visible=True,
-											parent=None if len(entry_list)==1 else window, top_level_only=len(entry_list)==1)
-			candidates += filter_with_match_entry_list(window.element_info, eis, entry_list)
+			continue
+		top_level_only = len(entry_list) == 1 and entry_list[-1] != '*'
+		eis = _find_last_entry_elements(entry_list, None if top_level_only else window, top_level_only)
+		candidates += filter_with_match_entry_list(window.element_info, eis, entry_list)
+	return [UIAWrapper(ei) for ei in candidates]
+
+
+def find_elements_in(parents, entry_list):
+	"""
+	It returns the elements (UIAWrapper list) of a path that begins with the children of some elements.
+
+	The elements are searched like with find_elements, but among the descendants of these elements instead of the
+	windows of the desktop: for example, the elements of a 'with UIPath' block found by a previous search.
+
+	:param parents: The element_info objects of the elements. An element found among the descendants of several of
+		them, because one of them is a descendant of another, is returned once.
+	:param entry_list: The entries of the path, relative to these elements
+	:return: The elements found
+	"""
+	candidates = []
+	for parent in parents:
+		eis = _find_last_entry_elements(entry_list, parent, False)
+		for ei in filter_with_match_entry_list(parent, eis, entry_list, relative=True):
+			if len(parents) == 1 or ei not in candidates:
+				candidates.append(ei)
 	return [UIAWrapper(ei) for ei in candidates]
 
 

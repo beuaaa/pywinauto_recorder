@@ -106,3 +106,33 @@ def test_candidate_pids_with_the_real_processes():
 	me = psutil.Process(os.getpid())
 	pids = player._candidate_pids(me.parent().pid, me.name().lower(), t_start=time.time() - 3600 * 24 * 365)
 	assert os.getpid() in pids
+
+
+def _usable_name(name):
+	"""Returns True if a name can be written in a path without a regular expression."""
+	return bool(name) and not name.startswith("RegEx: ") and not any(
+		s in name for s in ("->", "||", "#[", "%(", "~Absolute_UIPath"))
+
+
+def _window_and_child():
+	"""Returns a top level window and one of its visible children whose name can be written in a path, or None."""
+	windows = core.get_window_candidates("*")
+	if not windows:
+		pytest.skip("No top level window in this session")
+	children = [child for child in windows[0].element_info.children() if child.visible and _usable_name(child.name)]
+	return windows[0], children[0] if children else None
+
+
+def test_find_elements_in_the_windows_given_and_among_the_descendants_of_an_element():
+	"""
+	Tests the searches used by the elements kept for the UIPath blocks (issue #49) with the real UI Automation tree.
+
+	find_elements searches in the windows given, and find_elements_in among the descendants of an element_info.
+	"""
+	window, child = _window_and_child()
+	assert core.find_elements("*->" + UNLIKELY_NAME + "||Button", window_candidates=[window]) == []
+	for entry_list in ([UNLIKELY_NAME + "||Button"], ["*", UNLIKELY_NAME + "||Button"], ["RegEx: " + UNLIKELY_NAME]):
+		assert core.find_elements_in([window.element_info], entry_list) == []
+	if child is not None:
+		elements = core.find_elements_in([window.element_info], [child.name + "||" + child.control_type])
+		assert child in [element.element_info for element in elements]
