@@ -10,6 +10,8 @@ import traceback
 import time
 import win32api
 import win32con
+import win32gui
+import win32process
 from threading import Event, Thread
 import pywinauto
 import overlay_arrows_and_more as oaam
@@ -21,7 +23,7 @@ import pyperclip
 import codecs
 from .core import path_separator, type_separator, Strategy, is_int, \
 	get_wrapper_path, get_entry_list, get_entry, get_sorted_region, \
-	read_config_file, set_native_window_handle, SPECIAL_CHARACTERS
+	read_config_file, set_native_window_handle, SPECIAL_CHARACTERS, ABSOLUTE_PATH_SUFFIX
 from .core import find_elements as not_ttl_cached_find_elements
 from .player import playback
 from cachetools import func
@@ -72,8 +74,16 @@ def _escape_special_char(string):
 
 
 def _compute_dx_dy(x, y, rectangle):
+	"""
+	Returns the coordinates of a position relative to the center of a rectangle: -1 and 1 are its sides.
+
+	A coordinate is 0 when the rectangle is too thin to compute it (2 pixels or less): before, the division by 0
+	stopped the end of the recording, and the recording was lost.
+	"""
 	cx, cy = rectangle.mid_point()
-	dx, dy = float(x - cx) / (rectangle.width() / 2 - 1), float(y - cy) / (rectangle.height() / 2 - 1)
+	half_width, half_height = rectangle.width() / 2 - 1, rectangle.height() / 2 - 1
+	dx = float(x - cx) / half_width if half_width > 0 else 0.0
+	dy = float(y - cy) / half_height if half_height > 0 else 0.0
 	return (dx, dy)
 
 
@@ -182,6 +192,10 @@ def _get_element_argument(path, dx, dy, common_path, relative_coordinate_mode):
 	"""
 	Returns the path of an element written in the script: relative to common_path, followed by the relative coordinates.
 
+	A path that is not under common_path (see _is_under), like the destination of a drag and drop in another window, is
+	written as an absolute path: the full path, ended by ABSOLUTE_PATH_SUFFIX, so that the path of the UIPath blocks is
+	not added to it when the script is replayed. Before, the beginning of the path was cut wrongly.
+
 	:param path: The full path of the element
 	:param dx: The horizontal relative coordinate of the click (see _relative_coordinates)
 	:param dy: The vertical relative coordinate of the click (see _relative_coordinates)
@@ -189,9 +203,12 @@ def _get_element_argument(path, dx, dy, common_path, relative_coordinate_mode):
 	:param relative_coordinate_mode: True if the relative coordinates are written
 	:return: The text written between the quotes of the argument
 	"""
-	if common_path:
-		path = _get_relative_path(common_path, path)
-	return _escape_special_char(path) + _relative_coordinates(dx, dy, relative_coordinate_mode)
+	coordinates = _relative_coordinates(dx, dy, relative_coordinate_mode)
+	if not common_path:
+		return _escape_special_char(path) + coordinates
+	if _is_under(path, common_path):
+		return _escape_special_char(_get_relative_path(common_path, path)) + coordinates
+	return _escape_special_char(_get_absolute_path(path)) + coordinates + ABSOLUTE_PATH_SUFFIX
 
 
 def _get_script_line(event, common_path, relative_coordinate_mode):
@@ -259,6 +276,16 @@ def _clean_events(events, remove_first_up=False):
 
 
 def _process_events(events, process_menu_click=True):
+	"""
+	Replaces the recorded events by the events written in the script.
+
+	The keyboard events become SendKeysEvent, the mouse wheel events MouseWheelEvent, the presses and releases of the
+	mouse buttons ClickEvent or DragAndDropEvent (from the last one: see _process_drag_and_drop_or_click_events), and
+	the clicks on menu items MenuEvent if process_menu_click is True.
+
+	:param events: The events of the recording, cleaned by _clean_events
+	:param process_menu_click: True if the clicks on menu items become a MenuEvent
+	"""
 	i = 0
 	while i < len(events):
 		if isinstance(events[i], keyboard.KeyboardEvent):
@@ -266,10 +293,11 @@ def _process_events(events, process_menu_click=True):
 		elif isinstance(events[i], mouse.WheelEvent):
 			_process_wheel_events(events, i)
 		i = i + 1
+	thresholds = _mouse_thresholds()
 	i = len(events) - 1
 	while i >= 0:
 		if isinstance(events[i], mouse.ButtonEvent) and events[i].event_type == 'up':
-			i = _process_drag_and_drop_or_click_events(events, i)
+			i = _process_drag_and_drop_or_click_events(events, i, thresholds)
 		i = i - 1
 	if process_menu_click:
 		i = len(events) - 1
@@ -317,6 +345,74 @@ def _process_wheel_events(events, i):
 	events[i] = MouseWheelEvent(delta=delta)
 
 
+DEFAULT_DRAG_THRESHOLD = (4, 4)
+"""
+The distances, in pixels, that the mouse can move horizontally and vertically while a button is pressed, before it is
+a drag and drop: the default values of Windows (SM_CXDRAG and SM_CYDRAG).
+"""
+
+DEFAULT_DOUBLE_CLICK_RECTANGLE = (4, 4)
+"""
+The size, in pixels, of the rectangle centered on a click where the next click must be to make a double click: the
+default values of Windows (SM_CXDOUBLECLK and SM_CYDOUBLECLK).
+"""
+
+MouseThresholds = namedtuple('MouseThresholds', ['drag', 'double_click'])
+"""
+The distances, in pixels, that the mouse can move horizontally and vertically: while a button is pressed, before it is
+a drag and drop (drag), and from a click to the next click of a double click (double_click).
+"""
+
+DEFAULT_MOUSE_THRESHOLDS = MouseThresholds(
+	drag=DEFAULT_DRAG_THRESHOLD, double_click=(DEFAULT_DOUBLE_CLICK_RECTANGLE[0] / 2, DEFAULT_DOUBLE_CLICK_RECTANGLE[1] / 2))
+"""The mouse thresholds of Windows with its default settings."""
+
+
+def _system_distances(metric_x, metric_y, default):
+	"""Returns 2 distances given by Windows (GetSystemMetrics), or the default distances if Windows does not give them."""
+	distances = (win32api.GetSystemMetrics(metric_x), win32api.GetSystemMetrics(metric_y))
+	if all(isinstance(distance, int) and distance > 0 for distance in distances):
+		return distances
+	return default
+
+
+def _mouse_thresholds():
+	"""
+	Returns the MouseThresholds of Windows.
+
+	The applications use them to tell a click from a drag and drop, and a double click from 2 clicks: a click is recorded
+	as a click when the hand moves the mouse a little, and 2 quick clicks on 2 elements are recorded as 2 clicks.
+	"""
+	width, height = _system_distances(win32con.SM_CXDOUBLECLK, win32con.SM_CYDOUBLECLK, DEFAULT_DOUBLE_CLICK_RECTANGLE)
+	return MouseThresholds(
+		drag=_system_distances(win32con.SM_CXDRAG, win32con.SM_CYDRAG, DEFAULT_DRAG_THRESHOLD),
+		double_click=(width / 2, height / 2))
+
+
+def _is_far(position, origin, distances):
+	"""Returns True if a position is farther from an origin than the distances, horizontally or vertically."""
+	return abs(position[0] - origin[0]) > distances[0] or abs(position[1] - origin[1]) > distances[1]
+
+
+def _contains(rectangle, position):
+	"""Returns True if the rectangle of an element contains a position. Its right and bottom sides are outside it."""
+	x, y = position
+	return rectangle is not None and rectangle.left <= x < rectangle.right and rectangle.top <= y < rectangle.bottom
+
+
+def _is_descendant(path, ancestor_path):
+	"""
+	Returns True if a path is the path of a descendant of the element of ancestor_path.
+
+	The [] operator at the end of ancestor_path is ignored: "W||Window->L||List#[0,1]" is an ancestor of
+	"W||Window->L||List->A||ListItem".
+	"""
+	i = ancestor_path.rfind("#[")
+	if i != -1:
+		ancestor_path = ancestor_path[:i]
+	return path.startswith(ancestor_path + path_separator)
+
+
 def _find_previous_event(events, i, event_type):
 	"""
 	Searches the last event of type event_type in events[:i + 1].
@@ -330,30 +426,203 @@ def _find_previous_event(events, i, event_type):
 	return -1, None
 
 
-def _find_button_down(events, i, move_event_end):
-	"""
-	Searches the press of the mouse button released by events[i], and counts the clicks.
+def _position_at(events, i):
+	"""Returns the position of the mouse cursor at events[i]: the one of the last mouse move before it, or None."""
+	_, move_event = _find_previous_event(events, i - 1, mouse.MoveEvent)
+	if move_event is None:
+		return None
+	return move_event.x, move_event.y
 
-	:param events: The events of the recording
-	:param i: The index of a release of a mouse button
-	:param move_event_end: The last mouse move before the release
-	:return: The index of the press (-1 if it is not found), True if the mouse moved while the button was pressed,
-		and the number of clicks (2 or 3 for a double or triple click)
+
+def _find_previous_button_event(events, i, button):
+	"""Returns the index of the last event of a mouse button before events[i], or -1 if there is none."""
+	for i0 in range(i - 1, -1, -1):
+		if isinstance(events[i0], mouse.ButtonEvent) and events[i0].button == button:
+			return i0
+	return -1
+
+
+def _find_press(events, i):
 	"""
-	drag_and_drop = False
-	click_count = 0
-	i0 = i - 1
-	while i0 >= 0:
+	Returns the index of the press of the mouse button released by events[i], or -1 if there is none.
+
+	There is none when the previous event of the button is a release too: the button was pressed before the start of the
+	recording, or on Pywinauto Recorder (see Recorder.__is_ignored).
+	"""
+	i_press = _find_previous_button_event(events, i, events[i].button)
+	if i_press != -1 and events[i_press].event_type in ('down', 'double'):
+		return i_press
+	return -1
+
+
+def _is_drag(events, i_press, i, threshold):
+	"""Returns True if the mouse moved farther than the drag threshold from the press events[i_press] to events[i]."""
+	position = _position_at(events, i_press)
+	return any(
+		isinstance(event, mouse.MoveEvent) and _is_far((event.x, event.y), position, threshold)
+		for event in events[i_press + 1:i])
+
+
+def _find_previous_click(events, i_press, thresholds):
+	"""
+	Returns the index of the press of the click before the press events[i_press], if they make a double click, or -1.
+
+	They make a double click if the press events[i_press] is quick: the 'mouse' library gives it as a double click
+	('double') when it is soon after the previous event of a mouse button, which must be the release of the same button.
+	The previous click must not be a drag and drop, and the press must be near its press (see MouseThresholds): 2 quick
+	clicks on 2 elements are 2 clicks, as for Windows.
+	"""
+	if events[i_press].event_type != 'double':
+		return -1
+	i_release, release = _find_previous_event(events, i_press - 1, mouse.ButtonEvent)
+	if release is None or release.event_type != 'up' or release.button != events[i_press].button:
+		return -1
+	i_previous = _find_press(events, i_release)
+	if i_previous == -1 or _position_at(events, i_previous) is None:
+		return -1
+	if _is_drag(events, i_previous, i_release, thresholds.drag):
+		return -1
+	if _is_far(_position_at(events, i_press), _position_at(events, i_previous), thresholds.double_click):
+		return -1
+	return i_previous
+
+
+def _find_first_click(events, i_press, thresholds):
+	"""
+	Returns the index of the first press of the double or triple click that ends with the press events[i_press].
+
+	:return: The index of the first press, and the number of clicks: 1, 2 or 3
+	"""
+	click_count = 1
+	while click_count < 3:
+		i_previous = _find_previous_click(events, i_press, thresholds)
+		if i_previous == -1:
+			break
+		i_press, click_count = i_previous, click_count + 1
+	return i_press, click_count
+
+
+def _element_events_before(events, i, first):
+	"""
+	Returns the element events found just before events[i], from the last one.
+
+	The search stops at an event that is neither an element event nor a mouse move, except the mouse button events from
+	events[first]: they are the ones of the drag and drop of the release events[i].
+	"""
+	element_events = []
+	for i0 in range(i - 1, -1, -1):
 		event = events[i0]
-		if isinstance(event, mouse.MoveEvent):
-			if event.x != move_event_end.x or event.y != move_event_end.y:
-				drag_and_drop = True
-		elif isinstance(event, mouse.ButtonEvent) and event.event_type in ('down', 'double'):
-			click_count = click_count + 1
-			if event.event_type == 'down' or click_count == 3:
-				return i0, drag_and_drop, click_count
-		i0 = i0 - 1
-	return -1, drag_and_drop, click_count
+		if isinstance(event, ElementEvent):
+			element_events.append(event)
+		elif not isinstance(event, mouse.MoveEvent) and not (i0 >= first and isinstance(event, mouse.ButtonEvent)):
+			break
+	return element_events
+
+
+def _element_events_after(events, i, last, position, threshold):
+	"""
+	Returns the element events found just after events[i], while the mouse cursor stays near a position.
+
+	The search stops at a mouse move farther than the drag threshold, and at an event that is neither an element event
+	nor a mouse move, except the mouse button events up to events[last]: they are the ones of the click of events[i].
+	"""
+	element_events = []
+	for i0 in range(i + 1, len(events)):
+		event = events[i0]
+		if isinstance(event, ElementEvent):
+			element_events.append(event)
+		elif isinstance(event, mouse.MoveEvent):
+			if _is_far((event.x, event.y), position, threshold):
+				break
+		elif not (i0 <= last and isinstance(event, mouse.ButtonEvent)):
+			break
+	return element_events
+
+
+def _find_element_event_at(element_events_before, element_events_after, position):
+	"""
+	Returns the element event of the element under the mouse cursor at a position, when a mouse button is pressed.
+
+	The element events are added by the loop of the recorder, which needs some time to find the element under the mouse
+	cursor: when the mouse moves quickly, the last one before the press may be the one of another element, or of an
+	ancestor of the element, like the pane that contains the clicked button.
+	So the element is the last one found before the press whose rectangle contains the position, or else the first one
+	found after it. Then an element found after it at this position, inside this element, replaces it: the mouse cursor
+	was already on it.
+
+	:param element_events_before: The element events found just before, from the last one (see _element_events_before)
+	:param element_events_after: The element events found just after, from the first one (see _element_events_after)
+	:param position: The position of the mouse cursor
+	:return: The element event, or None if none contains the position
+	"""
+	element_event = next((e for e in element_events_before if _contains(e.rectangle, position)), None)
+	for e in element_events_after:
+		if _contains(e.rectangle, position) and (element_event is None or _is_descendant(e.path, element_event.path)):
+			element_event = e
+	return element_event
+
+
+def _press_element_event(events, i_press, i, threshold):
+	"""
+	Returns the element event of the element under the mouse cursor at the press of a click or of a drag and drop.
+
+	The press is events[i_press], and the release events[i] (see _find_element_event_at). When no element is found at
+	the position of the press, it is the last element found before the press, as before.
+
+	:return: The element event, or None if no element was found
+	"""
+	position = _position_at(events, i_press)
+	return _find_element_event_at(
+		_element_events_before(events, i_press, i_press),
+		_element_events_after(events, i_press, i, position, threshold),
+		position) or _find_previous_event(events, i_press - 1, ElementEvent)[1]
+
+
+def _release_element_event(events, i_press, i):
+	"""
+	Returns the element event of the element under the mouse cursor at the release events[i] of a drag and drop.
+
+	It is the last element found before the release whose rectangle contains the position of the release, or else the
+	last element found before the release. The elements found after the release are not used: the drop often changes the
+	elements under the mouse cursor, for example the dragged element may be there.
+
+	:param i_press: The index of the press of the drag and drop
+	:return: The element event, or None if no element was found
+	"""
+	return _find_element_event_at(_element_events_before(events, i, i_press), [], _position_at(events, i)) or \
+		_find_previous_event(events, i - 1, ElementEvent)[1]
+
+
+def _click_event(events, i_press, i, click_count, threshold):
+	"""
+	Returns the ClickEvent of a click from the press events[i_press] to the release events[i].
+
+	The click is at the position of the press. It returns None if no element was found under the mouse cursor.
+	"""
+	element_event = _press_element_event(events, i_press, i, threshold)
+	if element_event is None:
+		return None
+	x, y = _position_at(events, i_press)
+	dx, dy = _compute_dx_dy(x, y, element_event.rectangle)
+	release = events[i]
+	return ClickEvent(
+		button=release.button, click_count=click_count, path=element_event.path, dx=dx, dy=dy, time=release.time)
+
+
+def _drag_and_drop_event(events, i_press, i, threshold):
+	"""
+	Returns the DragAndDropEvent of a drag and drop from the press events[i_press] to the release events[i].
+
+	It returns None if no element was found under the mouse cursor.
+	"""
+	start, end = _press_element_event(events, i_press, i, threshold), _release_element_event(events, i_press, i)
+	if start is None or end is None:
+		return None
+	x1, y1 = _position_at(events, i_press)
+	x2, y2 = _position_at(events, i)
+	dx1, dy1 = _compute_dx_dy(x1, y1, start.rectangle)
+	dx2, dy2 = _compute_dx_dy(x2, y2, end.rectangle)
+	return DragAndDropEvent(path=start.path, dx1=dx1, dy1=dy1, path2=end.path, dx2=dx2, dy2=dy2)
 
 
 def _remove_mouse_and_element_events(events, i1, i):
@@ -368,52 +637,98 @@ def _remove_mouse_and_element_events(events, i1, i):
 	return i - len(removed)
 
 
-def _process_drag_and_drop_or_click_events(events, i):
+def _process_drag_and_drop_or_click_events(events, i, thresholds=DEFAULT_MOUSE_THRESHOLDS):
 	"""
 	Replaces the release of a mouse button, events[i], by a ClickEvent or a DragAndDropEvent.
 
-	The mouse button, mouse move and element events from the press to the release of the button are removed.
+	It is a drag and drop if the mouse moved farther than the drag threshold while the button was pressed. Otherwise, it
+	is a click at the position of the press: a double or triple click if the previous clicks were quick and near (see
+	_find_previous_click). The mouse button, mouse move and element events from the press to the release are removed.
+	A release without press is removed (see _find_press). A click or a drag and drop is removed, and a message is
+	printed, when no element was found under the mouse cursor: before, the recording was lost.
 
 	:param events: The events of the recording
 	:param i: The index of a release of a mouse button
-	:return: The new index of the ClickEvent or of the DragAndDropEvent
+	:param thresholds: The MouseThresholds
+	:return: The new index of the ClickEvent or of the DragAndDropEvent, or the index of the first removed event
 	"""
-	i0, element_event_before_button_up = _find_previous_event(events, i - 1, ElementEvent)
-	_, move_event_end = _find_previous_event(events, i0, mouse.MoveEvent)
-	i1, drag_and_drop, click_count = _find_button_down(events, i, move_event_end)
-	i0, element_event_before_button_down = _find_previous_event(events, i1, ElementEvent)
-	if drag_and_drop:
-		_, move_event_start = _find_previous_event(events, i0, mouse.MoveEvent)
-		dx1, dy1 = _compute_dx_dy(move_event_start.x, move_event_start.y, element_event_before_button_down.rectangle)
-		dx2, dy2 = _compute_dx_dy(move_event_end.x, move_event_end.y, element_event_before_button_up.rectangle)
-		events[i] = DragAndDropEvent(
-			path=element_event_before_button_down.path, dx1=dx1, dy1=dy1,
-			path2=element_event_before_button_up.path, dx2=dx2, dy2=dy2)
+	i_press = _find_press(events, i)
+	if i_press == -1:
+		del events[i]
+		return i
+	if _position_at(events, i_press) is None:
+		event = None  # no mouse move before the press, which is impossible after start_recording
+	elif _is_drag(events, i_press, i, thresholds.drag):
+		event = _drag_and_drop_event(events, i_press, i, thresholds.drag)
 	else:
-		up_event = events[i]
-		dx, dy = _compute_dx_dy(move_event_end.x, move_event_end.y, element_event_before_button_down.rectangle)
-		events[i] = ClickEvent(
-			button=up_event.button, click_count=click_count,
-			path=element_event_before_button_down.path, dx=dx, dy=dy, time=up_event.time)
-	return _remove_mouse_and_element_events(events, i1, i)
+		i_press, click_count = _find_first_click(events, i_press, thresholds)
+		event = _click_event(events, i_press, i, click_count, thresholds.drag)
+	i = _remove_mouse_and_element_events(events, i_press, i)
+	if event is None:
+		print("A mouse click is not recorded: no element was found under the mouse cursor.")
+		del events[i]
+	else:
+		events[i] = event
+	return i
+
+
+def _split_reference_path(path):
+	"""
+	Splits the path of an element found with a reference element (Strategy.array_1d): "path#[reference path,x]".
+
+	:param path: The full path of an element
+	:return: The path without the [] operator, the path of the reference element and the column x. The path, None and
+		None if the element was not found with a reference element.
+	"""
+	entry_list = get_entry_list(path)
+	str_name, str_type, y_x, _ = get_entry(entry_list[-1])
+	if y_x is None or is_int(y_x[0]):
+		return path, None, None
+	return path_separator.join(entry_list[:-1] + [str_name + type_separator + str_type]), y_x[0], y_x[1]
+
+
+def _is_under(path, common_path):
+	"""
+	Returns True if a path can be written relatively to common_path.
+
+	It starts with common_path, like the path of its reference element (Strategy.array_1d) if there is one.
+	"""
+	element_path, reference_path, _ = _split_reference_path(path)
+	return all(
+		p == common_path or p.startswith(common_path + path_separator)
+		for p in (element_path, reference_path) if p is not None)
 
 
 def _get_relative_path(common_path, path):
+	"""
+	Returns the path of an element relative to common_path, the path of one of its ancestors (see _is_under).
+
+	The path of the reference element of the [] operator (Strategy.array_1d) is made relative to common_path too.
+
+	:param common_path: The path of the UIPath blocks
+	:param path: The full path of the element
+	:return: The relative path: '' for the element of common_path
+	"""
 	if not path:
 		return ''
-	# TODO: check if common_path is the beginning of path
-	path = path[len(common_path) + len(path_separator):]
-	entry_list = get_entry_list(path)
-	str_name, str_type, y_x, dx_dy = get_entry(entry_list[-1])
-	if (y_x is not None) and not is_int(y_x[0]):
-		y_x[0] = y_x[0][len(common_path) + 2:]
-		path = path_separator.join(entry_list[:-1]) + path_separator + str_name
-		if path == path_separator:
-			path = ''
-		path = path + type_separator + str_type + "#[" + y_x[0] + "," + str(y_x[1]) + "]"
-		if dx_dy is not None and dx_dy[0] != 0 and dx_dy[1] != 0:
-			path = path + "%(" + str(dx_dy[0]) + "," + str(dx_dy[1]) + ")"
-	return path
+	element_path, reference_path, x = _split_reference_path(path)
+	relative_path = element_path[len(common_path) + len(path_separator):]
+	if reference_path is not None:
+		relative_path += "#[" + reference_path[len(common_path) + len(path_separator):] + "," + str(x) + "]"
+	return relative_path
+
+
+def _get_absolute_path(path):
+	"""
+	Returns the absolute path of an element, without ABSOLUTE_PATH_SUFFIX at the end (see _get_element_argument).
+
+	It is the full path, where the path of the reference element of the [] operator (Strategy.array_1d), if there is
+	one, is absolute too: "path#[reference path~Absolute_UIPath,x]".
+	"""
+	element_path, reference_path, x = _split_reference_path(path)
+	if reference_path is None:
+		return path
+	return element_path + "#[" + reference_path + ABSOLUTE_PATH_SUFFIX + "," + str(x) + "]"
 
 
 def _find_common_path(current_path, next_path):
@@ -714,6 +1029,25 @@ def _is_cursor_in(rectangle):
 	return rectangle.left < x < rectangle.right and rectangle.top < y < rectangle.bottom
 
 
+def _no_tray_icon(x, y):
+	"""Returns False: the position is not on a tray icon. It is Recorder.is_on_tray_icon when there is no tray icon."""
+	return False
+
+
+_MENU_WINDOW_CLASS = "#32768"
+"""The class of the windows of the menus, like the menu of the tray icon of Pywinauto Recorder."""
+
+
+def _is_menu_of_this_process(x, y):
+	"""Returns True if the window at a position of the screen is a menu of this process, like the menu of the tray icon."""
+	try:
+		window = win32gui.WindowFromPoint((x, y))
+		return win32gui.GetClassName(window) == _MENU_WINDOW_CLASS and \
+			win32process.GetWindowThreadProcessId(window)[1] == os.getpid()
+	except Exception:  # pywintypes.error, for example if there is no window at the position
+		return False
+
+
 class _ElementSearch:
 	"""
 	The state of the search of a unique path of the element under the mouse cursor, kept from a loop to the next one.
@@ -818,6 +1152,13 @@ class Recorder(Thread):
 		self.common_path_info_tip = ""
 		self.last_element_event = None
 		self.started_recording_with_keyboard = False
+		self.is_on_tray_icon = _no_tray_icon
+		"""
+		A function is_on_tray_icon(x, y) that returns True if a position of the screen is on the tray icon of the
+		application. The presses of the mouse buttons on the tray icon are not recorded (see __is_ignored).
+		"""
+		self._mouse_position = None
+		self._ignored_buttons = set()
 		self.element_info_tooltip = ElementInfoTooltip()
 		self.start()
 	
@@ -885,12 +1226,41 @@ class Recorder(Thread):
 		return unique_array_2d
 
 	def __mouse_on(self, mouse_event):
-		if self.mode == RecorderMode.RECORD:
-			if isinstance(mouse_event, mouse.MoveEvent) and (len(self.event_list) > 0):
-				if isinstance(self.event_list[-1], mouse.MoveEvent):
-					self.event_list = self.event_list[:-1]
-			self.event_list.append(mouse_event)
-			
+		"""
+		Records a mouse event in Record mode. The 'mouse' library calls it in its thread, in the order of the events.
+
+		Consecutive mouse moves are recorded as one: the last one. The presses on Pywinauto Recorder, and their releases,
+		are not recorded (see __is_ignored).
+		"""
+		if isinstance(mouse_event, mouse.MoveEvent):
+			self._mouse_position = (mouse_event.x, mouse_event.y)
+		if self.mode != RecorderMode.RECORD or self.__is_ignored(mouse_event):
+			return
+		if isinstance(mouse_event, mouse.MoveEvent) and (len(self.event_list) > 0):
+			if isinstance(self.event_list[-1], mouse.MoveEvent):
+				self.event_list = self.event_list[:-1]
+		self.event_list.append(mouse_event)
+
+	def __is_ignored(self, mouse_event):
+		"""
+		Returns True if a mouse event must not be recorded: a press on Pywinauto Recorder, or the release of this press.
+
+		The presses on its tray icon (see is_on_tray_icon) and on the windows of its menus start or stop the recording:
+		before, they were recorded, and the replay failed on them.
+		"""
+		if not isinstance(mouse_event, mouse.ButtonEvent):
+			return False
+		if mouse_event.event_type == 'up':
+			ignored = mouse_event.button in self._ignored_buttons
+			self._ignored_buttons.discard(mouse_event.button)
+			return ignored
+		x, y = self._mouse_position or win32api.GetCursorPos()
+		if self.is_on_tray_icon(x, y) or _is_menu_of_this_process(x, y):
+			self._ignored_buttons.add(mouse_event.button)
+			return True
+		self._ignored_buttons.discard(mouse_event.button)
+		return False
+
 	def __start_stop_recording_by_key(self):
 		if self.mode != RecorderMode.RECORD:
 			self.started_recording_with_keyboard = True
@@ -1181,6 +1551,7 @@ class Recorder(Thread):
 		"""
 		time.sleep(0.6)  # wait the recorder to be fully ready
 		x, y = win32api.GetCursorPos()
+		self._ignored_buttons = set()
 		self.event_list = [mouse.MoveEvent(x, y, time.time())]
 		_overlay_add_mode_icon(self.main_overlay, IconSet.hicon_record, 10, 10)
 		self.element_info_tooltip.hide()

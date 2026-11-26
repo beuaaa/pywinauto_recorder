@@ -1168,7 +1168,7 @@ def test_run_interactive(monkeypatch, argv, events):
 	Tests that the recorder starts with the splash screen, unless --no_splash_screen is given, then runs the tray icon.
 
 	Its double click displays element information, except during a replay of the clipboard, and "Quit" stops the
-	recorder.
+	recorder. The recorder knows where the tray icon is, so that it does not record the clicks on it.
 	"""
 	happened = []
 	trays = []
@@ -1180,6 +1180,9 @@ def test_run_interactive(monkeypatch, argv, events):
 			self.menu, self.on_quit, self.default_action = menu, on_quit, default_action
 			trays.append(self)
 
+		def contains(self, x, y):
+			return False
+
 		def run(self):
 			happened.append("tray icon")
 
@@ -1189,6 +1192,7 @@ def test_run_interactive(monkeypatch, argv, events):
 	assert app.run_interactive(app.parse_arguments(argv)) == app.EXIT_OK
 	assert happened == events
 	tray = trays[0]
+	assert fake_recorder.is_on_tray_icon == tray.contains
 	tray.default_action(tray)
 	assert fake_recorder.calls == ["toggle_element_info"]
 	monkeypatch.setattr(app.ClipboardReplay, "is_running", lambda self: True)
@@ -1362,6 +1366,281 @@ def test_process_events_drag_and_drop():
 		recorder.DragAndDropEvent("W||Window->A||Button", -0.82, -0.55, "W||Window->B||Button", -0.02, 0.0)]
 
 
+def _move(x, y):
+	"""Returns a mouse move event."""
+	return recorder.mouse.MoveEvent(x, y, 0.0)
+
+
+def _button(event_type, time_=1.0, button="left"):
+	"""Returns a mouse button event: "down", "double" (a quick press, see the 'mouse' library) or "up"."""
+	return recorder.mouse.ButtonEvent(event_type, button, time_)
+
+
+def _element(path, left, top, right, bottom):
+	"""Returns the event of an element found under the mouse cursor by the loop of the recorder."""
+	return recorder.ElementEvent(None, _Rectangle((left, top, right, bottom)), path)
+
+
+_A = _element("W||Window->A||Button", 0, 0, 102, 42)
+_B = _element("W||Window->B||Button", 200, 0, 302, 42)
+_X = _element("W||Window->X||Button", 250, 250, 350, 350)
+
+
+def _clicks(events):
+	"""Returns the click and drag and drop events, after the processing of the recorded events."""
+	recorder._process_events(events)
+	return [e for e in events if isinstance(e, (recorder.ClickEvent, recorder.DragAndDropEvent))]
+
+
+@pytest.fixture
+def default_mouse_thresholds(monkeypatch):
+	"""Uses the default mouse thresholds of Windows, so that the tests do not depend on the settings of Windows."""
+	monkeypatch.setattr(recorder, "_mouse_thresholds", lambda: recorder.DEFAULT_MOUSE_THRESHOLDS)
+
+
+@pytest.mark.parametrize("x, y", [(13, 8), (14, 6), (6, 14)])
+def test_process_events_click_when_the_mouse_moves_a_little(default_mouse_thresholds, x, y):
+	"""
+	Tests that a press and a release are a click, at the position of the press, when the mouse moves less than the drag
+	threshold of Windows (4 pixels). Before, the smallest move made a drag and drop (issue #75).
+	"""
+	events = [_move(10, 10), _A, _button("down"), _move(x, y), _button("up", 1.1)]
+	assert _clicks(events) == [recorder.ClickEvent("left", 1, "W||Window->A||Button", -0.82, -0.55, 1.1)]
+
+
+@pytest.mark.parametrize("x, y, dx2, dy2", [(15, 10, -0.72, -0.55), (10, 15, -0.82, -0.3)])
+def test_process_events_drag_and_drop_beyond_the_drag_threshold(default_mouse_thresholds, x, y, dx2, dy2):
+	"""Tests that a move farther than the drag threshold makes a drag and drop, here from an element to itself."""
+	events = [_move(10, 10), _A, _button("down"), _move(x, y), _button("up")]
+	assert _clicks(events) == [
+		recorder.DragAndDropEvent("W||Window->A||Button", -0.82, -0.55, "W||Window->A||Button", dx2, dy2)]
+
+
+def test_mouse_thresholds_of_windows(monkeypatch):
+	"""Tests that the mouse thresholds are the ones of Windows, or the default ones when Windows does not give them."""
+	metrics = {
+		recorder.win32con.SM_CXDRAG: 10, recorder.win32con.SM_CYDRAG: 12,
+		recorder.win32con.SM_CXDOUBLECLK: 8, recorder.win32con.SM_CYDOUBLECLK: 6}
+	monkeypatch.setattr(recorder.win32api, "GetSystemMetrics", lambda index: metrics[index])
+	assert recorder._mouse_thresholds() == recorder.MouseThresholds(drag=(10, 12), double_click=(4, 3))
+	monkeypatch.setattr(recorder.win32api, "GetSystemMetrics", lambda index: 0)
+	assert recorder._mouse_thresholds() == recorder.DEFAULT_MOUSE_THRESHOLDS == ((4, 4), (2, 2))
+
+
+@pytest.mark.parametrize("events", [
+	[_move(300, 300), _X, _move(10, 10), _button("down"), _A, _button("up", 1.1)],
+	[_move(300, 300), _X, _move(10, 10), _button("down"), _button("up", 1.1), _A],
+	[_move(300, 300), _X, _move(10, 10), _button("down"), _button("up", 1.1), _move(12, 11), _A],
+], ids=["found during the press", "found after the release", "found after a small move"])
+def test_process_events_click_on_the_element_found_after_the_press(default_mouse_thresholds, events):
+	"""
+	Tests a click just after a quick move: the recorder finds the element under the mouse cursor after the press.
+
+	The recorder needs at least 0.1 s to find the element under the mouse cursor. Before, the click was recorded on the
+	previous element, here X, even if it does not contain the position of the click.
+	"""
+	assert _clicks(events) == [recorder.ClickEvent("left", 1, "W||Window->A||Button", -0.82, -0.55, 1.1)]
+
+
+def test_process_events_click_on_an_element_inside_the_element_found_before(default_mouse_thresholds):
+	"""
+	Tests a click on a button just after a quick move over the pane that contains it.
+
+	The element found before the press contains the position of the click, but it is the pane: the button, found after
+	the press at this position, is inside it. Before, the click was recorded on the pane, like click(u"||Custom") in the
+	Calculator of the issue #75.
+	"""
+	events = [
+		_move(300, 200), _element("W||Window->||Custom", 0, 0, 500, 400), _move(10, 10), _button("down"),
+		_button("up", 1.1), _element("W||Window->||Custom->A||Button", 0, 0, 102, 42)]
+	assert _clicks(events) == [recorder.ClickEvent("left", 1, "W||Window->||Custom->A||Button", -0.82, -0.55, 1.1)]
+
+
+def test_process_events_click_ignores_a_new_element_after_the_click(default_mouse_thresholds):
+	"""
+	Tests that an element found after the click at the same position is ignored when it is not inside the clicked
+	element: the click may have opened it.
+	"""
+	events = [_move(10, 10), _A, _button("down"), _button("up", 1.1), _element("Dialog||Window->OK||Button", 0, 0, 90, 30)]
+	assert _clicks(events) == [recorder.ClickEvent("left", 1, "W||Window->A||Button", -0.82, -0.55, 1.1)]
+
+
+def test_process_events_click_on_a_previous_element_that_contains_the_press(default_mouse_thresholds):
+	"""
+	Tests a click when the last element found before the press does not contain its position: the mouse cursor crossed
+	a small button of a list item, then went back on the text of the list item. The click is on the list item.
+	"""
+	events = [
+		_move(50, 20), _element("W||Window->L||List->Calculator||ListItem", 0, 0, 200, 40),
+		_move(190, 20), _element("W||Window->L||List->Calculator||ListItem->Delete||Button", 180, 5, 198, 35),
+		_move(60, 20), _button("down"), _button("up", 1.1)]
+	click, = _clicks(events)
+	assert click.path == "W||Window->L||List->Calculator||ListItem"
+	assert (click.dx, click.dy) == (pytest.approx(-40 / 99), 0.0)
+
+
+def test_process_events_click_when_no_element_contains_the_press(default_mouse_thresholds):
+	"""
+	Tests that the click is on the last element found before the press, as before, when no element found around the
+	press contains its position: with the relative coordinates, the replay clicks at the same position.
+
+	The element found after the mouse moved away from the click is not used.
+	"""
+	events = [
+		_move(300, 300), _X, _move(10, 10), _button("down"), _button("up", 1.1), _move(100, 100),
+		_element("W||Window->Y||Pane", 0, 0, 500, 500)]
+	click, = _clicks(events)
+	assert click.path == "W||Window->X||Button"
+	assert (click.dx, click.dy) == (pytest.approx(-290 / 49), pytest.approx(-290 / 49))
+
+
+def test_process_events_two_quick_clicks_on_two_elements(default_mouse_thresholds):
+	"""
+	Tests that 2 quick clicks on 2 elements are 2 clicks.
+
+	The 'mouse' library gives a press soon after a release as a double click ('double'), even on another element.
+	Before, the 2 clicks were recorded as a drag and drop from the first element to the second one.
+	"""
+	events = [
+		_move(10, 10), _A, _button("down", 1.0), _button("up", 1.1), _move(250, 20), _B, _button("double", 1.3),
+		_button("up", 1.4)]
+	assert _clicks(events) == [
+		recorder.ClickEvent("left", 1, "W||Window->A||Button", -0.82, -0.55, 1.1),
+		recorder.ClickEvent("left", 1, "W||Window->B||Button", -0.02, -0.05, 1.4)]
+
+
+def test_process_events_double_click_after_a_small_move(default_mouse_thresholds):
+	"""Tests that 2 quick clicks are a double click when the mouse moves less than the double click distance."""
+	events = [
+		_move(51, 21), _A, _button("down", 1.0), _button("up", 1.1), _move(53, 23), _button("double", 1.2),
+		_button("up", 1.3)]
+	assert _clicks(events) == [recorder.ClickEvent("left", 2, "W||Window->A||Button", 0.0, 0.0, 1.3)]
+
+
+@pytest.mark.parametrize("first_click", [
+	[_button("down", 1.0, "right"), _button("up", 1.1, "right")],
+	[_button("down", 1.0), _move(80, 30), _button("up", 1.1), _move(51, 21)],
+], ids=["with another button", "after a drag and drop"])
+def test_process_events_quick_press_that_is_not_a_double_click(default_mouse_thresholds, first_click):
+	"""Tests that a quick press is a click when the previous click is with another button, or a drag and drop."""
+	events = [_move(51, 21), _A] + first_click + [_button("double", 1.2), _button("up", 1.3)]
+	assert _clicks(events)[-1] == recorder.ClickEvent("left", 1, "W||Window->A||Button", 0.0, 0.0, 1.3)
+
+
+def test_process_events_drag_and_drop_positions(default_mouse_thresholds):
+	"""
+	Tests a drag and drop that starts on an element found during the press, and its position at the release.
+
+	Before, the drag and drop started on the previous element, X, and the position of the drop was the one where the
+	last element was found, (200, 10), instead of the position of the release.
+	"""
+	events = [
+		_move(300, 300), _X, _move(10, 10), _button("down"), _A, _move(200, 10),
+		_element("W||Window->B||Pane", 150, 0, 302, 42), _move(250, 21), _button("up")]
+	assert _clicks(events) == [
+		recorder.DragAndDropEvent("W||Window->A||Button", -0.82, -0.55, "W||Window->B||Pane", 0.32, 0.0)]
+
+
+def test_process_events_drop_ignores_the_elements_found_after_the_release(default_mouse_thresholds):
+	"""Tests that the destination is not an element found after the drop: it may be the dragged element."""
+	events = [
+		_move(10, 10), _element("Desktop||Pane->D||List->A||ListItem", 0, 0, 102, 42), _button("down"), _move(250, 21),
+		_element("Desktop||Pane->D||List", 0, 0, 500, 400), _button("up"),
+		_element("Desktop||Pane->D||List->A||ListItem", 200, 0, 302, 42)]
+	drag_and_drop, = _clicks(events)
+	assert (drag_and_drop.path, drag_and_drop.path2) == ("Desktop||Pane->D||List->A||ListItem", "Desktop||Pane->D||List")
+
+
+@pytest.mark.parametrize("events, nb_clicks", [
+	([_move(10, 10), _A, _button("up")], 0),
+	([_move(10, 10), _A, _button("down"), _button("up"), _button("up")], 1),
+])
+def test_process_events_ignores_a_release_without_press(default_mouse_thresholds, events, nb_clicks):
+	"""
+	Tests that a release without press is ignored: the button was pressed before the recording, or on the tray icon.
+
+	Before, the processing of the recording raised an exception, or the release was merged with the previous click.
+	"""
+	assert len(_clicks(events)) == nb_clicks
+	assert not [e for e in events if isinstance(e, recorder.mouse.ButtonEvent)]
+
+
+def test_process_events_click_without_element(default_mouse_thresholds, capsys):
+	"""
+	Tests that a click is ignored, with a message, when no element was found under the mouse cursor.
+
+	Before, the processing of the recording raised an exception, and the recording was lost.
+	"""
+	events = [_move(10, 10), _button("down"), _button("up"), _move(300, 300), _X, _button("down"), _button("up", 1.1)]
+	assert _clicks(events) == [recorder.ClickEvent("left", 1, "W||Window->X||Button", 0.0, 0.0, 1.1)]
+	assert capsys.readouterr().out == "A mouse click is not recorded: no element was found under the mouse cursor.\n"
+
+
+def test_compute_dx_dy_in_a_thin_rectangle():
+	"""Tests that a relative coordinate is 0 in a rectangle that is too thin. Before, it was a division by zero."""
+	assert recorder._compute_dx_dy(7, 1, _Rectangle((0, 0, 10, 2))) == (0.5, 0.0)
+	assert recorder._compute_dx_dy(0, 7, _Rectangle((0, 0, 1, 10))) == (0.0, 0.5)
+
+
+@pytest.mark.parametrize("path, common_path, relative_coordinate_mode, expected", [
+	("A||Window->P||Pane->X||Button", "A||Window->P||Pane", True, "X||Button%(50.00,-25.00)"),
+	("A||Window->P||Pane", "A||Window->P||Pane", False, ""),
+	("A||Window->X||Button", "", False, "A||Window->X||Button"),
+	("B||Window->Z||Button", "A||Window->P||Pane", True, "B||Window->Z||Button%(50.00,-25.00)~Absolute_UIPath"),
+	("B||Window->Z||Button", "A||Window->P||Pane", False, "B||Window->Z||Button~Absolute_UIPath"),
+	("A||Window->Q||Pane->Y||Button", "A||Window->P||Pane", False, "A||Window->Q||Pane->Y||Button~Absolute_UIPath"),
+	("A||Window->P||Pane2->Y||Button", "A||Window->P||Pane", False, "A||Window->P||Pane2->Y||Button~Absolute_UIPath"),
+	('B "1"||Window->Z||Button', "A||Window", False, 'B \\"1\\"||Window->Z||Button~Absolute_UIPath'),
+])
+def test_get_element_argument(path, common_path, relative_coordinate_mode, expected):
+	"""
+	Tests the path of an element written in a script: relative to the UIPath blocks, or else absolute.
+
+	Before, the beginning of a path that is not under the path of the UIPath blocks was cut wrongly: the destination of
+	a drag and drop in another window was "|Pane->||Pane->Type here to search||Button" in the issue #75.
+	"""
+	assert recorder._get_element_argument(path, 0.5, -0.25, common_path, relative_coordinate_mode) == expected
+
+
+def test_get_script_of_a_drag_and_drop_to_another_window():
+	"""Tests that the destination of a drag and drop in another window is written as an absolute path."""
+	events = [
+		recorder.DragAndDropEvent("A||Window->P||Pane->X||Button", 0.0, 0.0, "B||Window->Z||Button", 0.0, 0.0),
+		recorder.ClickEvent("left", 1, "A||Window->P||Pane->Y||Button", 0.0, 0.0, 2.0)]
+	assert recorder._get_script(events) == (
+		"# encoding: " + sys.getdefaultencoding() + "\n\n"
+		"from pywinauto_recorder.player import *\n\n\n"
+		'with UIPath(u"A||Window"):\n'
+		'\twith UIPath(u"P||Pane"):\n'
+		'\t\tdrag_and_drop(u"X||Button", u"B||Window->Z||Button~Absolute_UIPath")\n'
+		'\t\tclick(u"Y||Button")\n')
+
+
+_ROW = "W||Window->T||Table->Row||Custom"
+_CELL_WITH_REFERENCE = _ROW + "->Cell||Edit#[" + _ROW + "->Name||Text,2]"
+
+
+@pytest.mark.parametrize("common_path, expected", [
+	("W||Window->T||Table", "Row||Custom->Cell||Edit#[Row||Custom->Name||Text,2]"),
+	(_ROW, "Cell||Edit#[Name||Text,2]"),  # before: "->Cell||Edit#[Name||Text,2]"
+	("W||Window->H||Pane", "W||Window->T||Table->Row||Custom->Cell||Edit#["
+		"W||Window->T||Table->Row||Custom->Name||Text~Absolute_UIPath,2]~Absolute_UIPath"),
+])
+def test_get_element_argument_with_a_reference_element(common_path, expected):
+	"""
+	Tests the path of an element found with a reference element (Smart mode): the path of the reference element is
+	relative, or absolute, like the path of the element.
+	"""
+	assert recorder._get_element_argument(_CELL_WITH_REFERENCE, 0.0, 0.0, common_path, False) == expected
+
+
+def test_get_element_argument_with_a_reference_element_in_another_branch():
+	"""Tests that the path is absolute when the reference element is not under the path of the UIPath blocks."""
+	path = "W||Window->T||Table->Cell||Edit#[W||Window->H||Pane->Name||Text,2]"
+	assert recorder._get_element_argument(path, 0.0, 0.0, "W||Window->T||Table", False) == (
+		"W||Window->T||Table->Cell||Edit#[W||Window->H||Pane->Name||Text~Absolute_UIPath,2]~Absolute_UIPath")
+
+
 def _strategies(monkeypatch, smart_modes, unique_wrapper_path=None):
 	"""Returns the strategies of a search of the same element, with the Smart mode given for each loop."""
 	monkeypatch.setattr(recorder, "find_elements", lambda path: ["element 1", "element 2"])
@@ -1400,6 +1679,109 @@ def test_element_search_starts_again_on_another_element(monkeypatch):
 	assert search.next_strategy("W||Window->B||Button", False) == recorder.Strategy.unique_path
 	assert searched_paths == ["W||Window->A||Button", "W||Window->B||Button"]
 	assert search.elements == ["a", "b"]
+
+
+def _fake_recorder_for_mouse(mode=recorder.RecorderMode.RECORD, tray_icon=None):
+	"""
+	Returns an object that has the attributes used by Recorder.__mouse_on, without starting a recorder.
+
+	:param tray_icon: The rectangle of the tray icon, (left, top, right, bottom), or None
+	"""
+	fake_recorder = types.SimpleNamespace(mode=mode, event_list=[], _mouse_position=None, _ignored_buttons=set())
+	fake_recorder.is_on_tray_icon = recorder._no_tray_icon if tray_icon is None else (
+		lambda x, y: tray_icon[0] <= x < tray_icon[2] and tray_icon[1] <= y < tray_icon[3])
+	fake_recorder._Recorder__is_ignored = lambda event: recorder.Recorder._Recorder__is_ignored(fake_recorder, event)
+	return fake_recorder
+
+
+def _mouse_on(fake_recorder, events):
+	"""Gives mouse events to Recorder.__mouse_on, and returns the recorded events."""
+	for event in events:
+		recorder.Recorder._Recorder__mouse_on(fake_recorder, event)
+	return fake_recorder.event_list
+
+
+def test_presses_on_the_tray_icon_are_not_recorded(monkeypatch):
+	"""
+	Tests that the presses on the tray icon, and their releases, are not recorded: they start or stop the recording.
+
+	Before, the recorded script ended with a right click on the notification area, and its replay failed on it
+	(issue #75).
+	"""
+	monkeypatch.setattr(recorder, "_is_menu_of_this_process", lambda x, y: False)
+	fake_recorder = _fake_recorder_for_mouse(tray_icon=(100, 200, 124, 240))
+	events = [
+		_move(110, 210), _button("down", button="right"), _move(130, 210), _button("up", button="right"),
+		_button("down"), _button("up")]
+	assert _mouse_on(fake_recorder, events) == [_move(130, 210), _button("down"), _button("up")]
+
+
+def test_presses_on_a_menu_of_the_recorder_are_not_recorded(monkeypatch):
+	"""
+	Tests that the presses on a menu of the process of the recorder, like the menu of the tray icon, and their releases,
+	are not recorded. Before, a click on "Stop recording" was recorded.
+	"""
+	monkeypatch.setattr(recorder, "_is_menu_of_this_process", lambda x, y: (x, y) == (300, 400))
+	fake_recorder = _fake_recorder_for_mouse()
+	events = [_move(300, 400), _button("down"), _button("up"), _move(10, 10), _button("down"), _button("up")]
+	assert _mouse_on(fake_recorder, events) == [_move(10, 10), _button("down"), _button("up")]
+
+
+def test_mouse_events_are_recorded_only_in_record_mode(monkeypatch):
+	"""Tests that the mouse events are not recorded outside the Record mode, and that the mouse position is kept."""
+	monkeypatch.setattr(recorder, "_is_menu_of_this_process", lambda x, y: False)
+	fake_recorder = _fake_recorder_for_mouse(mode=recorder.RecorderMode.INFO)
+	assert _mouse_on(fake_recorder, [_move(5, 6), _button("down"), _button("up")]) == []
+	assert fake_recorder._mouse_position == (5, 6)
+
+
+@pytest.mark.parametrize("class_name, process_id, is_menu", [
+	("#32768", "this process", True),
+	("#32768", 1, False),
+	("Button", "this process", False),
+])
+def test_is_menu_of_this_process(monkeypatch, class_name, process_id, is_menu):
+	"""Tests the detection of the menus of the process of the recorder, like the menu of its tray icon."""
+	import os
+	if process_id == "this process":
+		process_id = os.getpid()
+	monkeypatch.setattr(recorder, "win32gui", types.SimpleNamespace(
+		WindowFromPoint=lambda point: 7 if point == (300, 400) else 0,
+		GetClassName=lambda window: class_name if window == 7 else ""))
+	monkeypatch.setattr(recorder, "win32process", types.SimpleNamespace(
+		GetWindowThreadProcessId=lambda window: (11, process_id)))
+	assert recorder._is_menu_of_this_process(300, 400) is is_menu
+
+
+def test_is_menu_of_this_process_when_windows_fails(monkeypatch):
+	"""Tests that a position is not on a menu when Windows cannot give the window at this position."""
+	def window_from_point(point):
+		raise OSError("no window")
+
+	monkeypatch.setattr(recorder, "win32gui", types.SimpleNamespace(WindowFromPoint=window_from_point))
+	assert recorder._is_menu_of_this_process(300, 400) is False
+
+
+def test_tray_icon_contains(monkeypatch):
+	"""Tests that SysTrayIcon.contains asks Windows the rectangle of the icon, identified by its window and its id."""
+	import ctypes
+	identifiers = []
+	results = [0, 0, 0, 0, 0x80004005]  # S_OK, then E_FAIL: Windows does not give the rectangle
+
+	def shell_notify_icon_get_rect(identifier, rectangle):
+		identifiers.append((identifier.contents.cbSize, identifier.contents.hWnd, identifier.contents.uID))
+		rectangle.contents.left, rectangle.contents.top = 100, 200
+		rectangle.contents.right, rectangle.contents.bottom = 124, 240
+		return results.pop(0)
+
+	monkeypatch.setattr(app, "windll", types.SimpleNamespace(shell32=types.SimpleNamespace(
+		Shell_NotifyIconGetRect=shell_notify_icon_get_rect)))
+	tray = object.__new__(app.SysTrayIcon)
+	tray.hwnd = 42
+	assert [tray.contains(100, 200), tray.contains(123, 239), tray.contains(124, 220), tray.contains(110, 199)] == [
+		True, True, False, False]
+	assert tray.contains(110, 210) is False
+	assert identifiers[0] == (ctypes.sizeof(app._NOTIFYICONIDENTIFIER), 42, 0)
 
 
 @pytest.mark.parametrize("text, char_width, expected", [

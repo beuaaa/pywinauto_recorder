@@ -757,6 +757,30 @@ def test_drag_and_drop_releases_the_button_when_the_destination_is_not_found(mon
 	assert mouse.log[-1] == player.MOUSEEVENTF_LEFTUP
 
 
+
+def test_move_to_an_absolute_path_written_by_the_recorder(monkeypatch):
+	"""
+	Tests the absolute path written by the recorder for the destination of a drag and drop in another window.
+
+	The path of the UIPath block is not added to it, and the relative coordinates written before "~Absolute_UIPath" are
+	used.
+	"""
+	destination = _FakeElement("W2||Window->Z||Button", left=100, top=200, width=102, height=42)
+	searched_paths = []
+	monkeypatch.setattr(
+		player, "find_elements", lambda full_element_path=None: searched_paths.append(full_element_path) or [destination])
+	moves = []
+	monkeypatch.setattr(player, "_move", lambda x, y, xd, yd, duration: moves.append((xd, yd)))
+	monkeypatch.setattr(player, "win32api_GetCursorPos", lambda: (0, 0))
+	path = "W2||Window->Z||Button%(50.00,-50.00)~Absolute_UIPath"
+	assert get_entry(get_entry_list(path)[-1]) == ("Z", "Button", None, (50.0, -50.0))
+	with UIPath("W1||Window"):
+		with UIPath("P||Pane"):
+			assert player.move(path, duration=0) is destination
+	assert searched_paths == [path]
+	assert moves == [(151 + 25, 221 - 10)]  # center of the button + 50% and -50% of its half width and height
+
+
 # ---------------------------------------- select_file ----------------------------------------
 
 class _FakeFileDialog:

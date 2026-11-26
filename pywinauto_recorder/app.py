@@ -6,7 +6,7 @@ It is started by main(), with the command "pywinauto-recorder", with "python -m 
 or with pywinauto_recorder.py, the launcher compiled by Nuitka into pywinauto_recorder.exe.
 """
 
-from ctypes import wintypes, windll, Structure, POINTER, pointer, c_ubyte
+from ctypes import wintypes, windll, Structure, POINTER, pointer, sizeof, c_ubyte
 import argparse
 import functools
 import re
@@ -63,6 +63,18 @@ class _SYSTEM_POWER_STATUS(Structure):
 		('BatteryLifeTime', wintypes.DWORD),
 		('BatteryFullLifeTime', wintypes.DWORD),
 	]
+
+
+class _GUID(Structure):
+	"""The GUID structure."""
+
+	_fields_ = [('Data1', wintypes.DWORD), ('Data2', wintypes.WORD), ('Data3', wintypes.WORD), ('Data4', c_ubyte * 8)]
+
+
+class _NOTIFYICONIDENTIFIER(Structure):
+	"""The NOTIFYICONIDENTIFIER structure given to Shell_NotifyIconGetRect: it identifies a tray icon."""
+
+	_fields_ = [('cbSize', wintypes.DWORD), ('hWnd', wintypes.HWND), ('uID', wintypes.UINT), ('guidItem', _GUID)]
 
 
 def get_ac_line_status():
@@ -272,6 +284,27 @@ class SysTrayIcon(object):
 			self.hwnd, 0, win32gui.NIF_ICON | win32gui.NIF_MESSAGE | win32gui.NIF_TIP, self._WM_NOTIFY_ICON, hicon,
 			self.hover_text)
 		win32gui.Shell_NotifyIcon(message, self.notify_id)
+
+	def contains(self, x, y):
+		"""
+		Returns True if a position of the screen is on the icon.
+
+		The recorder does not record the presses on the icon, which start or stop the recording (see
+		Recorder.is_on_tray_icon).
+
+		:param x: The horizontal coordinate of the position, in pixels
+		:param y: The vertical coordinate of the position, in pixels
+		:return: False if the position is not on the icon, or if Windows does not give the rectangle of the icon
+		"""
+		get_rectangle = windll.shell32.Shell_NotifyIconGetRect
+		get_rectangle.argtypes = [POINTER(_NOTIFYICONIDENTIFIER), POINTER(wintypes.RECT)]
+		get_rectangle.restype = wintypes.LONG  # an HRESULT: 0 (S_OK) when the rectangle is given
+		# The icon is identified by the window that receives its messages, and by its id: 0 (see refresh_icon)
+		identifier = _NOTIFYICONIDENTIFIER(cbSize=sizeof(_NOTIFYICONIDENTIFIER), hWnd=self.hwnd, uID=0)
+		rectangle = wintypes.RECT()
+		if get_rectangle(pointer(identifier), pointer(rectangle)) != 0:
+			return False
+		return rectangle.left <= x < rectangle.right and rectangle.top <= y < rectangle.bottom
 
 	def restart(self, hwnd, msg, wparam, lparam):
 		"""Called when the taskbar is created again (Windows Explorer restarted): it adds the icon again."""
@@ -809,6 +842,7 @@ def run_interactive(args):
 	tray = SysTrayIcon(
 		icons.pywinauto_recorder, "Pywinauto recorder", build_menu(recorder, clipboard_replay, icons),
 		on_quit=lambda tray: recorder.quit(), default_action=double_click)
+	recorder.is_on_tray_icon = tray.contains  # the clicks on the tray icon start or stop the recording: not recorded
 	tray.run()
 	return EXIT_OK
 

@@ -17,7 +17,7 @@ except ImportError:  # not on Windows
 
 
 __all__ = [
-	'path_separator', 'type_separator', 'Strategy', 'is_int', 'is_absolute_path',
+	'path_separator', 'type_separator', 'ABSOLUTE_PATH_SUFFIX', 'Strategy', 'is_int', 'is_absolute_path',
 	'get_wrapper_path', 'get_entry_list', 'get_entry', 'match_entry_list', 'get_sorted_region',
 	'find_elements', 'read_config_file', 'get_native_window_handle', 'set_native_window_handle']
 
@@ -45,6 +45,9 @@ class CoreSettings:
 
 path_separator = "->"
 type_separator = "||"
+
+ABSOLUTE_PATH_SUFFIX = "~Absolute_UIPath"
+"""The end of an absolute path: the path of the 'with UIPath' blocks is not added to it."""
 
 SPECIAL_CHARACTERS = (("\\", "\\\\"), ("\t", "\\t"), ("\n", "\\n"), ("\r", "\\r"), ("\v", "\\v"), ("\f", "\\f"), ('"', '\\"'))
 """The special characters of the paths, and how they are escaped in the strings of the recorded scripts."""
@@ -127,7 +130,8 @@ def is_int(s):
 
 
 def is_absolute_path(entry):
-	return entry[-16:] == '~Absolute_UIPath'
+	"""Returns True if a path, or its last entry, ends with ABSOLUTE_PATH_SUFFIX."""
+	return entry.endswith(ABSOLUTE_PATH_SUFFIX)
 
 
 def get_entry(entry):
@@ -138,7 +142,7 @@ def get_entry(entry):
 	:return: The name of the entry, the type of the entry, the size of the entry, and the dx and dy of the entry.
 	"""
 	if is_absolute_path(entry):
-		entry = entry[:-16]
+		entry = entry[:-len(ABSOLUTE_PATH_SUFFIX)]
 	if entry[0:7] == "RegEx: ":
 		entry = entry[7:]
 	i = entry.find(type_separator)
