@@ -284,6 +284,8 @@ def wait_is_ready_try1(wrapper, timeout=120):
 class UIPath(object):
 	"""
 	UIPath is a context manager used to keep track of the current path in the UI tree.
+
+	The paths, and all the ways to identify an element with a path, are explained in :doc:`/element_paths`.
 	
 	.. code-block:: python
 		:caption: Example of code not using a 'UIPath' object::
