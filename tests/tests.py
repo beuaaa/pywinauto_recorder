@@ -187,6 +187,88 @@ def test_uipath_without_regex_title_does_not_warn():
 
 
 ################################################################################################
+#                                  Tests of the path dictionary                                #
+################################################################################################
+
+TESTS_DIR = pathlib.Path(__file__).resolve().parent
+
+
+@pytest.fixture
+def empty_dictionary(monkeypatch):
+	"""Replaces the path dictionary of the player by an empty one, restored after the test."""
+	monkeypatch.setattr(player, "_dictionary", {})
+
+
+def _dictionary_files(folder, keys, definitions, encoding="utf8"):
+	"""Writes a key file and a definition file, and returns their names."""
+	filename_key, filename_def = str(folder / "test.key"), str(folder / "test.def")
+	pathlib.Path(filename_key).write_bytes(keys.encode(encoding))
+	pathlib.Path(filename_def).write_bytes(definitions.encode(encoding))
+	return filename_key, filename_def
+
+
+def test_dictionary_of_the_calculator(empty_dictionary):
+	"""Tests the dictionary of the example of the documentation, tests/Calculator.key and tests/Calculator.def."""
+	player.load_dictionary(str(TESTS_DIR / "Calculator.key"), str(TESTS_DIR / "Calculator.def"))
+	assert player.shortcut("Calculator") == "Calculator||Window->*"
+	assert player.shortcut("Number pad") == "Number pad||Group"
+	assert player.shortcut("1") == "One||Button"
+	assert player.full_definition("1") == "Calculator||Window->*->Number pad||Group->One||Button"
+	assert player.full_definition("=") == "Calculator||Window->*->Standard operators||Group->Equals||Button"
+	assert player.full_definition("Number pad") == "Calculator||Window->*->Number pad||Group"
+	# Before, the path of a key of the first level was repeated: "Calculator||Window->*->Calculator||Window->*"
+	assert player.full_definition("Calculator") == "Calculator||Window->*"
+	with UIPath(player.shortcut("Calculator")):
+		with UIPath(player.shortcut("Number pad")):
+			assert UIPath.get_full_path(player.shortcut("1")) == player.full_definition("1")
+
+
+def test_dictionary_with_empty_lines_a_byte_order_mark_and_windows_line_breaks(empty_dictionary, tmp_path):
+	"""
+	Tests the files that Notepad can write: with a byte order mark and Windows line breaks.
+
+	The empty lines are ignored, like the spaces at the end of the lines and the indentation of the key file.
+	"""
+	keys = "﻿Notepad\r\n\r\n    Text  \r\n\tMenu bar\r\n"
+	definitions = "﻿RegEx: .* - Notepad||Window\r\n\r\n\tText editor||Document \r\n\tApplication||MenuBar\r\n"
+	player.load_dictionary(*_dictionary_files(tmp_path, keys, definitions))
+	assert player._dictionary == {
+		"Notepad": ("", "RegEx: .* - Notepad||Window"),
+		"Text": ("RegEx: .* - Notepad||Window", "Text editor||Document"),
+		"Menu bar": ("RegEx: .* - Notepad||Window", "Application||MenuBar")}
+
+
+def test_dictionaries_are_added(empty_dictionary, tmp_path):
+	"""Tests that the keys of a dictionary are added to the keys already loaded, and that an unknown key is an error."""
+	player.load_dictionary(*_dictionary_files(tmp_path, "A\n\tB\n", "A||Window\n\tB||Button\n"))
+	player.load_dictionary(*_dictionary_files(tmp_path, "C\n", "C||Window\n"))
+	assert (player.full_definition("B"), player.full_definition("C")) == ("A||Window->B||Button", "C||Window")
+	with pytest.raises(KeyError):
+		player.shortcut("D")
+
+
+def test_dictionary_encoding(empty_dictionary, tmp_path):
+	"""Tests that the files are read with the given encoding."""
+	player.load_dictionary(*_dictionary_files(tmp_path, "Zéro\n", "Zéro||Button\n", encoding="cp1252"), encoding="cp1252")
+	assert player.shortcut("Zéro") == "Zéro||Button"
+
+
+@pytest.mark.parametrize("keys, definitions, message", [
+	("A\n\tB\n", "A||Window\n", "test.key has 2 lines, and the definition file .*test.def has 1 lines"),
+	("A\n\n", "A||Window\n\tB||Button\n", "Line 2 is empty in only one of the files"),
+	("A\n\tB\n", "A||Window\n    B||Button\n", "test.def, line 2: the indentation must be made of tabs"),
+	("A\n\tB\n", "A||Window\n\t\tB||Button\n", "test.def, line 2: the indentation has 2 tabs, but at most 1 are allowed"),
+	("\tA\n", "\tA||Window\n", "test.def, line 1: the indentation has 1 tabs, but at most 0 are allowed"),
+	("A\tB\n", "A||Window\n", "test.key, line 1: a tab separates the levels"),
+	("A\n", "A||Window\tB||Button\n", "test.def, line 1: a tab separates the levels"),
+])
+def test_dictionary_errors(empty_dictionary, tmp_path, keys, definitions, message):
+	"""Tests the errors of the files of a dictionary. Before, their keys were loaded with wrong paths, or not loaded."""
+	with pytest.raises(ValueError, match=message):
+		player.load_dictionary(*_dictionary_files(tmp_path, keys, definitions))
+
+
+################################################################################################
 #                                   Tests of get_wrapper_path                                  #
 ################################################################################################
 

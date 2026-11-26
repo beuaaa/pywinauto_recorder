@@ -138,50 +138,122 @@ class ButtonLocation(Enum):
 
 
 _dictionary = {}
+"""The keys of the path dictionaries loaded by load_dictionary: {key: (path of the parent, definition)}."""
 
 
-def load_dictionary(filename_key: str, filename_def: str,encoding: str = 'utf8') -> None:
+def _read_dictionary_file(filename, encoding):
 	"""
-	Loads a dictionary.
+	Returns the lines of a file of a path dictionary, without their line breaks.
+
+	The byte order mark that Notepad can write at the beginning of a UTF-8 file is removed.
+	"""
+	with open(filename, encoding=encoding) as dictionary_file:
+		lines = dictionary_file.read().split("\n")
+	if lines[-1] == "":
+		lines.pop()  # the line break at the end of the last line
+	if lines:
+		lines[0] = lines[0].lstrip("\ufeff")
+	return lines
+
+
+def _split_dictionary_line(line, filename, line_number):
+	"""
+	Splits a line of a definition file into its level, the number of tabs at its beginning, and its text.
+
+	The spaces and the tabs at the end of the line are ignored: a line that has only spaces and tabs is empty.
+
+	:raises ValueError: if the line is indented with spaces, or if its text contains a tab
+	"""
+	line = line.rstrip()
+	text = line.lstrip("\t")
+	if text[:1].isspace():
+		raise ValueError(
+			"%s, line %d: the indentation must be made of tabs, one tab per level, not of spaces." % (filename, line_number))
+	if "\t" in text:
+		raise ValueError(
+			"%s, line %d: a tab separates the levels, so a key or a definition cannot contain one." % (filename, line_number))
+	return len(line) - len(text), text
+
+
+def _dictionary_key(line, filename, line_number):
+	"""
+	Returns the key written on a line of a key file: its text, without the spaces and the tabs around it.
+
+	:raises ValueError: if the key contains a tab
+	"""
+	key = line.strip()
+	if "\t" in key:
+		raise ValueError(
+			"%s, line %d: a tab separates the levels, so a key or a definition cannot contain one." % (filename, line_number))
+	return key
+
+
+def load_dictionary(filename_key: str, filename_def: str, encoding: str = 'utf8') -> None:
+	"""
+	Loads a path dictionary: names, the keys, given to the paths of the elements (see :doc:`/path_dictionary`).
+
+	Line n of the key file gives the key of the definition written on line n of the definition file: the path of an
+	element relative to its parent. The tabs at the beginning of the lines of the definition file give the hierarchy of
+	the elements, one tab per level: the indentation of the key file is ignored. The empty lines are ignored.
+	The keys are added to the keys already loaded: shortcut() returns the definition of a key, and full_definition() its
+	full path.
 
 	:param filename_key: filename of the key file
 	:param filename_def: filename of the definition file
-	:param encoding: encoding of the dictionary file
+	:param encoding: encoding of the dictionary files
+	:raises ValueError: if the 2 files do not have the same number of lines, if a line is empty in only one of them, if
+		a line is indented with spaces, or if a line is more than one level deeper than the line above it.
+		Before, the keys of such files were loaded with wrong paths.
 	"""
-	abs_path = [x for x in range(99)]
-	with open(filename_key, encoding=encoding) as fp_key, open(filename_def, encoding=encoding) as fp_def:
-		for line_key, line_def in zip(fp_key, fp_def):
-			words = line_key.split("\t")
-			word = words[-1].translate(str.maketrans('', '', '\n\t\r'))
-			
-			words = line_def.split("\t")
-			definition = words[-1].translate(str.maketrans('', '', '\n\t\r'))
-			level = len(words) - 1
-			#print(level)
-			abs_path[level] = definition
-			abs_definition = abs_path[0]
-			for i in range(1, level):
-				abs_definition += path_separator + abs_path[i]
-			#print(abs_definition + path_separator + definition)
-			_dictionary[word] = (abs_definition, definition)
+	key_lines = _read_dictionary_file(filename_key, encoding)
+	definition_lines = _read_dictionary_file(filename_def, encoding)
+	if len(key_lines) != len(definition_lines):
+		raise ValueError("The key file %s has %d lines, and the definition file %s has %d lines: they must have the same lines." % (
+			filename_key, len(key_lines), filename_def, len(definition_lines)))
+	parents = []  # the definitions of the parents of the line, from the top level
+	for line_number, (key_line, definition_line) in enumerate(zip(key_lines, definition_lines), start=1):
+		key = _dictionary_key(key_line, filename_key, line_number)
+		level, definition = _split_dictionary_line(definition_line, filename_def, line_number)
+		if not key and not definition:
+			continue  # an empty line
+		if not key or not definition:
+			raise ValueError("Line %d is empty in only one of the files %s and %s." % (line_number, filename_key, filename_def))
+		if level > len(parents):
+			raise ValueError("%s, line %d: the indentation has %d tabs, but at most %d are allowed: one more than the line above it." % (
+				filename_def, line_number, level, len(parents)))
+		del parents[level:]
+		_dictionary[key] = (path_separator.join(parents), definition)
+		parents.append(definition)
 
 
 def shortcut(str_shortcut: str) -> str:
 	"""
-	Returns the shortcut path associated to the shortcut defined in the previously loaded dictionary.
+	Returns the definition of a key of the path dictionaries loaded by load_dictionary().
 
-	:param str_shortcut: shortcut
+	The definition is the path of the element relative to its parent, to use in UIPath blocks that follow the hierarchy
+	of the dictionary: with UIPath(shortcut("Number pad")): click(shortcut("1")).
+
+	:param str_shortcut: The key
+	:return: The definition of the key
+	:raises KeyError: if the key is not in the dictionaries loaded
 	"""
 	return _dictionary[str_shortcut][1]
 
 
 def full_definition(str_shortcut: str) -> str:
 	"""
-	Returns the full element path associated to the shortcut defined in the previously loaded dictionary.
+	Returns the full path of a key of the path dictionaries loaded by load_dictionary().
 
-	:param str_shortcut: shortcut
+	It is the definitions of the parents of the key and its definition, joined by "->": click(full_definition("1")).
+
+	:param str_shortcut: The key
+	:return: The full path of the element of the key. Before, the path of a key of the first level was repeated twice.
+	:raises KeyError: if the key is not in the dictionaries loaded
 	"""
-	return _dictionary[str_shortcut][0] + path_separator + _dictionary[str_shortcut][1]
+	parent_path, definition = _dictionary[str_shortcut]
+	if not parent_path:
+		return definition
+	return parent_path + path_separator + definition
 
 
 def wait_is_ready_try1(wrapper, timeout=120):
