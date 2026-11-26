@@ -1643,7 +1643,7 @@ def test_get_element_argument_with_a_reference_element_in_another_branch():
 
 def _strategies(monkeypatch, smart_modes, unique_wrapper_path=None):
 	"""Returns the strategies of a search of the same element, with the Smart mode given for each loop."""
-	monkeypatch.setattr(recorder, "find_elements", lambda path: ["element 1", "element 2"])
+	monkeypatch.setattr(recorder, "find_elements", lambda path, window_handle=None: ["element 1", "element 2"])
 	search = recorder._ElementSearch()
 	strategies = []
 	for smart_mode in smart_modes:
@@ -1672,13 +1672,50 @@ def test_element_search_keeps_a_unique_path(monkeypatch):
 def test_element_search_starts_again_on_another_element(monkeypatch):
 	"""Tests that the search starts again with the first strategy, and searches the elements, on another element."""
 	searched_paths = []
-	monkeypatch.setattr(recorder, "find_elements", lambda path: searched_paths.append(path) or ["a", "b"])
+	monkeypatch.setattr(
+		recorder, "find_elements", lambda path, window_handle=None: searched_paths.append(path) or ["a", "b"])
 	search = recorder._ElementSearch()
 	assert search.next_strategy("W||Window->A||Button", False) == recorder.Strategy.unique_path
 	assert search.next_strategy("W||Window->A||Button", False) == recorder.Strategy.array_2d
 	assert search.next_strategy("W||Window->B||Button", False) == recorder.Strategy.unique_path
 	assert searched_paths == ["W||Window->A||Button", "W||Window->B||Button"]
 	assert search.elements == ["a", "b"]
+
+
+def test_element_search_in_the_window_under_the_mouse_cursor(monkeypatch):
+	"""
+	Tests that the elements are searched in the window under the mouse cursor, and searched again in another window
+	that has the same title.
+	"""
+	searches = []
+	monkeypatch.setattr(
+		recorder, "find_elements", lambda path, window_handle=None: searches.append((path, window_handle)) or ["a", "b"])
+	search = recorder._ElementSearch()
+	assert search.next_strategy("N||Window->B||Button", False, 1) == recorder.Strategy.unique_path
+	assert search.next_strategy("N||Window->B||Button", False, 1) == recorder.Strategy.array_2d
+	assert search.next_strategy("N||Window->B||Button", False, 2) == recorder.Strategy.unique_path
+	assert searches == [("N||Window->B||Button", 1), ("N||Window->B||Button", 2)]
+
+
+def test_loop_does_not_restrict_the_searches_of_the_player(monkeypatch):
+	"""
+	Tests that the loop of the recorder does not set the window where the player searches the elements.
+
+	Before, it set the window under the mouse cursor: a replay from the tray menu, or from the command line, searched
+	the elements only in this window, and failed in the other windows.
+	"""
+	from pywinauto_recorder import core
+	monkeypatch.setattr(core, "native_window_handle", None)
+	monkeypatch.setattr(recorder.win32api, "GetCursorPos", lambda: (1, 2))
+	monkeypatch.setattr(recorder, "get_wrapper_path", lambda wrapper: "")  # no path: the loop ends at once
+	monkeypatch.setattr(recorder.time, "sleep", lambda seconds: None)
+	wrapper = types.SimpleNamespace(handle=5, parent=lambda: None)
+	fake_recorder = types.SimpleNamespace(
+		main_overlay=types.SimpleNamespace(clear_all=lambda: None),
+		desktop=types.SimpleNamespace(from_point=lambda x, y: wrapper))
+	recorder.Recorder._Recorder__loop(fake_recorder, recorder._ElementSearch(), 1)
+	assert fake_recorder._window_handle == 5
+	assert core.get_native_window_handle() is None
 
 
 def _fake_recorder_for_mouse(mode=recorder.RecorderMode.RECORD, tray_icon=None):

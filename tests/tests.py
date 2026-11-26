@@ -781,6 +781,21 @@ def test_move_to_an_absolute_path_written_by_the_recorder(monkeypatch):
 	assert moves == [(151 + 25, 221 - 10)]  # center of the button + 50% and -50% of its half width and height
 
 
+def test_find_elements_in_a_window(monkeypatch, native_window_handle):
+	"""
+	Tests that core.find_elements searches in the window given to it, else in the window of the application given to
+	focus_on_application.
+
+	The recorder gives the window under the mouse cursor: before, it set it for all the searches, those of a replay too.
+	"""
+	handles = []
+	monkeypatch.setattr(core, "find_window_candidates", lambda root_entry, handle=None: handles.append(handle) or [])
+	assert core.find_elements("W||Window->B||Button", window_handle=42) == []
+	assert core.find_elements("W||Window->B||Button") == []
+	assert handles == [42, native_window_handle]
+	assert core.get_native_window_handle() == native_window_handle
+
+
 # ---------------------------------------- select_file ----------------------------------------
 
 class _FakeFileDialog:

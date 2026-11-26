@@ -23,15 +23,21 @@ import pyperclip
 import codecs
 from .core import path_separator, type_separator, Strategy, is_int, \
 	get_wrapper_path, get_entry_list, get_entry, get_sorted_region, \
-	read_config_file, set_native_window_handle, SPECIAL_CHARACTERS, ABSOLUTE_PATH_SUFFIX
+	read_config_file, SPECIAL_CHARACTERS, ABSOLUTE_PATH_SUFFIX
 from .core import find_elements as not_ttl_cached_find_elements
 from .player import playback
 from cachetools import func
 
 
 @func.ttl_cache(ttl=10)
-def find_elements(full_element_path=None):
-	return not_ttl_cached_find_elements(full_element_path=full_element_path)
+def find_elements(full_element_path=None, window_handle=None):
+	"""
+	Returns the elements that match a path, like core.find_elements. The result is kept 10 seconds.
+
+	:param full_element_path: The full path of the elements
+	:param window_handle: The handle of the window where the elements are searched (see core.find_elements)
+	"""
+	return not_ttl_cached_find_elements(full_element_path=full_element_path, window_handle=window_handle)
 
 
 __all__ = ['Recorder']
@@ -1062,20 +1068,23 @@ class _ElementSearch:
 		"""Creates the state of a search that starts with the first strategy."""
 		self.elements = []
 		self.previous_wrapper_path = None
+		self.previous_window_handle = None
 		self.unique_wrapper_path = None
 		self.i_strategy = 0
 
-	def next_strategy(self, wrapper_path, smart_mode):
+	def next_strategy(self, wrapper_path, smart_mode, window_handle=None):
 		"""
 		Returns the strategy of the search of a unique path of the element of path wrapper_path.
 
-		The elements of path wrapper_path are searched again when the element under the mouse cursor changes.
+		The elements of path wrapper_path are searched again, in the window of window_handle, when the element under the
+		mouse cursor changes.
 
 		:param wrapper_path: The path of the element under the mouse cursor
 		:param smart_mode: True if the Smart mode is active
+		:param window_handle: The handle of the window under the mouse cursor (see core.find_elements)
 		:return: The strategy
 		"""
-		if wrapper_path == self.previous_wrapper_path:
+		if (wrapper_path, window_handle) == (self.previous_wrapper_path, self.previous_window_handle):
 			if (self.unique_wrapper_path is None) or (self.STRATEGIES[self.i_strategy] == Strategy.array_2d):
 				self.i_strategy = min(self.i_strategy + 1, len(self.STRATEGIES) - 1)
 				if (not smart_mode) and (self.STRATEGIES[self.i_strategy] == Strategy.array_1d):
@@ -1083,7 +1092,8 @@ class _ElementSearch:
 		else:
 			self.i_strategy = 0
 			self.previous_wrapper_path = wrapper_path
-			self.elements = find_elements(wrapper_path)
+			self.previous_window_handle = window_handle
+			self.elements = find_elements(wrapper_path, window_handle)
 		self.unique_wrapper_path = None
 		return self.STRATEGIES[self.i_strategy]
 
@@ -1159,6 +1169,7 @@ class Recorder(Thread):
 		"""
 		self._mouse_position = None
 		self._ignored_buttons = set()
+		self._window_handle = None
 		self.element_info_tooltip = ElementInfoTooltip()
 		self.start()
 	
@@ -1202,7 +1213,7 @@ class Recorder(Thread):
 							continue
 						previous_wrapper_path2 = wrapper_path2
 						
-						if find_elements(get_wrapper_path(wrapper2)):
+						if find_elements(get_wrapper_path(wrapper2), self._window_handle):
 							self.__overlay_add_bold_rectangle(wrapper2_rectangle, color=(0, 0, 255))
 							self.__overlay_add_bold_rectangle(wrapper_rectangle, color=(255, 200, 0))
 							return '#[' + wrapper_path2 + ',' + str(r_x) + ']'
@@ -1368,12 +1379,14 @@ class Recorder(Thread):
 		if wrapper is None:
 			time.sleep(0.01)
 			return
-		set_native_window_handle(_top_level_window(wrapper).handle)
+		# The elements are searched in the window under the mouse cursor. Before, this window was set with
+		# set_native_window_handle, which also restricted the searches of a replay to this window.
+		self._window_handle = _top_level_window(wrapper).handle
 		wrapper_path = get_wrapper_path(wrapper)
 		if not wrapper_path:
 			time.sleep(0.01)
 			return
-		strategy = search.next_strategy(wrapper_path, self.smart_mode)
+		strategy = search.next_strategy(wrapper_path, self.smart_mode, self._window_handle)
 		wrapper_rectangle = wrapper.rectangle()
 		strategy, unique_wrapper_path = self.__search_unique_path(
 			search.elements, strategy, wrapper, wrapper_path, wrapper_rectangle)
