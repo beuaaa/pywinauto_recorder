@@ -1,6 +1,7 @@
 """Functions that replay a sequence of user actions automatically."""
 
 # print('__file__={0:<35} | __name__={1:<20} | __package__={2:<20}'.format(__file__, __name__, str(__package__)))
+from collections import namedtuple
 from enum import Enum
 from typing import Optional, Union, NewType
 import time
@@ -25,9 +26,9 @@ from win32gui import SetWindowPos as win32gui_SetWindowPos
 from win32con import IDC_WAIT, MOUSEEVENTF_MOVE, MOUSEEVENTF_ABSOLUTE, MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP, \
 	MOUSEEVENTF_MIDDLEDOWN, MOUSEEVENTF_MIDDLEUP, MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP, MOUSEEVENTF_WHEEL, \
 	WHEEL_DELTA, SW_RESTORE,HWND_NOTOPMOST, HWND_TOPMOST
-from .core import type_separator, path_separator, get_entry, get_entry_list, find_elements, get_sorted_region, \
-	get_wrapper_path, is_int, is_absolute_path, set_native_window_handle, get_native_window_handle, find_window_candidates, \
-	SPECIAL_CHARACTERS
+from .core import type_separator, path_separator, get_entry, get_entry_list, find_elements, find_elements_in, \
+	get_window_candidates, get_sorted_region, get_wrapper_path, is_int, is_absolute_path, set_native_window_handle, \
+	get_native_window_handle, find_window_candidates, SPECIAL_CHARACTERS
 from functools import partial, update_wrapper
 from cachetools import func
 import math
@@ -86,6 +87,12 @@ class PlayerSettings:
 	use_cache = True
 	"""If True, the :func:`find` function caches the results of the search.
 	This is useful if the search is called several times on the same element."""
+
+	keep_block_elements = True
+	"""If True, the windows and the elements found in a 'with UIPath' block are kept until the end of the block, to
+	speed up the next searches of the block: a unique element, searched without the [] operator, is searched among
+	their descendants instead of all the windows of the desktop. When it is not found there, it is searched in all the
+	windows of the desktop, like when keep_block_elements is False. See :doc:`/element_paths`."""
 	
 	@staticmethod
 	def _apply_settings(
@@ -327,6 +334,9 @@ class UIPath(object):
 			with UIPath("*->Number pad||Group"):
 				click("One||Button")
 				click("Two||Button")
+
+	The windows and the elements found in a block are kept until the end of the block: the next searches of the block
+	are faster (see PlayerSettings.keep_block_elements).
 	"""
 
 	_stack = []
@@ -376,8 +386,9 @@ class UIPath(object):
 		return self
 	
 	def __exit__(self, exc_type, exc_value, exc_traceback):
-		"""Restores the current path."""
+		"""Restores the current path, and forgets the windows and the elements kept for the block."""
 		if self.relative_path:
+			_forget_block_elements(UIPath._path_list)
 			UIPath._path_list = UIPath._path_list[0:-1]
 		# Only the UIPath that saved the path in __enter__ (absolute_path=True) restores it.
 		# A UIPath nested in it must not: it would restore the outer path too early.
@@ -422,22 +433,208 @@ def _index_out_of_range_message(full_element_path, y_x, candidates):
 		"' is out of range: the elements found are arranged in " + rows + "."
 
 
-def _find_elements_or(full_element_path, default):
+_BlockLevel = namedtuple('_BlockLevel', ['key', 'n_entries', 'relative_entries', 'last_entry'])
+"""
+A 'with UIPath' block around a search: the key of the windows and of the elements kept for the block, the number of
+entries of the path of the block, the entries of the searched path after the block, and the last entry of the block.
+"""
+
+_block_windows = {}
+"""The windows kept for the outermost 'with UIPath' blocks: {key of the block: windows}."""
+
+_block_elements = {}
+"""The elements (element_info objects) kept for the 'with UIPath' blocks: {key of the block: elements}."""
+
+
+def _forget_block_elements(path_list=None):
+	"""
+	Forgets the windows and the elements kept for a 'with UIPath' block, and for the blocks nested in it.
+
+	:param path_list: The path list of the block (UIPath._path_list in the block), or None to forget the windows and the
+		elements of all the blocks
+	"""
+	for kept in (_block_windows, _block_elements):
+		for key in list(kept):
+			if path_list is None or key[1][:len(path_list)] == tuple(path_list):
+				del kept[key]
+
+
+def _open_blocks(full_element_path):
+	"""
+	Returns the 'with UIPath' blocks around the search of a path, from the outermost one.
+
+	:param full_element_path: The full path of the search
+	:return: The blocks (_BlockLevel list), or [] if the path is not in the blocks, if it is an absolute path, or if
+		its last entry is an OCR_Text: the OCR_Text elements are not in the UI Automation tree
+	"""
+	if not UIPath._path_list or not isinstance(full_element_path, str) or is_absolute_path(full_element_path):
+		return []
+	entries = get_entry_list(full_element_path)
+	if get_entry(entries[-1])[1] == 'OCR_Text':
+		return []
+	handle = get_native_window_handle()
+	levels = []
+	for k in range(1, len(UIPath._path_list) + 1):
+		block_entries = get_entry_list(path_separator.join(UIPath._path_list[:k]))
+		if entries[:len(block_entries)] != block_entries:
+			return []
+		key = (handle, tuple(UIPath._path_list[:k]))
+		levels.append(_BlockLevel(key, len(block_entries), entries[len(block_entries):], block_entries[-1]))
+	return levels
+
+
+def _exists(element_info):
+	"""
+	Returns True if an element still exists: UI Automation gives None as the control type of an element that vanished.
+
+	It is checked before searching among the descendants of the element: Pywinauto would emit a warning, "Can't get
+	elements due to COM error", and find no element.
+	"""
+	try:
+		return element_info.control_type is not None
+	except Exception:
+		return False
+
+
+def _same_windows(windows, other_windows):
+	"""Returns True if two lists have the same windows, False otherwise or if a window vanished."""
+	try:
+		return len(windows) == len(other_windows) and all(window in other_windows for window in windows)
+	except Exception:
+		return False
+
+
+def _search_in_block_windows(full_element_path, levels):
+	"""
+	Searches the elements of a path in the windows kept for the outermost 'with UIPath' block.
+
+	When no element is found in these windows, the elements are searched in all the windows of the desktop: the windows
+	that match the first entry of the path are searched again, and kept for the block.
+
+	:param full_element_path: The full path of the elements
+	:param levels: The blocks around the search, from the outermost one
+	:return: The elements found
+	"""
+	key = levels[0].key
+	windows = _block_windows.get(key)
+	if windows and not all(_exists(window.element_info) for window in windows):
+		windows = None  # a window vanished
+	if windows:
+		try:
+			elements = find_elements(full_element_path, window_candidates=windows)
+		except Exception:  # a window vanished during the search
+			elements, windows = [], None
+		if elements:
+			return elements
+	new_windows = get_window_candidates(get_entry_list(full_element_path)[0])
+	if new_windows:
+		_block_windows[key] = new_windows
+	else:
+		_block_windows.pop(key, None)
+	if windows and _same_windows(new_windows, windows):
+		return []  # these windows were just searched
+	return find_elements(full_element_path, window_candidates=new_windows)
+
+
+def _search_in_block_elements(levels):
+	"""
+	Searches the elements of a path among the descendants of the elements kept for the innermost 'with UIPath' block.
+
+	:param levels: The blocks around the search, from the outermost one
+	:return: The elements found, and the index of the block in levels: [] and -1 if no element is kept for the blocks,
+		or if the search raised an exception
+	"""
+	for index in range(len(levels) - 1, -1, -1):
+		level = levels[index]
+		if level.key not in _block_elements or not level.relative_entries:
+			continue
+		parents = [element for element in _block_elements[level.key] if _exists(element)]
+		if not parents:  # the elements of the block vanished: the elements of the outer block are used
+			del _block_elements[level.key]
+			continue
+		_block_elements[level.key] = parents
+		try:
+			return find_elements_in(parents, level.relative_entries), index
+		except Exception:  # an element vanished during the search
+			del _block_elements[level.key]
+			break
+	return [], -1
+
+
+def _keep_block_elements(levels, element):
+	"""
+	Keeps the elements of the 'with UIPath' blocks found among the ancestors of an element found in the blocks.
+
+	The element of a block is the ancestor at the distance of the number of entries of the path after the block: it is
+	known only if these entries have no '*'. The element of a block whose path has only one entry is its window, kept by
+	_search_in_block_windows. The element of a block whose path ends with '*' is not kept: this path matches all the
+	descendants of an element.
+
+	:param levels: The blocks around the search, from the outermost one
+	:param element: The element found
+	:return: False if the element vanished: its ancestors are not all kept
+	"""
+	try:
+		ancestor, distance = element.element_info, 0
+		for level in reversed(levels):
+			if '*' in level.relative_entries:
+				break  # the entries after the outer blocks have this '*' too
+			if level.n_entries < 2 or level.last_entry == '*':
+				continue
+			while distance < len(level.relative_entries):
+				ancestor, distance = ancestor.parent, distance + 1
+			kept = _block_elements.setdefault(level.key, [])
+			if ancestor not in kept:
+				kept.append(ancestor)
+	except Exception:
+		return False
+	return True
+
+
+def _search_elements(full_element_path, one_element=False):
+	"""
+	Returns the elements found with full_element_path.
+
+	When a unique element is searched in 'with UIPath' blocks, the windows and the elements found for the blocks are
+	kept until the end of the blocks (see PlayerSettings.keep_block_elements). The element is searched among the
+	descendants of the elements kept for the innermost block, or else in the windows of the outermost block, or else in
+	all the windows of the desktop.
+
+	:param full_element_path: The full path of the elements
+	:param one_element: True if a unique element is searched. The elements of all the windows are searched otherwise:
+		they are all needed by find_all and by the [] operator.
+	:return: The elements found
+	"""
+	levels = _open_blocks(full_element_path) if one_element and PlayerSettings.keep_block_elements else []
+	if not levels:
+		return find_elements(full_element_path)
+	elements, index = _search_in_block_elements(levels)
+	if not elements:
+		elements, index = _search_in_block_windows(full_element_path, levels), -1
+	if len(elements) == 1:
+		_keep_block_elements(levels[index + 1:], elements[0])
+	return elements
+
+
+def _find_elements_or(full_element_path, default, one_element=False):
 	"""
 	Returns the elements found with full_element_path, or default if the search raises an exception.
 
 	The search raises an exception when the user interface changes during the search: for example, when an element
 	that was found vanishes before its information is read.
+
+	:param one_element: True if a unique element is searched, see _search_elements
 	"""
 	try:
-		return find_elements(full_element_path)
+		return _search_elements(full_element_path, one_element)
 	except Exception:
 		return default
 
 
 def find_cache_clear():
-	"""Clears the cache of the :func:`find` function."""
+	"""Clears the cache of the :func:`find` function, and forgets the elements kept for the UIPath blocks."""
 	_cached_find.cache_clear()
+	_forget_block_elements()
 
 
 @func.ttl_cache(ttl=60)
@@ -463,12 +660,13 @@ def _find(
 	"""
 	_print_progress("🔎")
 	_, _, y_x, _ = get_entry(get_entry_list(full_element_path)[-1])
+	one_element = y_x is None  # the [] operator needs all the elements that match the path
 	elements = []
 	index_error_message = None
 	t0 = time.time()
 	while True:
 		if not elements:
-			elements = _wait_for_elements(full_element_path, timeout, t0)
+			elements = _wait_for_elements(full_element_path, timeout, t0, one_element)
 		if len(elements) == 1:
 			return elements[0]
 		element, index_error_message = _find_element_at_index(full_element_path, y_x, elements)
@@ -480,17 +678,19 @@ def _find(
 		# (for example a window that is closing while another one is opening).
 		# The pause between two searches is shortened at the end, so that the last search is done at the timeout.
 		time.sleep(min(_SEARCH_AGAIN_PAUSE, max(0.0, timeout - (time.time() - t0))))
-		elements = _find_elements_or(full_element_path, elements)  # the previous elements if the search fails
+		# the previous elements if the search fails
+		elements = _find_elements_or(full_element_path, elements, one_element)
 	raise _failed_search(full_element_path, elements, index_error_message)
 
 
-def _wait_for_elements(full_element_path, timeout, t0):
+def _wait_for_elements(full_element_path, timeout, t0, one_element=False):
 	"""
 	Searches the elements of full_element_path until at least one is found.
 
 	:param full_element_path: The full path of the elements
 	:param timeout: The maximum duration of the search, in seconds
 	:param t0: The time when the search started
+	:param one_element: True if a unique element is searched, see _search_elements
 	:return: The elements found
 	:raises FailedSearch: if no element is found after the timeout
 	"""
@@ -500,7 +700,7 @@ def _wait_for_elements(full_element_path, timeout, t0):
 			msg = "No element found with the UIPath '" + full_element_path + "' after " + str(timeout) + " s of searching."
 			raise FailedSearch(msg)
 		try:
-			elements = find_elements(full_element_path)
+			elements = _search_elements(full_element_path, one_element)
 			if not elements:
 				_print_progress("🔴")
 				time.sleep(2.0)
@@ -552,7 +752,7 @@ def _find_reference_element(full_element_path, full_smart_element_path):
 	:return: The reference element
 	:raises FailedSearch: if the reference element is not found, or is not unique
 	"""
-	ref_unique_element = find_elements(full_smart_element_path)
+	ref_unique_element = _search_elements(full_smart_element_path, one_element=True)
 	if len(ref_unique_element) == 1:
 		return ref_unique_element[0]
 	msg = f"While searching for the UIPath '{full_element_path}' :\n"

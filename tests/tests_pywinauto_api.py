@@ -136,3 +136,19 @@ def test_find_elements_in_the_windows_given_and_among_the_descendants_of_an_elem
 	if child is not None:
 		elements = core.find_elements_in([window.element_info], [child.name + "||" + child.control_type])
 		assert child in [element.element_info for element in elements]
+
+
+def test_a_unique_element_of_a_block_is_searched_in_the_window_kept_for_the_block():
+	"""Tests the search of a unique element in a UIPath block with the real UI Automation tree (issue #49)."""
+	from pywinauto_recorder import player
+	from pywinauto_recorder.player import UIPath
+	window, child = _window_and_child()
+	assert player._exists(window.element_info)
+	if child is None or not _usable_name(window.element_info.name):
+		pytest.skip("No window, or no child, whose name can be written in a path")
+	child_entry = child.name + "||" + child.control_type
+	with UIPath(window.element_info.name + "||" + window.element_info.control_type):
+		for _ in range(2):  # the second search is done in the window kept for the block
+			elements = player._search_elements(UIPath.get_full_path(child_entry), one_element=True)
+			assert child in [element.element_info for element in elements]
+	assert player._block_windows == {}

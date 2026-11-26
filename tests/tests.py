@@ -1,4 +1,5 @@
 import builtins
+import contextlib
 import io
 import pathlib
 import re
@@ -936,6 +937,7 @@ def desktop(monkeypatch):
 	The cache of 'find' is disabled, so that each call of 'find' searches the element.
 	"""
 	monkeypatch.setattr(PlayerSettings, "use_cache", False)
+	monkeypatch.setattr(PlayerSettings, "keep_block_elements", True)
 	monkeypatch.setattr(core, "native_window_handle", None)
 	for name in ("last_parent_element_info", "last_parent_element_info_path", "last_top_level_parent"):
 		monkeypatch.setattr(core, name, None)
@@ -1039,6 +1041,207 @@ def test_find_elements_in_the_windows_given(desktop):
 	assert _names(core.find_elements("Calculator||Window->*->Two||Button", window_candidates=windows)) == ["Two"]
 	assert core.find_elements("Calculator||Window->*->Two||Button", window_candidates=[]) == []
 	assert desktop.window_searches == 1
+
+
+# ---------------------------- elements kept for the UIPath blocks -----------------------------
+
+def test_open_blocks(desktop):
+	"""Tests the blocks around the search of a path: the path must begin with the path of the blocks."""
+	with UIPath("Calculator||Window"):
+		with UIPath("*->Number pad||Group"):
+			window_key = (None, ("Calculator||Window",))
+			number_pad_key = (None, ("Calculator||Window", "*->Number pad||Group"))
+			assert player._open_blocks("Calculator||Window->*->Number pad||Group->One||Button") == [
+				player._BlockLevel(window_key, 1, ["*", "Number pad||Group", "One||Button"], "Calculator||Window"),
+				player._BlockLevel(number_pad_key, 3, ["One||Button"], "Number pad||Group")]
+			assert player._open_blocks("Untitled - Notepad||Window->Text Editor||Edit") == []
+			assert player._open_blocks("Calculator||Window->*->One||Button") == []
+			assert player._open_blocks("Calculator||Window->*->Number pad||Group->One||Button~Absolute_UIPath") == []
+			assert player._open_blocks("Calculator||Window->*->Number pad||Group->One||OCR_Text") == []
+	assert player._open_blocks("Calculator||Window->*->Number pad||Group->One||Button") == []
+
+
+def test_the_windows_of_a_block_are_searched_once(desktop):
+	"""Tests that the windows of a 'with UIPath' block are searched by its first search only (issue #49)."""
+	with UIPath("Calculator||Window"):
+		assert player.find("*->One||Button").element_info is desktop.element("Calculator->->Number pad->One")
+		assert player.find("*->Plus||Button").element_info is desktop.element("Calculator->->Standard operators->Plus")
+		assert player.find().element_info is desktop.element("Calculator")
+	assert desktop.window_searches == 1
+	assert player._block_windows == {}
+
+
+def test_the_windows_are_searched_at_each_search_without_keep_block_elements(desktop, monkeypatch):
+	"""Tests that the windows are searched at each search when PlayerSettings.keep_block_elements is False."""
+	monkeypatch.setattr(PlayerSettings, "keep_block_elements", False)
+	with UIPath("Calculator||Window"):
+		with UIPath("*->Number pad||Group"):
+			assert player.find("One||Button").element_info is desktop.element("Calculator->->Number pad->One")
+			assert player.find("Two||Button").element_info is desktop.element("Calculator->->Number pad->Two")
+	assert desktop.window_searches == 2
+	assert (player._block_windows, player._block_elements) == ({}, {})
+
+
+def test_the_elements_of_a_block_are_searched_among_the_descendants_of_its_element(desktop):
+	"""
+	Tests that the element of an inner block is found among the ancestors of the first element found in the block, and
+	that the next searches of the block are done among its descendants only (issue #49).
+	"""
+	number_pad = desktop.element("Calculator->->Number pad")
+	with UIPath("Calculator||Window"):
+		with UIPath("*->Number pad||Group"):
+			player.find("One||Button")
+			assert player._block_elements == {(None, ("Calculator||Window", "*->Number pad||Group")): [number_pad]}
+			desktop.parents_searched.clear()
+			assert player.find("Two||Button").element_info is desktop.element("Calculator->->Number pad->Two")
+			assert desktop.parents_searched == [number_pad]
+			assert player.find().element_info is number_pad
+	assert desktop.window_searches == 1
+
+
+def test_the_windows_and_the_elements_of_a_block_are_forgotten_at_its_end(desktop):
+	"""Tests that the windows and the elements kept for a block are forgotten at the end of the block, and only them."""
+	with UIPath("Calculator||Window"):
+		player.find("*->One||Button")
+		with UIPath("*->Number pad||Group"):
+			player.find("Two||Button")
+			assert list(player._block_elements) == [(None, ("Calculator||Window", "*->Number pad||Group"))]
+		assert player._block_elements == {}
+		with UIPath("Untitled - Notepad||Window", absolute_path=True):
+			assert player.find().element_info is desktop.element("Untitled - Notepad")
+			assert len(player._block_windows) == 2
+		assert list(player._block_windows) == [(None, ("Calculator||Window",))]
+		with UIPath("*->Number pad||Group"):
+			player.find("Three||Button")
+	assert (player._block_windows, player._block_elements) == ({}, {})
+	assert desktop.window_searches == 2
+
+
+def test_find_cache_clear_forgets_the_windows_and_the_elements_of_the_blocks(desktop):
+	"""Tests that find_cache_clear forgets the windows and the elements kept for the blocks."""
+	with UIPath("Calculator||Window"):
+		with UIPath("*->Number pad||Group"):
+			player.find("One||Button")
+			player.find_cache_clear()
+			assert (player._block_windows, player._block_elements) == ({}, {})
+			player.find("Two||Button")
+	assert desktop.window_searches == 2
+
+
+def test_an_element_is_searched_in_the_desktop_when_the_window_of_its_block_vanished(desktop):
+	"""
+	Tests that an element is searched in the windows of the desktop again when the window kept for its block vanished:
+	a dialog box closed and opened again, for example. No warning is emitted.
+	"""
+	dialog = _TreeElement("Dialog", "Window", desktop.root)
+	_TreeElement("OK", "Button", dialog)
+	with UIPath("Dialog||Window"):
+		player.find("OK||Button")
+		dialog.vanish()
+		new_dialog = _TreeElement("Dialog", "Window", desktop.root)
+		new_ok = _TreeElement("OK", "Button", new_dialog)
+		with warnings.catch_warnings():
+			warnings.simplefilter("error")
+			assert player.find("OK||Button").element_info is new_ok
+		assert player._block_windows == {(None, ("Dialog||Window",)): [_TreeWrapper(new_dialog)]}
+	assert desktop.window_searches == 2
+
+
+def test_an_element_is_searched_in_the_window_when_the_element_of_its_block_vanished(desktop):
+	"""
+	Tests that an element is searched in the window again when the element kept for its block vanished. The new element
+	of the block is found among the ancestors of the element. No warning is emitted.
+	"""
+	with UIPath("Calculator||Window->*->Number pad||Group"):
+		player.find("One||Button")
+		desktop.element("Calculator->->Number pad").vanish()
+		new_number_pad = _TreeElement("Number pad", "Group", desktop.element("Calculator->"))
+		new_two = _TreeElement("Two", "Button", new_number_pad)
+		with warnings.catch_warnings():
+			warnings.simplefilter("error")
+			assert player.find("Two||Button").element_info is new_two
+		assert player._block_elements == {(None, ("Calculator||Window->*->Number pad||Group",)): [new_number_pad]}
+	assert desktop.window_searches == 1
+
+
+def test_an_element_that_is_not_in_the_element_of_its_block_is_searched_in_the_window(desktop):
+	"""
+	Tests an element that is not among the descendants of the element kept for its block: the path of the block matches
+	several elements. It is searched in the window, and the other element of the block is kept too.
+	"""
+	number_pad = desktop.element("Calculator->->Number pad")
+	operators = desktop.element("Calculator->->Standard operators")
+	with UIPath("Calculator||Window->||Custom->RegEx: .*||Group"):
+		assert player.find("One||Button").element_info is desktop.element("Calculator->->Number pad->One")
+		assert player.find("Plus||Button").element_info is desktop.element("Calculator->->Standard operators->Plus")
+		assert list(player._block_elements.values()) == [[number_pad, operators]]
+		desktop.parents_searched.clear()
+		assert player.find("Two||Button").element_info is desktop.element("Calculator->->Number pad->Two")
+		assert desktop.parents_searched == [number_pad, operators]
+	assert desktop.window_searches == 1
+
+
+def test_the_ancestors_of_an_element_that_vanished_are_not_kept(desktop):
+	"""Tests that _keep_block_elements keeps nothing when the element vanished before its ancestors were read."""
+	key = (None, ("Calculator||Window->*->Number pad||Group",))
+	levels = [player._BlockLevel(key, 3, ["One||Button"], "Number pad||Group")]
+	one = desktop.element("Calculator->->Number pad->One")
+	one.vanished = True
+	assert player._keep_block_elements(levels, _TreeWrapper(one)) is False
+	assert player._block_elements == {}
+	one.vanished = False
+	assert player._keep_block_elements(levels, _TreeWrapper(one)) is True
+	assert player._block_elements == {key: [desktop.element("Calculator->->Number pad")]}
+
+
+def test_find_all_searches_all_the_windows_in_a_block(desktop):
+	"""
+	Tests that find_all searches all the windows that match the path in a block, like the [] operator: the windows kept
+	for the block are used to search a unique element only.
+	"""
+	with UIPath("Calculator||Window"):
+		one = player.find("*->One||Button").element_info
+		second_calculator = _TreeElement("Calculator", "Window", desktop.root)
+		second_one = _TreeElement("One", "Button", second_calculator, left=100)
+		assert [wrapper.element_info for wrapper in player.find_all("*->One||Button")] == [one, second_one]
+		assert player.find("*->One||Button#[0,1]").element_info is second_one
+		# the windows kept for the block were found by its first search
+		assert player.find("*->One||Button").element_info is one
+	assert desktop.window_searches == 3
+
+
+@pytest.mark.parametrize("blocks, paths", [
+	(["Calculator||Window"], ["*->One||Button", "*->Plus||Button", None, "||Custom->Number pad||Group->Two||Button"]),
+	(["Calculator||Window", "*->Number pad||Group"], ["One||Button", "Two||Button", None, "Three||Button"]),
+	(["Calculator||Window", "||Custom"],
+		["Number pad||Group->One||Button", "*->Equals||Button", "Number pad||Group", None]),
+	(["Calculator||Window->||Custom", "Standard operators||Group"], ["Plus||Button", "Equals||Button", None]),
+	(["RegEx: Calc.*||Window", "*->RegEx: .*||Group"], ["One||Button", "Plus||Button", "RegEx: T.*||Button", None]),
+	(["Calculator||Window->*"], ["Number pad||Group->Three||Button", "Plus||Button", "*->Two||Button"]),
+	(["Calculator||Window->||Custom->Number pad||Group"], ["One||Button", "*->Three||Button", "RegEx: T.*||Button"]),
+	(["Twin||Window"], ["A||Button", "B||Button", "A||Button"]),
+])
+def test_the_elements_kept_for_the_blocks_give_the_elements_of_all_the_windows(desktop, monkeypatch, blocks, paths):
+	"""Tests that the searches in blocks find the same elements with or without the elements kept for the blocks."""
+	for button in ("A", "B"):
+		_TreeElement(button, "Button", _TreeElement("Twin", "Window", desktop.root))
+
+	def search_paths():
+		results = []
+		with contextlib.ExitStack() as stack:
+			for block in blocks:
+				stack.enter_context(UIPath(block))
+			for path in paths:
+				elements = player._search_elements(UIPath.get_full_path(path), one_element=True)
+				results.append([element.element_info for element in elements])
+		return results
+
+	results = search_paths()
+	window_searches = desktop.window_searches
+	assert all(results)
+	monkeypatch.setattr(PlayerSettings, "keep_block_elements", False)
+	assert search_paths() == results
+	assert window_searches < desktop.window_searches - window_searches
 
 
 ################################################################################################

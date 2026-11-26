@@ -57,6 +57,14 @@ common, in ``UIPath`` blocks:
   ``drag_and_drop("One||Button", "Other window||Window->*->Destination||List~Absolute_UIPath")``.
 - ``UIPath(path, absolute_path=True)`` starts a block whose path replaces the path of the blocks around it.
 
+The windows and the elements found in a block are kept until the end of the block, to make the next searches faster:
+the windows of the block are found by its first search, and the element of an inner block is found among the ancestors
+of the first element found in this block. An element of the block is then searched among their descendants, instead of
+all the windows of the desktop. When it is not found there, it is searched in all the windows of the desktop. So a
+window opened after the first search of a block is searched only for the elements that are not in the windows already
+found. :func:`~pywinauto_recorder.player.find_all` and the ``[]`` operator always search all the windows. With
+``PlayerSettings.keep_block_elements = False``, each search is done in all the windows of the desktop.
+
 Several elements with the same path
 -----------------------------------
 
