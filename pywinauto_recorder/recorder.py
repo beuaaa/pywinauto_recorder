@@ -292,13 +292,17 @@ def _process_events(events, process_menu_click=True):
 	:param events: The events of the recording, cleaned by _clean_events
 	:param process_menu_click: True if the clicks on menu items become a MenuEvent
 	"""
+	send_keys_writer = _SendKeysWriter()
 	i = 0
 	while i < len(events):
 		if isinstance(events[i], keyboard.KeyboardEvent):
-			_process_keyboard_events(events, i)
-		elif isinstance(events[i], mouse.WheelEvent):
+			i = _process_keyboard_events(events, i, send_keys_writer)
+			continue
+		if isinstance(events[i], mouse.WheelEvent):
 			_process_wheel_events(events, i)
 		i = i + 1
+	# the modifier keys still pressed at the end of the recording are released at the end of the script
+	events.extend(SendKeysEvent(line=line) for line in send_keys_writer.write([], keep_modifiers=False))
 	thresholds = _mouse_thresholds()
 	i = len(events) - 1
 	while i >= 0:
@@ -313,24 +317,27 @@ def _process_events(events, process_menu_click=True):
 			i = i - 1
 
 
-def _process_keyboard_events(events, i):
-	keyboard_events = [events[i]]
-	i0 = i + 1
-	i_processed_events = []
-	while i0 < len(events):
-		if isinstance(events[i0], keyboard.KeyboardEvent):
-			keyboard_events.append(events[i0])
-			i_processed_events.append(i0)
-			i0 = i0 + 1
-		elif isinstance(events[i0], ElementEvent):
-			i0 = i0 + 1
-		else:
-			break
-	line = _get_send_keys_strings(keyboard_events)
-	for i_p_e in sorted(i_processed_events, reverse=True):
-		del events[i_p_e]
-	if line:
-		events[i] = SendKeysEvent(line=line)
+def _process_keyboard_events(events, i, send_keys_writer):
+	"""
+	Replaces the keyboard events that begin at index i by SendKeysEvent, one for each string of send_keys.
+
+	The keyboard events are the ones before the next mouse button or wheel event: the element events and the mouse moves
+	between them are kept after the SendKeysEvent. Before a mouse button or wheel event, the modifier keys that are
+	pressed stay pressed in the script, for CTRL+click or SHIFT+click.
+
+	:param events: The events of the recording
+	:param i: The index of the first keyboard event
+	:param send_keys_writer: The _SendKeysWriter of the recording
+	:return: The index of the event after the SendKeysEvent
+	"""
+	i_end = i
+	while i_end < len(events) and isinstance(events[i_end], (keyboard.KeyboardEvent, ElementEvent, mouse.MoveEvent)):
+		i_end = i_end + 1
+	keyboard_events = [event for event in events[i:i_end] if isinstance(event, keyboard.KeyboardEvent)]
+	lines = send_keys_writer.write(keyboard_events, keep_modifiers=i_end < len(events))
+	other_events = [event for event in events[i:i_end] if not isinstance(event, keyboard.KeyboardEvent)]
+	events[i:i_end] = [SendKeysEvent(line=line) for line in lines] + other_events
+	return i + len(lines)
 
 
 def _process_wheel_events(events, i):
@@ -805,124 +812,256 @@ def _process_menu_select_events(events, i):
 	return i
 
 
-def _common_start(sa, sb):
-	"""Returns the longest common substring from the beginning of sa and sb."""
-	
-	def _iter():
-		for a, b in zip(sa, sb):
-			if a == b:
-				yield a
-			else:
-				return
-	
-	return ''.join(_iter())
+_KEYS_WITHOUT_CHARACTER = """
+1 ESC esc
+14 BACKSPACE backspace
+15 TAB tab
+28 ENTER enter
+55 PRTSC print screen
+59 F1 f1
+60 F2 f2
+61 F3 f3
+62 F4 f4
+63 F5 f5
+64 F6 f6
+65 F7 f7
+66 F8 f8
+67 F9 f9
+68 F10 f10
+69 VK_PAUSE pause
+71 HOME home
+72 UP up
+73 PGUP page up
+75 LEFT left
+77 RIGHT right
+79 END end
+80 DOWN down
+81 PGDN page down
+82 INSERT insert
+83 DELETE delete
+87 F11 f11
+88 F12 f12
+93 VK_APPS menu
+- HELP help
+- VK_DECIMAL decimal
+- VK_SEPARATOR separator
+- VK_CLEAR clear
+""".strip().splitlines() + ['- F{0} f{0}'.format(n) for n in range(13, 25)]
+"""
+The keys that type no character: their scan code ('-' if they are found by their name only), their code of send_keys,
+and the name that the 'keyboard' library gives them.
+
+Windows gives the names of some of these keys in its language, like "suppr" for the Delete key in French: they are
+found by their scan code. The keys of the numeric keypad, which have the same scan codes, have English names.
+"""
+
+_SEND_KEYS_CODES = {key.split(maxsplit=2)[2]: key.split()[1] for key in _KEYS_WITHOUT_CHARACTER}
+"""The codes of send_keys of the keys that type no character, by the names that the 'keyboard' library gives them."""
+
+_SEND_KEYS_SCAN_CODES = {int(key.split()[0]): key.split()[1] for key in _KEYS_WITHOUT_CHARACTER if key[0] != '-'}
+"""The codes of send_keys of the keys that type no character, by scan code (see _KEYS_WITHOUT_CHARACTER)."""
+
+_IGNORED_KEYS = ('caps lock', 'num lock', 'scroll lock')
+"""
+The lock keys, which are not written: the 'keyboard' library gives the characters typed with caps lock, and send_keys
+turns num lock off.
+"""
+
+_IGNORED_SCAN_CODES = (58, 70)
+"""The scan codes of caps lock and scroll lock, whose names depend on the language of Windows (see _IGNORED_KEYS)."""
+
+_MODIFIER_SCAN_CODES = {42: 'shift', 54: 'shift', 29: 'ctrl', 541: 'alt gr', 56: 'alt', 91: 'windows', 92: 'windows'}
+"""
+The modifier keys, by scan code: Windows gives their names in its language, like "maj" for shift in French.
+
+541 is the scan code of the left ctrl that Windows sends when alt gr is pressed: the 'keyboard' library ignores the
+right alt that follows.
+"""
+
+_MODIFIER_CODES = {'ctrl': 'VK_CONTROL', 'alt': 'VK_MENU', 'shift': 'VK_SHIFT', 'windows': 'VK_LWIN'}
+"""
+The codes of send_keys of the modifier keys written in the scripts, in the order in which they are pressed.
+
+Alt gr is not written: the characters typed with it are.
+"""
+
+_ALONE_MODIFIER_CODES = {'alt': 'VK_MENU', 'windows': 'LWIN'}
+"""
+The codes of send_keys of the modifier keys written when they are pressed alone: alt selects the menu bar, and windows
+opens the Start menu.
+"""
+
+_SEND_KEYS_SPECIAL_CHARACTERS = {'{': '{{}', '}': '{}}', '^': '{^}', '%': '{%}', '~': '{~}'}
+"""
+The characters that send_keys reads as keys, and how they are escaped to be typed.
+
+'+', '(' and ')' are not escaped in the scripts: player.send_keys escapes them.
+"""
 
 
-def _get_typed_keys(keyboard_events):
-	string = ''
-	previous_event = None
-	for event in keyboard_events:
-		event_name = event.name.replace('windows gauche', 'left windows')
-		event_name = event_name.replace('windows droite', 'right windows')
-		if previous_event:
-			common_event_name = _common_start(event.name, previous_event.name)
-			if common_event_name:
-				if previous_event.event_type == 'down' and event.event_type == 'up':
-					if len(common_event_name) == 1:
-						if previous_event and len(previous_event.name) == 1:
-							string = string[:-len('""{? down}"')]
-						else:
-							string = string[:-len('{? down}"')]
-						string = string + event_name + '"'
-						previous_event = event
-						continue
-					else:
-						string = string[:-len(' down}"')] + '}"'
-						previous_event = event
-						continue
-		previous_event = event
-		if event_name in keyboard.all_modifiers | {'maj', 'enter'}:
-			string = string + '"' + "{VK_"
-			if 'left' in event_name:
-				string = string + "L"
-			if 'right' in event_name or 'gr' in event_name:
-				string = string + "R"
-			if 'alt' in event_name:
-				string = string + "MENU"
-			elif 'ctrl' in event_name:
-				string = string + "CONTROL"
-			elif 'shift' in event_name or 'maj' in event_name:
-				string = string + "SHIFT"
-			elif 'windows' in event_name:
-				string = string + "WIN"
-			elif 'enter' in event_name:
-				string = string[:-len("VK_")] + "ENTER"
-			string = string + ' ' + event.event_type + "}" + '"'
+def _modifier(event):
+	"""Returns the modifier key of a keyboard event: 'ctrl', 'alt', 'shift', 'windows', 'alt gr', or None."""
+	if event.scan_code in _MODIFIER_SCAN_CODES:
+		return _MODIFIER_SCAN_CODES[event.scan_code]
+	name = event.name or ''
+	if name.startswith('maj'):
+		return 'shift'
+	for modifier in ('alt gr', 'ctrl', 'alt', 'shift', 'windows'):
+		if modifier in name:
+			return modifier
+	return None
+
+
+def _typed_key(event):
+	"""
+	Returns what a key that is not a modifier key types.
+
+	:param event: A keyboard event
+	:return: (the character, True), (the code of send_keys of a key that types no character, like '{TAB}', False), or
+		(None, False) for a key that is not written
+	"""
+	name = event.name or ''
+	if name == 'space':
+		return ' ', True
+	if len(name) == 1:
+		return (name, True) if ord(name) >= 32 else (None, False)
+	if name in _IGNORED_KEYS or (not event.is_keypad and event.scan_code in _IGNORED_SCAN_CODES):
+		return None, False
+	code = _SEND_KEYS_CODES.get(name)
+	if code is None and not event.is_keypad:
+		code = _SEND_KEYS_SCAN_CODES.get(event.scan_code)
+	return ('{' + code + '}', False) if code else (None, False)
+
+
+def _is_recorder_hotkey(character, modifiers):
+	"""Returns True if a character typed with modifier keys is a keyboard shortcut of the recorder, like CTRL+ALT+R."""
+	for hotkey in (HOTKEY_RECORD, HOTKEY_SMART_MODE, HOTKEY_ELEMENT_INFO, HOTKEY_COPY_CODE):
+		keys = hotkey.lower().split('+')
+		if character.lower() == keys[-1] and set(keys[:-1]) <= modifiers:
+			return True
+	return False
+
+
+class _SendKeysWriter:
+	"""
+	Writes the keyboard events of a recording in the strings of send_keys, in the syntax of pywinauto.
+
+	The characters are written as they are typed: the 'keyboard' library gives the characters typed with shift, alt gr
+	and caps lock, so these keys are not written, except shift with a key that types no character, like SHIFT+TAB. The
+	keys that type no character are written between braces, like {TAB} or {ENTER}, and the keyboard shortcuts with the
+	presses and the releases of their modifier keys, like {VK_CONTROL down}s{VK_CONTROL up}.
+
+	In a string, send_keys sends the characters that follow the press or the release of a key as virtual keys, without
+	shift: a character that is typed after a press or a release is written in a new string.
+
+	Before, a text that was not followed by ENTER was lost, like the keys that type no character, and the keys that type
+	no character were written with names that send_keys does not know, like {f4}.
+	"""
+
+	def __init__(self):
+		self.held = set()
+		"""The modifier keys that are pressed: 'ctrl', 'alt', 'shift', 'windows' or 'alt gr'."""
+		self.combined = set()
+		"""The modifier keys that are pressed with another key: they are not written as pressed alone."""
+		self.written = []
+		"""The modifier keys written as pressed and not yet released, in the order of _MODIFIER_CODES."""
+		self.strings = []
+		"""The strings of send_keys of a group of keyboard events: [keys, True if a key is pressed or released in it]."""
+
+	def write(self, keyboard_events, keep_modifiers):
+		"""
+		Returns the strings of send_keys of a group of keyboard events, between quotes and escaped like in the scripts.
+
+		:param keyboard_events: The keyboard events of the group
+		:param keep_modifiers: True if the modifier keys pressed at the end of the group stay pressed, because a mouse
+			button or wheel event follows (CTRL+click): else, all the modifier keys are released
+		"""
+		self.strings = [[[], False]]
+		for event in keyboard_events:
+			modifier = _modifier(event)
+			if modifier:
+				self._modifier_event(modifier, event.event_type == 'down')
+			elif event.event_type == 'down':
+				self._key_down(event)
+		if keep_modifiers:
+			self.combined.update(self.held)
+			self._write_modifiers(self.held)
 		else:
-			string = string + '"{' + event_name + ' ' + event.event_type + '}"'
-	return string
+			self._write_modifiers(())
+		return ['"' + _escape_special_char(''.join(key for key, _ in keys)) + '"' for keys, _ in self.strings if keys]
 
+	def _add(self, key, is_character=False, is_press_or_release=False):
+		"""Adds a key, written in the syntax of send_keys, at the end of the current string."""
+		self.strings[-1][0].append((key, is_character))
+		if is_press_or_release:
+			self.strings[-1][1] = True
 
-def _get_typed_strings(keyboard_events, allow_backspace=True):
-	"""
-	Given a sequence of events, tries to deduce what strings were typed.
+	def _write_modifiers(self, modifiers, again=False):
+		"""
+		Writes the releases and the presses that make the given modifier keys the only ones written as pressed.
 
-	Strings are separated when a non-textual key is pressed (such as tab or
-	enter). Characters are converted to uppercase according to shift and
-	capslock status. If `allow_backspace` is True, backspaces remove the last
-	character typed. Control keys are converted into pywinauto.keyboard key codes.
-	"""
-	backspace_name = 'backspace'
-	
-	shift_pressed = False
-	capslock_pressed = False
-	string = ''
-	for event in keyboard_events:
-		name = event.name
-		
-		# Space is the only key that we _parse_hotkey to the spelled out name
-		# because of legibility. Now we have to undo that.
-		if event.name == 'space':
-			name = ' '
-		
-		if 'shift' in event.name:
-			shift_pressed = event.event_type == 'down'
-		elif event.name == 'caps lock' and event.event_type == 'down':
-			capslock_pressed = not capslock_pressed
-		elif allow_backspace and event.name == backspace_name and event.event_type == 'down':
-			string = string[:-1]
-		elif event.event_type == 'down':
-			if len(name) == 1:
-				if shift_pressed ^ capslock_pressed:
-					name = name.upper()
-				string = string + name
+		:param modifiers: The modifier keys that must be pressed
+		:param again: True if the modifier keys already pressed are pressed again when the current string has no press
+			or release of a key, so that the characters that follow are sent as virtual keys (keyboard shortcut)
+		"""
+		modifiers = [modifier for modifier in _MODIFIER_CODES if modifier in modifiers]
+		again = again and not self.strings[-1][1]
+		for modifier in reversed(self.written):
+			if modifier not in modifiers:
+				self._add('{' + _MODIFIER_CODES[modifier] + ' up}', is_press_or_release=True)
+		for modifier in modifiers:
+			if again or modifier not in self.written:
+				self._add('{' + _MODIFIER_CODES[modifier] + ' down}', is_press_or_release=True)
+		self.written = modifiers
+
+	def _modifier_event(self, modifier, is_down):
+		"""Processes the press or the release of a modifier key."""
+		if is_down:
+			if modifier not in self.held and self.held:
+				self.combined.update(self.held | {modifier})
+			self.held.add(modifier)
+			return
+		alone = modifier in self.held and modifier not in self.combined
+		self.held.discard(modifier)
+		self.combined.discard(modifier)
+		if modifier in self.written:
+			self._write_modifiers([written for written in self.written if written != modifier])
+		elif alone and modifier in _ALONE_MODIFIER_CODES:
+			self._add('{' + _ALONE_MODIFIER_CODES[modifier] + '}')
+
+	def _key_down(self, event):
+		"""Processes the press of a key that is not a modifier key."""
+		self.combined.update(self.held)
+		key, is_character = _typed_key(event)
+		if key is None or (is_character and _is_recorder_hotkey(key, self.held)):
+			return
+		modifiers = [modifier for modifier in ('ctrl', 'alt', 'windows') if modifier in self.held]
+		if 'shift' in self.held and (modifiers or not is_character or key == ' '):
+			modifiers.append('shift')
+		if modifiers:
+			self._write_modifiers(modifiers, again=is_character)
+			if key == ' ':
+				self._add('{SPACE}')
 			else:
-				if string:
-					yield '"' + _escape_special_char(string) + '"'
-				if 'windows' in event.name:
-					yield '"' + '{LWIN}' + '"'
-				elif 'enter' in event.name:
-					yield '"' + '{ENTER}' + '"'
-				string = ''
+				self._add(_SEND_KEYS_SPECIAL_CHARACTERS.get(key, key) if is_character else key)
+			return
+		self._write_modifiers(())
+		self._type(key, is_character)
 
+	def _type(self, key, is_character):
+		"""
+		Writes a key typed without modifier key.
 
-def _get_send_keys_strings(keyboard_events):
-	is_typed_words = True
-	alnum_count = 0
-	for event in keyboard_events:
-		if event.name in keyboard.all_modifiers:
-			is_typed_words = False
-			break
-		if event.name.isalnum():
-			alnum_count += 1
-			if alnum_count > 1:
-				break
-	if alnum_count <= 1:
-		is_typed_words = False
-	if is_typed_words:
-		return ''.join(format(code) for code in _get_typed_strings(keyboard_events))
-	else:
-		return _get_typed_keys(keyboard_events)
+		A backspace removes the character typed before it in the string, if there is one: before, the backspaces were
+		always removed.
+		"""
+		keys, has_press_or_release = self.strings[-1]
+		if key == '{BACKSPACE}' and keys and keys[-1][1] and not has_press_or_release:
+			keys.pop()
+			return
+		if is_character and has_press_or_release:
+			self.strings.append([[], False])
+		self._add(_SEND_KEYS_SPECIAL_CHARACTERS.get(key, key) if is_character else key, is_character=is_character)
 
 
 t0_progress_icon_timings = time.time()

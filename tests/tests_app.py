@@ -1576,6 +1576,149 @@ def test_process_events_click_without_element(default_mouse_thresholds, capsys):
 	assert capsys.readouterr().out == "A mouse click is not recorded: no element was found under the mouse cursor.\n"
 
 
+_MODIFIER_SCAN_CODES = {"shift": 42, "ctrl": 29, "alt": 56, "alt gr": 541, "windows": 91}
+"""The scan codes of the modifier keys in the keyboard events of Windows (541: the left ctrl sent with alt gr)."""
+
+
+def _key(event_type, name, scan_code=0, is_keypad=False):
+	"""Returns a keyboard event, like the 'keyboard' library gives it on Windows."""
+	return recorder.keyboard.KeyboardEvent(event_type, scan_code, name=name, time=0.0, is_keypad=is_keypad)
+
+
+def _press(name, scan_code=0, is_keypad=False):
+	"""Returns the press and the release of a key."""
+	return [_key("down", name, scan_code, is_keypad), _key("up", name, scan_code, is_keypad)]
+
+
+def _typed(text):
+	"""Returns the presses and the releases of the keys that type a text."""
+	return [event for character in text for event in _press("space" if character == " " else character)]
+
+
+def _held(modifier, events, name=None):
+	"""Returns events while a modifier key is held. name: the name given by Windows in its language, like "maj"."""
+	return [_key("down", name or modifier, _MODIFIER_SCAN_CODES[modifier])] + events + [
+		_key("up", name or modifier, _MODIFIER_SCAN_CODES[modifier])]
+
+
+_KEYBOARD_CASES = [
+	pytest.param(_typed("2"), ['"2"'], id="key alone (issue #60)"),
+	pytest.param(_typed("hello"), ['"hello"'], id="text without ENTER"),
+	pytest.param(_held("shift", _typed("H")) + _typed("ello"), ['"Hello"'], id="shift"),
+	pytest.param(_held("shift", _typed("H"), name="maj") + _typed("i"), ['"Hi"'], id="shift in French"),
+	pytest.param(
+		_typed("hello") + _press("tab", 15) + _typed("world") + _press("enter", 28), ['"hello{TAB}world{ENTER}"'],
+		id="tab and enter"),
+	pytest.param(_held("ctrl", _typed("s")), ['"{VK_CONTROL down}s{VK_CONTROL up}"'], id="ctrl+s"),
+	pytest.param(_held("alt", _press("f4", 62)), ['"{VK_MENU down}{F4}{VK_MENU up}"'], id="alt+f4"),
+	pytest.param(_held("shift", _press("tab", 15)), ['"{VK_SHIFT down}{TAB}{VK_SHIFT up}"'], id="shift+tab"),
+	pytest.param(
+		_held("ctrl", _held("shift", _press("esc", 1))),
+		['"{VK_CONTROL down}{VK_SHIFT down}{ESC}{VK_SHIFT up}{VK_CONTROL up}"'], id="ctrl+shift+esc"),
+	pytest.param(_typed("50%") + _press("enter", 28), ['"50{%}{ENTER}"'], id="percent"),
+	pytest.param(
+		_typed('{a}^b~c(d)e+f"g\\h'), ['"{{}a{}}{^}b{~}c(d)e+f\\"g\\\\h"'], id="special characters"),
+	pytest.param(
+		_press("suppr", 83) + _press("haut", 72) + _press("fin", 79) + _press("pg. suiv.", 81),
+		['"{DELETE}{UP}{END}{PGDN}"'], id="keys named in French"),
+	pytest.param(
+		_typed("a") + _held("alt gr", _typed("@"), name="ctrl") + _typed("b.fr"), ['"a@b.fr"'], id="alt gr"),
+	pytest.param(
+		_typed("ab") + _held("ctrl", _typed("a")) + _held("shift", _typed("C")) + _typed("d"),
+		['"ab{VK_CONTROL down}a{VK_CONTROL up}"', '"Cd"'], id="text after a shortcut"),
+	pytest.param(_press("alt", 56) + _typed("f"), ['"{VK_MENU}f"'], id="alt alone"),
+	pytest.param(_press("windows gauche", 91), ['"{LWIN}"'], id="windows alone"),
+	pytest.param(
+		_held("windows", _typed("e"), name="left windows"), ['"{VK_LWIN down}e{VK_LWIN up}"'], id="windows+e"),
+	pytest.param(_press("ctrl", 29) + _press("shift", 42) + _typed("x"), ['"x"'], id="ctrl and shift alone"),
+	pytest.param(
+		_typed("a") + [_key("down", "ctrl", 29), _key("down", "alt", 56), _key("down", "s", 31), _key("up", "ctrl", 29),
+		_key("up", "alt", 56)] + _typed("b"), ['"ab"'], id="shortcut of the recorder"),
+	pytest.param(_typed("helo") + _press("backspace", 14) + _typed("lo"), ['"hello"'], id="backspace"),
+	pytest.param(_press("backspace", 14) + _typed("ok"), ['"{BACKSPACE}ok"'], id="backspace of a previous text"),
+	pytest.param(_press("caps lock", 58) + _typed("AB") + _press("verr.maj", 58), ['"AB"'], id="caps lock"),
+	pytest.param(
+		_press("1", 79, True) + _press("decimal", 83, True) + _press("end", 79, True), ['"1{VK_DECIMAL}{END}"'],
+		id="numeric keypad"),
+	pytest.param(
+		_typed("a b") + _held("ctrl", _typed(" ")), ['"a b{VK_CONTROL down}{SPACE}{VK_CONTROL up}"'], id="space"),
+	pytest.param(_typed("a") + _press("volume up", 48) + _typed("b"), ['"ab"'], id="unknown key"),
+]
+"""Keyboard events, and the strings of send_keys written in the script."""
+
+
+@pytest.mark.parametrize("events, expected", _KEYBOARD_CASES)
+def test_process_events_keyboard(events, expected):
+	"""
+	Tests the strings of send_keys written for keyboard events.
+
+	Before, a text was lost when it was not followed by ENTER, like the keys that type no character, and the keys that
+	type no character were written with names that send_keys does not know, like {f4} (issue #60).
+	"""
+	events = list(events)
+	recorder._process_events(events)
+	assert events == [recorder.SendKeysEvent(line) for line in expected]
+
+
+def test_process_events_key_between_clicks(default_mouse_thresholds):
+	"""Tests that a key pressed between 2 clicks is written, like a digit typed in the Calculator (issue #60)."""
+	events = [_move(10, 10), _A, _button("down"), _button("up", 1.1)] + _typed("2") + [
+		_move(210, 10), _B, _button("down", 2.0), _button("up", 2.1)]
+	recorder._process_events(events)
+	assert [e for e in events if isinstance(e, (recorder.ClickEvent, recorder.SendKeysEvent))] == [
+		recorder.ClickEvent("left", 1, "W||Window->A||Button", -0.82, -0.55, 1.1),
+		recorder.SendKeysEvent('"2"'),
+		recorder.ClickEvent("left", 1, "W||Window->B||Button", -0.82, -0.55, 2.1)]
+
+
+def test_process_events_ctrl_click(default_mouse_thresholds):
+	"""
+	Tests that CTRL stays pressed during a click, and that a shortcut typed after the click presses CTRL again.
+
+	send_keys sends a character as a virtual key only after the press or the release of a key in the same string.
+	"""
+	events = [_key("down", "ctrl", 29), _move(10, 10), _A, _button("down"), _button("up", 1.1)] + _typed("c") + [
+		_key("up", "ctrl", 29)]
+	recorder._process_events(events)
+	assert [e for e in events if isinstance(e, (recorder.ClickEvent, recorder.SendKeysEvent))] == [
+		recorder.SendKeysEvent('"{VK_CONTROL down}"'),
+		recorder.ClickEvent("left", 1, "W||Window->A||Button", -0.82, -0.55, 1.1),
+		recorder.SendKeysEvent('"{VK_CONTROL down}c{VK_CONTROL up}"')]
+
+
+def test_process_events_releases_the_modifier_keys_at_the_end(default_mouse_thresholds):
+	"""Tests that a modifier key still pressed at the end of the recording is released at the end of the script."""
+	events = [_key("down", "ctrl", 29), _move(10, 10), _A, _button("down"), _button("up", 1.1)]
+	recorder._process_events(events)
+	assert [e for e in events if isinstance(e, (recorder.ClickEvent, recorder.SendKeysEvent))] == [
+		recorder.SendKeysEvent('"{VK_CONTROL down}"'),
+		recorder.ClickEvent("left", 1, "W||Window->A||Button", -0.82, -0.55, 1.1),
+		recorder.SendKeysEvent('"{VK_CONTROL up}"')]
+
+
+def test_process_events_keyboard_with_mouse_moves():
+	"""Tests that the mouse moves between keyboard events do not cut the text in several strings of send_keys."""
+	events = _typed("ab") + [_move(10, 10), _A] + _typed("c")
+	recorder._process_events(events)
+	assert events == [recorder.SendKeysEvent('"abc"'), _move(10, 10), _A]
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="pywinauto needs Windows")
+def test_send_keys_strings_are_parsed_by_pywinauto(monkeypatch):
+	"""Tests that pywinauto parses the strings of send_keys written by the recorder, escaped by player.send_keys."""
+	import ast
+	import pywinauto.keyboard
+	from pywinauto_recorder import player
+	sent = []
+	monkeypatch.setattr(pywinauto.keyboard, "send_keys", lambda keys, **kwargs: sent.append(keys))
+	for case in _KEYBOARD_CASES:
+		for line in case.values[1]:
+			player.send_keys(ast.literal_eval(line))
+	assert len(sent) == sum(len(case.values[1]) for case in _KEYBOARD_CASES)
+	for keys in sent:
+		assert pywinauto.keyboard.parse_keys(keys, with_spaces=True, with_tabs=True, with_newlines=True)
+
+
 def test_compute_dx_dy_in_a_thin_rectangle():
 	"""Tests that a relative coordinate is 0 in a rectangle that is too thin. Before, it was a division by zero."""
 	assert recorder._compute_dx_dy(7, 1, _Rectangle((0, 0, 10, 2))) == (0.5, 0.0)
