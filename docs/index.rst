@@ -6,6 +6,8 @@
 
 .. include:: api.rst
 
+.. include:: element_paths.rst
+
 .. include:: path_dictionary.rst
 
 .. include:: contribute.rst
@@ -20,6 +22,7 @@
    pywinauto_recorder_exe
    tests
    api
+   element_paths
    path_dictionary
    contribute
    code-of-conduct

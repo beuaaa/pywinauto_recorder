@@ -13,7 +13,7 @@ A path dictionary is made of 2 text files that have the same lines:
 
 - the **key file** (``.key``) gives the key of an element on each line;
 - the **definition file** (``.def``) gives, on the same line, the **definition** of this element: its path relative to
-  its parent, written like in a script.
+  its parent, written like in a script (see :doc:`element_paths`).
 
 The tabs at the beginning of the lines of the definition file give the hierarchy of the elements: the parent of an
 element is on the last line above it that has one tab less. The key file is indented the same way, so that the 2 files
