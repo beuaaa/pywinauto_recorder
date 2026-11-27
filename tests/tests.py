@@ -594,6 +594,179 @@ def test_find_works_without_stdout(monkeypatch, fake_find_elements):
 
 
 ################################################################################################
+#                               Tests of the searches in a fake desktop                        #
+################################################################################################
+
+class _TreeElement:
+	"""
+	Stands for a UI Automation element_info of a fake desktop, in the tests of the searches.
+
+	The requests to the application are counted in 'requests'.
+	"""
+
+	requests = 0
+
+	def __init__(self, name, control_type, parent=None):
+		self._name, self._control_type, self._parent = name, control_type, parent
+		self.children = []
+		if parent is not None:
+			parent.children.append(self)
+
+	def _read(self, value):
+		_TreeElement.requests += 1
+		return value
+
+	name = property(lambda self: self._read(self._name))
+	control_type = property(lambda self: self._read(self._control_type))
+	automation_id = property(lambda self: self._read(self._name + "_id"))
+	parent = property(lambda self: self._read(self._parent))
+
+	def descendants(self):
+		"""Returns the descendants of the element in the order of the tree, with one request like FindAll."""
+		_TreeElement.requests += 1
+		descendants, stack = [], list(reversed(self.children))
+		while stack:
+			element = stack.pop()
+			descendants.append(element)
+			stack.extend(reversed(element.children))
+		return descendants
+
+
+class _TreeWrapper:
+	"""Stands for the Pywinauto wrapper of a _TreeElement."""
+
+	def __init__(self, element_info):
+		self.element_info = element_info
+
+	def __eq__(self, other):
+		return self.element_info is getattr(other, "element_info", other)
+
+	def __hash__(self):
+		return id(self.element_info)
+
+
+def _tree_element_matches(element, title=None, title_re=None, control_type=None, visible_only=True, enabled_only=False):
+	"""Returns True if an element of the fake desktop matches the criteria of a search of Pywinauto 0.6."""
+	return (
+		(title is None or element._name == title) and (title_re is None or re.match(title_re, element._name) is not None)
+		and (control_type is None or element._control_type == control_type))
+
+
+class _FakeDesktop:
+	"""Replaces the desktop of Pywinauto and its searches, in the tests of the searches."""
+
+	def __init__(self, monkeypatch):
+		self.root = _TreeElement("Desktop", "Pane")
+		monkeypatch.setattr(core, "desktop", self)
+		monkeypatch.setattr(core, "findwindows", self)
+		monkeypatch.setattr(core, "UIAWrapper", _TreeWrapper)
+
+	def windows(self, active_only=False, handle=None, **criteria):
+		"""Replaces Desktop.windows: returns the windows that match the criteria."""
+		return [_TreeWrapper(window) for window in self.root.children if _tree_element_matches(window, **criteria)]
+
+	def find_elements(self, backend=None, parent=None, top_level_only=True, **criteria):
+		"""Replaces findwindows.find_elements: returns the windows, or descendants of parent, that match criteria."""
+		parent = getattr(parent, "element_info", parent)
+		elements = list(self.root.children) if top_level_only or parent is None else parent.descendants()
+		return [element for element in elements if _tree_element_matches(element, **criteria)]
+
+	def element(self, names):
+		"""Returns the element at the end of a path of names, like 'Calculator->->Number pad->One'."""
+		element = self.root
+		for name in names.split("->"):
+			element = next(child for child in element.children if child._name == name)
+		return element
+
+
+@pytest.fixture
+def desktop(monkeypatch):
+	"""Replaces the desktop by a fake desktop: a Calculator window, with its buttons in two groups, and a Notepad window."""
+	monkeypatch.setattr(core, "native_window_handle", None)
+	for name in ("last_parent_element_info", "last_parent_element_info_path", "last_top_level_parent"):
+		monkeypatch.setattr(core, name, None)
+	fake_desktop = _FakeDesktop(monkeypatch)
+	calculator = _TreeElement("Calculator", "Window", fake_desktop.root)
+	custom = _TreeElement("", "Custom", calculator)
+	number_pad = _TreeElement("Number pad", "Group", custom)
+	for name in ("One", "Two", "Three"):
+		_TreeElement(name, "Button", number_pad)
+	operators = _TreeElement("Standard operators", "Group", custom)
+	for name in ("Plus", "Equals"):
+		_TreeElement(name, "Button", operators)
+	_TreeElement("Untitled - Notepad", "Window", fake_desktop.root)
+	return fake_desktop
+
+
+def _names(wrappers):
+	"""Returns the names of the elements of the wrappers."""
+	return [wrapper.element_info._name for wrapper in wrappers]
+
+
+def test_get_element_info_path_from_an_element_of_the_window(desktop):
+	"""
+	Tests that the path kept for the parent of the last element is used only for the paths from the same element.
+
+	Before, the path of an element from its window was used for the path of its sibling from an element of the window.
+	"""
+	calculator, number_pad = desktop.element("Calculator"), desktop.element("Calculator->->Number pad")
+	one, two = desktop.element("Calculator->->Number pad->One"), desktop.element("Calculator->->Number pad->Two")
+	assert core.get_element_info_path(one, calculator) == "Calculator||Window->||Custom->Number pad||Group->One||Button"
+	assert core.get_element_info_path(two, number_pad) == "Number pad||Group->Two||Button"
+	assert core.get_element_info_path(two, calculator) == "Calculator||Window->||Custom->Number pad||Group->Two||Button"
+
+
+def test_get_element_info_path_reads_the_ancestors_of_the_elements_of_a_parent_once(desktop):
+	"""Tests that the names of the ancestors are not read again for the path of an element of the same parent."""
+	calculator = desktop.element("Calculator")
+	one, two = desktop.element("Calculator->->Number pad->One"), desktop.element("Calculator->->Number pad->Two")
+	core.get_element_info_path(one, calculator)
+	_TreeElement.requests = 0
+	assert core.get_element_info_path(two, calculator) == "Calculator||Window->||Custom->Number pad||Group->Two||Button"
+	assert _TreeElement.requests == 4  # the name, the control type and the parent of Two, and the id of its parent
+
+
+def test_get_element_info_path_of_a_window_from_itself(desktop):
+	"""
+	Tests that the path of a window from itself does not change the path kept for the parent of the last element.
+
+	Before, the path kept became the path of the window without its last character: the path of the next element of the
+	same parent was wrong, and the element was not found.
+	"""
+	calculator = desktop.element("Calculator")
+	one, two = desktop.element("Calculator->->Number pad->One"), desktop.element("Calculator->->Number pad->Two")
+	core.get_element_info_path(one, calculator)
+	assert core.get_element_info_path(calculator, calculator) == "Calculator||Window"
+	assert core.get_element_info_path(two, calculator) == "Calculator||Window->||Custom->Number pad||Group->Two||Button"
+
+
+def test_get_element_info_path_after_an_element_whose_name_has_a_path_separator(desktop):
+	"""
+	Tests the path of an element after the path of its sibling whose name has '->'.
+
+	Before, the path kept for their parent ended with the beginning of the name of the sibling.
+	"""
+	calculator, number_pad = desktop.element("Calculator"), desktop.element("Calculator->->Number pad")
+	arrow = _TreeElement("x->y", "Button", number_pad)
+	two = desktop.element("Calculator->->Number pad->Two")
+	path_of_arrow = "Calculator||Window->||Custom->Number pad||Group->x->y||Button"
+	assert core.get_element_info_path(arrow, calculator) == path_of_arrow
+	assert core.get_element_info_path(two, calculator) == "Calculator||Window->||Custom->Number pad||Group->Two||Button"
+
+
+def test_find_elements_after_the_search_of_a_window_with_a_regular_expression(desktop):
+	"""
+	Tests the search of an element after the search of its window with a regular expression.
+
+	Before, the search of the window changed the path kept for the parent of the last element found, and the next
+	element of the same parent was not found.
+	"""
+	assert _names(core.find_elements("Calculator||Window->*->One||Button")) == ["One"]
+	assert _names(core.find_elements("RegEx: Calc.*||Window")) == ["Calculator"]
+	assert _names(core.find_elements("Calculator||Window->*->Two||Button")) == ["Two"]
+
+
+################################################################################################
 #                           Tests of the other functions of the player                         #
 ################################################################################################
 

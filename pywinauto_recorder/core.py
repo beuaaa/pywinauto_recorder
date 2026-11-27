@@ -364,18 +364,28 @@ def find_ocr_elements(ocr_text, window, entry_list):
 
 
 last_parent_element_info, last_parent_element_info_path = None, None
+"""The parent of the last element whose path was computed by get_element_info_path, and its path."""
+
+last_top_level_parent = None
+"""
+The element from which last_parent_element_info_path begins: the path of the parent is used only for the paths computed
+from the same element.
+"""
 
 
 def get_element_info_path(element_info, element_info_top_level_parent=None):
 	"""
-	It takes an element_info object and returns a string that represents the path to the element from the root of
-	the UI Automation tree
+	Returns the path of an element_info object, from its top level parent to the element.
 
-	:param wrapper: The UIAutomation wrapper object
-	:return: The path of the wrapper from the top level parent to the wrapper.
+	The path of the parent of the last element is kept: the path of the next element that has the same parent is
+	computed without reading the names and the control types of their ancestors again.
+
+	:param element_info: The UI Automation element_info object
+	:param element_info_top_level_parent: The element_info of the top level parent of the element, if it is known
+	:return: The path of the element from its top level parent.
 	"""
-	global last_parent_element_info, last_parent_element_info_path
-	first_parent = True
+	global last_parent_element_info, last_parent_element_info_path, last_top_level_parent
+	first_parent, element_entry = None, ''
 	try:
 		path = ''
 		if element_info_top_level_parent is None:
@@ -383,16 +393,23 @@ def get_element_info_path(element_info, element_info_top_level_parent=None):
 		while element_info != element_info_top_level_parent:
 			path = path_separator + element_info.name + type_separator + element_info.control_type + path
 			element_info = element_info.parent
-			if first_parent:
+			if first_parent is None:
+				first_parent, element_entry = element_info, path
 				if last_parent_element_info and last_parent_element_info.automation_id in [None, '']:
 					last_parent_element_info, last_parent_element_info_path = None, None
-				if element_info == last_parent_element_info:
+				if element_info == last_parent_element_info and (
+						last_top_level_parent is element_info_top_level_parent
+						or last_top_level_parent == element_info_top_level_parent):
 					return last_parent_element_info_path + path
-				last_parent_element_info = element_info
-				first_parent = False
-		last_parent_element_info_path = element_info.name + type_separator + element_info.control_type + path
-		last_parent_element_info_path = last_parent_element_info_path[:last_parent_element_info_path.rfind(path_separator)]
-		return element_info.name + type_separator + element_info.control_type + path
+		element_path = element_info.name + type_separator + element_info.control_type + path
+		if first_parent is not None:
+			# The path of the parent is kept only when it is complete, and it is the path without the entry of the
+			# element. Before, the parent was kept even when an exception stopped the computation of its path, or when
+			# the element was the top level parent itself: the path of another element was then used for it.
+			last_parent_element_info = first_parent
+			last_parent_element_info_path = element_path[:-len(element_entry)]
+			last_top_level_parent = element_info_top_level_parent
+		return element_path
 	except Exception:
 		return ''
 
