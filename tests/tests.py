@@ -8,6 +8,7 @@ import time
 import types
 import warnings
 import pytest
+import pywinauto_recorder
 from pywinauto_recorder.core import get_entry_list, get_entry, match_entry_list, get_sorted_region
 from pywinauto_recorder import core, player
 from pywinauto_recorder.player import UIPath, PlayerSettings, FailedSearch, click
@@ -2020,3 +2021,27 @@ def test_window_process_id_of_a_destroyed_window(monkeypatch):
 	assert player._window_process_id(42) is None
 	monkeypatch.setattr(player, "win32process_GetWindowThreadProcessId", lambda handle: (1, 300))
 	assert player._window_process_id(42) == 300
+
+
+################################################################################################
+#                                     Tests of the package                                     #
+################################################################################################
+
+@pytest.mark.parametrize("version", ["0.6.9", "0.6.8", "0.5.4"])
+def test_a_pywinauto_older_than_1_0_is_refused(version):
+	"""
+	Tests the message given when pywinauto 0.6 is installed.
+
+	Before, each search of the player raised a TypeError and was done again until the timeout: a replay printed 🟢
+	without end.
+	"""
+	folder = "C:\\Python38\\Lib\\site-packages\\pywinauto"
+	message = "needs pywinauto 1.0 or later, but pywinauto {} is installed in {}".format(version, folder)
+	with pytest.raises(ImportError, match=re.escape(message)):
+		pywinauto_recorder._check_pywinauto_version(version, folder)
+
+
+@pytest.mark.parametrize("version", ["1.0.0b1", "1.0.0", "1.1.0", "2.0", "", None, "dev"])
+def test_pywinauto_1_0_or_an_unknown_version_is_accepted(version):
+	"""Tests that pywinauto 1.0 and later, or a version that cannot be read, are accepted."""
+	pywinauto_recorder._check_pywinauto_version(version)
