@@ -2,8 +2,11 @@ import builtins
 import io
 import pathlib
 import re
+import socket
+import ssl
 import sys
 import time
+import urllib.error
 import warnings
 import pytest
 from pywinauto_recorder.core import get_entry_list, get_entry, match_entry_list, get_sorted_region
@@ -1428,6 +1431,143 @@ def test_version_info_rc_has_the_version_of_the_package():
 	line = version_info.read_bytes().decode('utf-8')
 	latest_version = line.split('ProductVersion')[1].split('"')[2]
 	assert latest_version == pywinauto_recorder.__version__
+
+
+def _load_launcher():
+	"""Loads pywinauto_recorder.py, the launcher of the recorder, as a module."""
+	import importlib.util
+	import os
+	launcher_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "pywinauto_recorder.py")
+	spec = importlib.util.spec_from_file_location("pywinauto_recorder_launcher", launcher_path)
+	launcher = importlib.util.module_from_spec(spec)
+	spec.loader.exec_module(launcher)
+	return launcher
+
+
+@pytest.fixture(scope="module")
+def launcher():
+	"""The launcher of the recorder, pywinauto_recorder.py, loaded as a module."""
+	return _load_launcher()
+
+
+@pytest.mark.parametrize("older, newer", [
+	("0.6.8", "0.6.9"), ("0.6.9", "0.7.0"), ("0.6.9", "0.10.0"), ("0.7.0", "1.0.0.dev0"), ("1.0.0.dev0", "1.0.0a1"),
+	("1.0.0a1", "1.0.0b1"), ("1.0.0b1", "1.0.0b2"), ("1.0.0b2", "1.0.0rc1"), ("1.0.0rc1", "1.0.0"), ("1.0.0", "1.0.1"),
+	("1.0.0", "1.0.0.post1"),
+])
+def test_version_key_order(launcher, older, newer):
+	"""Tests that the versions are compared as numbers, and that a pre-release comes before its final release."""
+	assert launcher.version_key(older) < launcher.version_key(newer)
+	assert launcher.version_key(newer) > launcher.version_key(older)
+
+
+@pytest.mark.parametrize("version, same_version", [
+	("1.0", "1.0.0"), ("v0.6.9", "0.6.9"), (" 0.6.9\r\n", "0.6.9"), ("1.0.0B1", "1.0.0b1"), ("1.0.0-beta.1", "1.0.0b1"),
+])
+def test_version_key_same_version(launcher, version, same_version):
+	assert launcher.version_key(version) == launcher.version_key(same_version)
+
+
+@pytest.mark.parametrize("installed, latest, console_message, version_line", [
+	("0.7.0", "0.7.0", "Your Pywinauto recorder is up to date.", "Pywinauto recorder 0.7.0"),
+	(
+		"0.6.9", "0.7.0", "Pywinauto recorder v0.7.0 is available!",
+		"Your version of Pywinauto recorder (0.6.9) is not up to date (0.7.0 is available!)"),
+	(
+		"0.7.0", "0.6.9", "Your Pywinauto recorder 0.7.0 is newer than the latest published version (0.6.9).",
+		"Pywinauto recorder 0.7.0"),
+	(
+		"0.7.0", None, "Cannot check whether a newer version of Pywinauto recorder is available.",
+		"Pywinauto recorder 0.7.0"),
+])
+def test_version_messages(launcher, installed, latest, console_message, version_line):
+	"""
+	Tests the messages of the console and of the splash screen.
+
+	Before, a version newer than the latest published version, like 0.7.0 before it was on master, was "not up to date
+	(0.6.9 is available!)", and a version that could not be checked was "up to date".
+	"""
+	assert launcher.version_messages(installed, latest) == (console_message, version_line)
+
+
+class _FakeResponse:
+	"""Replaces the response of urllib.request.urlopen."""
+
+	def __init__(self, content):
+		self.content = content
+
+	def __enter__(self):
+		return self
+
+	def __exit__(self, *exc_info):
+		return False
+
+	def read(self):
+		return self.content
+
+
+def test_get_latest_version_reads_version_info_rc(launcher, monkeypatch):
+	"""Tests that the latest version is read in bin/VersionInfo.rc of the branch master, with a timeout."""
+	import pywinauto_recorder
+	version_info = pathlib.Path(pywinauto_recorder.__file__).resolve().parent.parent / "bin" / "VersionInfo.rc"
+	requests = []
+
+	def urlopen(url, timeout=None):
+		requests.append((url, timeout))
+		return _FakeResponse(version_info.read_bytes())
+	monkeypatch.setattr(launcher.urllib.request, "urlopen", urlopen)
+	assert launcher.get_latest_version() == pywinauto_recorder.__version__
+	assert requests == [(launcher.LATEST_VERSION_URL, launcher.VERSION_CHECK_TIMEOUT)]
+	assert launcher.LATEST_VERSION_URL.endswith("/beuaaa/pywinauto_recorder/master/bin/VersionInfo.rc")
+	assert 0 < launcher.VERSION_CHECK_TIMEOUT <= 10
+
+
+@pytest.mark.parametrize("content", [
+	b"", b"<html>Proxy authentication required</html>", b'VALUE "ProductVersion", ""',
+	b'VALUE "ProductVersion", "unknown"', b"\xff\xfe\x00"])
+def test_get_latest_version_unexpected_content(launcher, monkeypatch, content):
+	"""Tests that an unexpected content, a page of a proxy for example, gives no version."""
+	monkeypatch.setattr(launcher.urllib.request, "urlopen", lambda url, timeout=None: _FakeResponse(content))
+	assert launcher.get_latest_version() is None
+
+
+@pytest.mark.parametrize("error", [
+	urllib.error.URLError("no network"), socket.timeout("timed out"), ssl.SSLError("certificate verify failed"),
+	ConnectionResetError("connection reset"), ValueError("unknown url type")])
+def test_get_latest_version_network_errors(launcher, monkeypatch, error):
+	"""
+	Tests that the errors are ignored.
+
+	Before, only URLError was caught: another error, a connection reset while reading the response for example, stopped
+	Pywinauto Recorder at startup.
+	"""
+	def urlopen(url, timeout=None):
+		raise error
+	monkeypatch.setattr(launcher.urllib.request, "urlopen", urlopen)
+	assert launcher.get_latest_version() is None
+
+
+def test_check_version_is_done_once(launcher, monkeypatch, capsys):
+	"""
+	Tests that check_version() prints the message in the console and returns the line of the splash screen.
+
+	The version is checked only once: the help of the menu displays the splash screen again without a new request.
+	"""
+	import pywinauto_recorder
+	launcher.check_version.cache_clear()
+	requests = []
+	monkeypatch.setattr(launcher, "get_latest_version", lambda: requests.append("request") or "0.0.1")
+	try:
+		version_line = launcher.check_version()
+		assert version_line == "Pywinauto recorder " + pywinauto_recorder.__version__
+		assert capsys.readouterr().out == (
+			"Your Pywinauto recorder " + pywinauto_recorder.__version__ +
+			" is newer than the latest published version (0.0.1).\n")
+		assert launcher.check_version() == version_line
+		assert capsys.readouterr().out == ""
+		assert requests == ["request"]
+	finally:
+		launcher.check_version.cache_clear()
 
 
 def test_tray_icon_message_handlers_return_an_int(monkeypatch):

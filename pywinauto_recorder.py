@@ -8,6 +8,9 @@
 
 from ctypes import wintypes, windll, Structure, POINTER, pointer, WinError
 import argparse
+import functools
+import re
+import urllib.request
 import overlay_arrows_and_more as oaam
 from os.path import isfile as os_path_isfile
 from sys import exit as sys_exit
@@ -322,23 +325,94 @@ def overlay_add_pywinauto_recorder_icon(overlay, x, y):
 		text=u'recorder', font_size=48, font_name='Arial Black')
 
 
-def display_splash_screen():
-	import urllib.request
-	import urllib.error
-	from pywinauto_recorder.__init__ import __version__
-	url_version = "https://raw.githubusercontent.com/beuaaa/pywinauto_recorder/master/bin/VersionInfo.rc"
-	latest_version = __version__
+LATEST_VERSION_URL = "https://raw.githubusercontent.com/beuaaa/pywinauto_recorder/master/bin/VersionInfo.rc"
+"""bin/VersionInfo.rc of the branch 'master', which receives only the published versions: it gives the latest one."""
+VERSION_CHECK_TIMEOUT = 5
+"""Maximum duration, in seconds, of the request for the latest published version."""
+
+_VERSION_PATTERN = re.compile(r"v?(\d+(?:\.\d+)*)[._-]?([a-z]*)[._-]?(\d*)")
+_PRE_RELEASE_RANKS = {"dev": 0, "a": 1, "alpha": 1, "b": 2, "beta": 2, "c": 3, "rc": 3}
+_FINAL_RELEASE_RANK = 4
+
+
+def get_latest_version(timeout=VERSION_CHECK_TIMEOUT):
+	"""
+	Returns the latest published version of Pywinauto Recorder.
+
+	:param timeout: The maximum duration of the request, in seconds
+	:return: The version read in LATEST_VERSION_URL, or None if it cannot be read (no network, timeout, proxy, unexpected
+		content...)
+	"""
 	try:
-		with urllib.request.urlopen(url_version) as f:
-			line = f.read().decode('utf-8')
-		latest_version = line.split('ProductVersion')[1].split('"')[2]
-	except urllib.error.URLError:
-		pass
-	
-	if __version__ == latest_version:
-		print("Your Pywinauto recorder is up to date.")
-	else:
-		print("Pywinauto recorder v" + latest_version + " is available!")
+		# Bandit B310 (URL schemes such as file:/ allowed): the URL is the constant https address LATEST_VERSION_URL
+		with urllib.request.urlopen(LATEST_VERSION_URL, timeout=timeout) as response:  # nosec B310
+			text = response.read().decode('utf-8')
+		version = text.split('ProductVersion')[1].split('"')[2].strip()
+	except Exception:
+		return None
+	return version if _VERSION_PATTERN.match(version.lower()) else None
+
+
+def version_key(version):
+	"""
+	Returns a key to compare versions: "0.6.9" < "0.10.0" < "1.0.0.dev0" < "1.0.0b1" < "1.0.0rc1" < "1.0.0" == "1.0".
+
+	:param version: A version, for example "1.0.0b1"
+	:return: A tuple: the numbers of the version without the trailing zeros, the rank of the pre-release (a final
+		release comes after its pre-releases), and the number of the pre-release
+	"""
+	match = _VERSION_PATTERN.match(version.strip().lower())
+	if not match:
+		return (), -1, 0
+	numbers = [int(number) for number in match.group(1).split(".")]
+	while len(numbers) > 1 and numbers[-1] == 0:
+		numbers.pop()  # 1.0.0 is the same version as 1.0
+	label = match.group(2)
+	rank = _PRE_RELEASE_RANKS.get(label, _FINAL_RELEASE_RANK) if label else _FINAL_RELEASE_RANK
+	return tuple(numbers), rank, int(match.group(3) or 0)
+
+
+def version_messages(installed_version, latest_version):
+	"""
+	Returns the messages about the version of Pywinauto Recorder.
+
+	:param installed_version: The version of this Pywinauto Recorder
+	:param latest_version: The latest published version, or None if it is unknown
+	:return: The message printed in the console, and the line displayed by the splash screen
+	"""
+	version_line = 'Pywinauto recorder ' + installed_version
+	if latest_version is None:
+		return "Cannot check whether a newer version of Pywinauto recorder is available.", version_line
+	if version_key(installed_version) == version_key(latest_version):
+		return "Your Pywinauto recorder is up to date.", version_line
+	if version_key(installed_version) < version_key(latest_version):
+		return (
+			"Pywinauto recorder v" + latest_version + " is available!",
+			'Your version of Pywinauto recorder (' + installed_version + ') is not up to date (' + latest_version +
+			' is available!)')
+	console_message = (
+		"Your Pywinauto recorder " + installed_version + " is newer than the latest published version (" +
+		latest_version + ").")
+	return console_message, version_line
+
+
+@functools.lru_cache(maxsize=None)
+def check_version():
+	"""
+	It checks whether a newer version of Pywinauto Recorder is available, and prints the result in the console.
+
+	The check is done only once: the next calls return the same line, without printing it again.
+
+	:return: The line about the version displayed by the splash screen
+	"""
+	from pywinauto_recorder.__init__ import __version__
+	console_message, version_line = version_messages(__version__, get_latest_version())
+	print(console_message)
+	return version_line
+
+
+def display_splash_screen():
+	version_line = check_version()
 
 	splash_foreground = oaam.Overlay(transparency=0.0)
 	time.sleep(0.2)
@@ -348,10 +422,7 @@ def display_splash_screen():
 	nb_band = 24
 	line_height = 22.4
 	text_lines = [''] * nb_band
-	if __version__ == latest_version:
-		text_lines[6] = 'Pywinauto recorder ' + __version__
-	else:
-		text_lines[6] = 'Your version of Pywinauto recorder (' +  __version__ + ') is not up to date (' + latest_version + ' is available!)'
+	text_lines[6] = version_line
 	text_lines[7] = 'by David Pratmarty'
 	text_lines[9] = 'Record / Stop                            Smart mode On / Off'
 	text_lines[10] = 'CTRL+ALT+R                                      CTRL+ALT+S'
