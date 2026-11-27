@@ -2,8 +2,8 @@
 // that a new version is available. The version below must be equal to __version__ in
 // pywinauto_recorder/__init__.py (checked by tests/tests.py).
 1 VERSIONINFO
-FILEVERSION 0,6,9,0
-PRODUCTVERSION 0,6,9,0
+FILEVERSION 0,7,0,0
+PRODUCTVERSION 0,7,0,0
 FILEOS 0x40004
 FILETYPE 0x1
 {
@@ -12,7 +12,7 @@ BLOCK "StringFileInfo"
 	BLOCK "000004B0"
 	{
 		VALUE "ProductName", "Pywinauto Recorder"
-		VALUE "ProductVersion", "0.6.9"
+		VALUE "ProductVersion", "0.7.0"
 	}
 }
 
