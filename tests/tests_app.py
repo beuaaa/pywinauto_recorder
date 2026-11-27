@@ -6,6 +6,7 @@ They need no application under test and no user interaction, so they run in the 
 """
 
 import pathlib
+import warnings
 
 import pytest
 
@@ -297,11 +298,20 @@ def test_main(monkeypatch, argv, expected):
 	[sys.executable, str(PACKAGE_DIR.parent / "pywinauto_recorder.py"), "--help"],
 ])
 def test_help_of_the_command_line(command):
-	"""Tests 'python -m pywinauto_recorder --help' and the launcher, in a new process."""
-	completed = subprocess.run(  # nosec B603
-		command, capture_output=True, text=True, timeout=120, cwd=str(PACKAGE_DIR.parent))
-	assert completed.returncode == 0, completed.stderr
-	assert "--no_splash_screen" in completed.stdout
+	"""
+	Tests 'python -m pywinauto_recorder --help' and the launcher, in a new process.
+
+	On the Windows runner of the CI, with Python 3.8, a new process sometimes blocks in 'import win32ui', imported by
+	pywinauto, with the code of Pywinauto recorder before and after the issue #49: the command is run again, up to 3
+	times. It ends in less than a second otherwise.
+	"""
+	for attempt in range(1, 4):
+		exit_code, output, _ = _run_in_a_new_process(command, timeout=30, cwd=str(PACKAGE_DIR.parent))
+		if exit_code is not None:
+			break
+		warnings.warn("Attempt {}: {} did not end in 30 s".format(attempt, command))
+	assert exit_code == 0, output
+	assert "--no_splash_screen" in output
 
 
 _REPLAY_LAUNCHER = """
