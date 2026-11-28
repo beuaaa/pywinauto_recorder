@@ -18,7 +18,7 @@ import pyperclip
 import codecs
 from .core import path_separator, type_separator, Strategy, is_int, \
                     get_wrapper_path, get_entry_list, get_entry, get_sorted_region, \
-                    read_config_file, set_native_window_handle
+                    read_config_file
 from .core import find_elements as not_ttl_cached_find_elements
 #from .core import find_elements
 from .player import playback
@@ -26,8 +26,14 @@ from cachetools import func
 
 
 @func.ttl_cache(ttl=10)
-def find_elements(full_element_path=None):
-	return not_ttl_cached_find_elements(full_element_path=full_element_path)
+def find_elements(full_element_path=None, window_handle=None):
+	"""
+	Returns the elements that match a path, like core.find_elements. The result is kept 10 seconds.
+
+	:param full_element_path: The full path of the elements
+	:param window_handle: The handle of the window where the elements are searched (see core.find_elements)
+	"""
+	return not_ttl_cached_find_elements(full_element_path=full_element_path, window_handle=window_handle)
 
 
 __all__ = ['Recorder']
@@ -762,6 +768,7 @@ class Recorder(Thread):
 		self.common_path_info_tip = ""
 		self.last_element_event = None
 		self.started_recording_with_keyboard = False
+		self._window_handle = None
 		self.element_info_tooltip = ElementInfoTooltip()
 		self.start()
 	
@@ -810,7 +817,7 @@ class Recorder(Thread):
 							continue
 						previous_wrapper_path2 = wrapper_path2
 						
-						if find_elements(get_wrapper_path(wrapper2)):
+						if find_elements(get_wrapper_path(wrapper2), self._window_handle):
 							self.__overlay_add_bold_rectangle(wrapper2_rectangle, color=(0, 0, 255))
 							self.__overlay_add_bold_rectangle(wrapper_rectangle, color=(255, 200, 0))
 							return '#[' + wrapper_path2 + ',' + str(r_x) + ']'
@@ -962,6 +969,7 @@ class Recorder(Thread):
 		elements = []
 		i = 0
 		previous_wrapper_path = None
+		previous_window_handle = None
 		unique_wrapper_path = None
 		strategies = [Strategy.unique_path, Strategy.array_2D, Strategy.array_1D]
 		i_strategy = 0
@@ -985,14 +993,18 @@ class Recorder(Thread):
 				window = wrapper
 				while window.parent() is not None and window.parent().parent() is not None:
 					window = window.parent()
-				set_native_window_handle(window.handle)
+				# The elements are searched in the window under the mouse cursor. Before, this window was set with
+				# set_native_window_handle, which also restricted the searches of a replay to this window.
+				self._window_handle = window.handle
 				""" """
 				
 				wrapper_path = get_wrapper_path(wrapper)
 				if not wrapper_path:
 					time.sleep(0.01)
 					continue
-				if wrapper_path == previous_wrapper_path:
+				# The elements are searched again when the mouse cursor goes to another element, or to another window
+				# that has the same title
+				if (wrapper_path, self._window_handle) == (previous_wrapper_path, previous_window_handle):
 					if (unique_wrapper_path is None) or (strategies[i_strategy] == Strategy.array_2D):
 						i_strategy = i_strategy + 1
 						if (not self.smart_mode) and (strategies[i_strategy] == Strategy.array_1D):
@@ -1003,7 +1015,8 @@ class Recorder(Thread):
 					# strategy_unique_path_again_done = False
 					i_strategy = 0
 					previous_wrapper_path = wrapper_path
-					elements = find_elements(wrapper_path)
+					previous_window_handle = self._window_handle
+					elements = find_elements(wrapper_path, self._window_handle)
 				#if wrapper_path == previous_wrapper_path and unique_wrapper_path:
 				#	strategy = Strategy.unique_path_again
 				# else:

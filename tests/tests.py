@@ -6,6 +6,7 @@ import socket
 import ssl
 import sys
 import time
+import types
 import urllib.error
 import warnings
 import pytest
@@ -767,6 +768,20 @@ def test_find_elements_after_the_search_of_a_window_with_a_regular_expression(de
 	assert _names(core.find_elements("Calculator||Window->*->One||Button")) == ["One"]
 	assert _names(core.find_elements("RegEx: Calc.*||Window")) == ["Calculator"]
 	assert _names(core.find_elements("Calculator||Window->*->Two||Button")) == ["Two"]
+
+
+def test_find_elements_in_a_window(monkeypatch, native_window_handle):
+	"""
+	Tests that core.find_elements searches in the window given to it, else in the window of focus_on_application.
+
+	The recorder gives the window under the mouse cursor: before, it set it for all the searches, those of a replay too.
+	"""
+	handles = []
+	monkeypatch.setattr(core, "find_window_candidates", lambda root_entry, handle=None: handles.append(handle) or [])
+	assert core.find_elements("W||Window->B||Button", window_handle=42) == []
+	assert core.find_elements("W||Window->B||Button") == []
+	assert handles == [42, native_window_handle]
+	assert core.get_native_window_handle() == native_window_handle
 
 
 ################################################################################################
@@ -1578,7 +1593,6 @@ def test_tray_icon_message_handlers_return_an_int(monkeypatch):
 	"""
 	import importlib.util
 	import os
-	import types
 	launcher_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "pywinauto_recorder.py")
 	spec = importlib.util.spec_from_file_location("pywinauto_recorder_launcher", launcher_path)
 	launcher = importlib.util.module_from_spec(spec)
@@ -1789,3 +1803,60 @@ def test_send_keys_strings_are_parsed_by_pywinauto(monkeypatch):
 	assert len(sent) == sum(len(case.values[1]) for case in _KEYBOARD_CASES)
 	for keys in sent:
 		assert pywinauto.keyboard.parse_keys(keys, with_spaces=True, with_tabs=True, with_newlines=True)
+
+
+################################################################################################
+#                            Tests of the searches of the recorder                             #
+################################################################################################
+
+def test_recorder_searches_in_the_window_under_the_mouse_cursor(monkeypatch):
+	"""
+	Tests that the recorder searches the elements in the given window, and again in another window of the same title.
+
+	The result of a search, kept 10 seconds, depends on the window too.
+	"""
+	searches = []
+	monkeypatch.setattr(
+		recorder, "not_ttl_cached_find_elements",
+		lambda full_element_path=None, window_handle=None: searches.append((full_element_path, window_handle)) or ["a"])
+	recorder.find_elements.cache_clear()
+	try:
+		assert recorder.find_elements("N||Window->B||Button", 1) == ["a"]
+		assert recorder.find_elements("N||Window->B||Button", 2) == ["a"]
+	finally:
+		recorder.find_elements.cache_clear()
+	assert searches == [("N||Window->B||Button", 1), ("N||Window->B||Button", 2)]
+
+
+def test_recorder_loop_does_not_restrict_the_searches_of_the_player(monkeypatch):
+	"""
+	Tests that the loop of the recorder does not set the window where the player searches the elements.
+
+	Before, it set the window under the mouse cursor: a replay from the tray menu, or from the command line, searched
+	the elements only in this window, and failed in the other windows.
+	"""
+	monkeypatch.setattr(core, "native_window_handle", None)
+	comtypes_client = types.SimpleNamespace(_code_cache=types.SimpleNamespace(_find_gen_dir=lambda: "gen"))
+	monkeypatch.setitem(sys.modules, "comtypes", types.SimpleNamespace(client=comtypes_client))
+	monkeypatch.setitem(sys.modules, "comtypes.client", comtypes_client)
+	for name in ("hook", "start_recording", "unhook_all"):
+		monkeypatch.setattr(recorder.keyboard, name, lambda *args: None)
+	monkeypatch.setattr(recorder.keyboard, "stop_recording", lambda: ["event"])  # the keyboard hook works
+	for name in ("hook", "unhook_all"):
+		monkeypatch.setattr(recorder.mouse, name, lambda *args: None)
+	monkeypatch.setattr(recorder.win32api, "keybd_event", lambda *args: None)
+	monkeypatch.setattr(recorder.win32api, "GetCursorPos", lambda: (1, 2))
+	monkeypatch.setattr(recorder, "get_wrapper_path", lambda wrapper: "")  # no path: the loop goes on at once
+	monkeypatch.setattr(time, "sleep", lambda seconds: None)
+	fake_recorder = types.SimpleNamespace(
+		mode="Initializing", event_list=[], _Recorder__key_on=None, _Recorder__mouse_on=None,
+		main_overlay=types.SimpleNamespace(clear_all=lambda: None, quit=lambda: None))
+
+	def from_point(x, y):
+		fake_recorder.mode = "Quit"  # this loop is the last one
+		return types.SimpleNamespace(handle=5, parent=lambda: None)
+
+	fake_recorder.desktop = types.SimpleNamespace(from_point=from_point)
+	recorder.Recorder.run(fake_recorder)
+	assert core.get_native_window_handle() is None
+	assert fake_recorder._window_handle == 5

@@ -428,15 +428,20 @@ def filter_with_match_entry_list(window, descendants, entry_list):
 	return result
 
 
-def find_elements(full_element_path=None):
+def find_elements(full_element_path=None, window_handle=None):
 	"""
 	It returns the elements (UIAWrapper list) that match the full_element_path
 
 	:param full_element_path: full path of the element(s) to find
+	:param window_handle: The handle of the window where the elements are searched. If it is None, they are searched in
+		the window set by set_native_window_handle (the window of the application given to focus_on_application), or in
+		all the windows if it is None too.
 	:return: The elements found
 	"""
 	entry_list = get_entry_list(full_element_path)
-	window_candidates = find_window_candidates(entry_list[0], handle=native_window_handle)
+	if window_handle is None:
+		window_handle = native_window_handle
+	window_candidates = find_window_candidates(entry_list[0], handle=window_handle)
 	if window_candidates == []:
 		return []
 	window_candidates = filter_window_candidates(window_candidates)
