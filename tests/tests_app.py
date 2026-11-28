@@ -400,15 +400,29 @@ def test_recorder_playback_returns_the_result_and_stops(monkeypatch, playback_re
 	"""Tests that Recorder.playback returns the result of the replay and sets the mode back to STOP."""
 	modes = []
 	fake_recorder = types.SimpleNamespace(main_overlay=_FakeOverlay(), mode=None)
-	monkeypatch.setattr(recorder, "playback", lambda str_code, filename: modes.append(fake_recorder.mode) or playback_result)
+	monkeypatch.setattr(
+		recorder, "playback",
+		lambda str_code, filename, wait_for_enter=True: modes.append(fake_recorder.mode) or playback_result)
 	assert recorder.Recorder.playback(fake_recorder, filename="script.py") is playback_result
 	assert modes == [recorder.RecorderMode.PLAY]
 	assert fake_recorder.mode is recorder.RecorderMode.STOP
 
 
+@pytest.mark.parametrize("wait_for_enter", [True, False])
+def test_recorder_playback_gives_wait_for_enter(monkeypatch, wait_for_enter):
+	"""Tests that Recorder.playback gives wait_for_enter to playback: True by default."""
+	calls = []
+	fake_recorder = types.SimpleNamespace(main_overlay=_FakeOverlay(), mode=None)
+	monkeypatch.setattr(
+		recorder, "playback", lambda str_code, filename, wait_for_enter=True: calls.append(wait_for_enter) or True)
+	recorder.Recorder.playback(fake_recorder, str_code="pass")
+	recorder.Recorder.playback(fake_recorder, str_code="pass", wait_for_enter=wait_for_enter)
+	assert calls == [True, wait_for_enter]
+
+
 def test_recorder_playback_stops_when_the_replay_is_interrupted(monkeypatch):
 	"""Tests that the mode is set back to STOP even if the replay is interrupted (KeyboardInterrupt)."""
-	def interrupted_playback(str_code, filename):
+	def interrupted_playback(str_code, filename, wait_for_enter=True):
 		raise KeyboardInterrupt
 
 	fake_recorder = types.SimpleNamespace(main_overlay=_FakeOverlay(), mode=None)
@@ -792,9 +806,11 @@ class _BlockingRecorder:
 	def __init__(self):
 		self.finish = threading.Event()
 		self.codes = []
+		self.waits_for_enter = []
 
-	def playback(self, str_code='', filename=''):
+	def playback(self, str_code='', filename='', wait_for_enter=True):
 		self.codes.append(str_code)
+		self.waits_for_enter.append(wait_for_enter)
 		self.finish.wait(5)
 		return True
 
@@ -819,6 +835,21 @@ def test_clipboard_replay_runs_in_a_thread():
 	assert replay.start("third code") is True
 	replay._thread.join(5)
 	assert blocking_recorder.codes == ["first code", "third code"]
+
+
+def test_clipboard_replay_does_not_wait_for_enter():
+	"""
+	Tests that the replay of the clipboard does not wait for the Enter key after an error.
+
+	Before, it ended only when the Enter key was pressed in the console of Pywinauto Recorder: until then, the 'play'
+	icon stayed displayed, and the menu entries, 'Quit' included, stayed grayed.
+	"""
+	blocking_recorder = _BlockingRecorder()
+	blocking_recorder.finish.set()
+	replay = app.ClipboardReplay(blocking_recorder)
+	assert replay.start("code") is True
+	replay._thread.join(5)
+	assert blocking_recorder.waits_for_enter == [False]
 
 
 class _FakeWin32Gui:

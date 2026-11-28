@@ -459,13 +459,18 @@ class ClipboardReplay(object):
 		"""
 		It starts replaying Python code, unless a replay is already in progress.
 
+		The replay does not wait for the Enter key after an error: the recorder keeps running, and its console keeps the
+		error. Before, the replay ended only when the Enter key was pressed in the console of Pywinauto Recorder: until
+		then, the 'play' icon stayed displayed, and the menu entries, 'Quit' included, stayed grayed.
+
 		:param code: The Python code to replay
 		:return: True if the replay was started, False if a replay is already in progress
 		"""
 		if self.is_running():
 			return False
 		self._thread = threading.Thread(
-			target=self.recorder.playback, kwargs={"str_code": code}, name="Pywinauto Recorder replay", daemon=True)
+			target=self.recorder.playback, kwargs={"str_code": code, "wait_for_enter": False},
+			name="Pywinauto Recorder replay", daemon=True)
 		self._thread.start()
 		return True
 

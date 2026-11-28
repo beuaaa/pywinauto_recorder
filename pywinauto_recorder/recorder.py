@@ -1864,18 +1864,19 @@ class Recorder(Thread):
 				self.stop_recording()
 			self.mode = RecorderMode.INFO
 
-	def playback(self, str_code='', filename=''):
+	def playback(self, str_code='', filename='', wait_for_enter=True):
 		"""
 		It plays back a string of code or a Python file.
 		
 		:param str_code: The code to be played back
 		:param filename: The name of the file corresponding to the code to be played back
+		:param wait_for_enter: False to never wait for the Enter key after an error (see player.playback)
 		:return: True if the code was played back without error, False otherwise
 		"""
 		self.mode = RecorderMode.PLAY
 		self.main_overlay.refresh()
 		try:
-			return playback(str_code, filename)
+			return playback(str_code, filename, wait_for_enter=wait_for_enter)
 		finally:
 			self.mode = RecorderMode.STOP
 	

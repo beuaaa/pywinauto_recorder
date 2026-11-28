@@ -1970,6 +1970,14 @@ def test_playback_waits_for_enter_in_a_console(monkeypatch, capsys, playback_env
 	assert playback_environment == ["Press Enter to continue..."]
 
 
+def test_playback_does_not_wait_for_enter_when_asked(monkeypatch, capsys, playback_environment):
+	"""Tests that 'playback' does not wait for the Enter key after an error when wait_for_enter is False."""
+	monkeypatch.setattr(sys, "stdin", _FakeStdin(interactive=True))
+	assert player.playback(str_code="raise ValueError('error raised by the script')", wait_for_enter=False) is False
+	assert "ValueError: error raised by the script" in capsys.readouterr().err
+	assert playback_environment == []
+
+
 ################################################################################################
 #                                   Tests of bin/VersionInfo.rc                                #
 ################################################################################################
