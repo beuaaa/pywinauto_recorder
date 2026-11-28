@@ -510,6 +510,20 @@ def display_splash_screen():
 	splash_background.refresh()
 
 
+def replay_clipboard(recorder):
+	"""
+	It replays the Python code of the clipboard, unless a replay is in progress ("Start replaying clipboard").
+
+	The replay does not wait for the Enter key after an error: the recorder keeps running, and its console keeps the
+	error. Before, the tray menu did not respond until the Enter key was pressed in the console of Pywinauto Recorder,
+	and the 'play' icon stayed displayed.
+
+	:param recorder: The Recorder
+	"""
+	if recorder.mode != "Play":
+		recorder.playback(pyperclip.paste(), wait_for_enter=False)
+
+
 if __name__ == '__main__':
 	if not get_AC_line_status():
 		windll.user32.MessageBoxW(0, "Not plugging your laptop in the AC Power can dramatically slow down Pywinauto Recorder.",
@@ -562,8 +576,7 @@ if __name__ == '__main__':
 				recorder.start_recording()
 
 		def action_replay(sys_tray_icon):
-			if recorder.mode != "Play":
-				recorder.playback(pyperclip.paste())
+			replay_clipboard(recorder)
 
 		def action_display_element_info(sys_tray_icon):
 			if recorder.mode == "Stop":

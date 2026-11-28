@@ -1432,6 +1432,43 @@ def test_playback_waits_for_enter_in_a_console(monkeypatch, capsys, playback_env
 	assert playback_environment == ["Press Enter to continue..."]
 
 
+def test_playback_does_not_wait_for_enter_when_asked(monkeypatch, capsys, playback_environment):
+	"""Tests that 'playback' does not wait for the Enter key after an error when wait_for_enter is False."""
+	monkeypatch.setattr(sys, "stdin", _FakeStdin(interactive=True))
+	assert player.playback(str_code="raise ValueError('error raised by the script')", wait_for_enter=False) is False
+	assert "ValueError: error raised by the script" in capsys.readouterr().err
+	assert playback_environment == []
+
+
+@pytest.mark.parametrize("wait_for_enter", [True, False])
+def test_recorder_playback_gives_wait_for_enter(monkeypatch, wait_for_enter):
+	"""Tests that Recorder.playback displays the 'play' icon during the replay, and gives wait_for_enter to playback."""
+	calls = []
+	fake_recorder = types.SimpleNamespace(mode="Info", main_overlay=types.SimpleNamespace(refresh=lambda: None))
+
+	def fake_playback(str_code, filename, wait_for_enter=True):
+		calls.append((str_code, filename, wait_for_enter, fake_recorder.mode))
+		return False
+
+	monkeypatch.setattr(recorder, "playback", fake_playback)
+	assert recorder.Recorder.playback(fake_recorder, "code", wait_for_enter=wait_for_enter) is False
+	assert calls == [("code", "", wait_for_enter, "Play")]
+	assert fake_recorder.mode == "Stop"
+
+
+def test_recorder_playback_stops_after_an_interrupted_replay(playback_environment):
+	"""
+	Tests that the recorder is in the 'Stop' mode after a replay interrupted with CTRL+C in the console.
+
+	Before, the 'play' icon stayed displayed, and "Start replaying clipboard" did nothing: playback does not catch
+	KeyboardInterrupt, and the mode stayed 'Play'.
+	"""
+	fake_recorder = types.SimpleNamespace(mode="Info", main_overlay=types.SimpleNamespace(refresh=lambda: None))
+	with pytest.raises(KeyboardInterrupt):
+		recorder.Recorder.playback(fake_recorder, "raise KeyboardInterrupt")
+	assert fake_recorder.mode == "Stop"
+
+
 ################################################################################################
 #                                   Tests of bin/VersionInfo.rc                                #
 ################################################################################################
@@ -1617,6 +1654,22 @@ def test_tray_icon_message_handlers_return_an_int(monkeypatch):
 		tray.destroy(42, 0, 0, 0)]
 	assert all(isinstance(result, int) for result in results), results
 	assert calls == ["refresh_icon", "action", "action", "show_menu", "on_quit", "Shell_NotifyIcon", "PostQuitMessage"]
+
+
+def test_replay_clipboard_does_not_wait_for_enter(monkeypatch, launcher):
+	"""
+	Tests that "Start replaying clipboard" replays the clipboard without waiting for the Enter key after an error.
+
+	Before, the tray menu did not respond until the Enter key was pressed in the console of Pywinauto Recorder.
+	"""
+	replays = []
+	fake_recorder = types.SimpleNamespace(
+		mode="Info", playback=lambda str_code, wait_for_enter=True: replays.append((str_code, wait_for_enter)))
+	monkeypatch.setattr(launcher.pyperclip, "paste", lambda: "code of the clipboard")
+	launcher.replay_clipboard(fake_recorder)
+	fake_recorder.mode = "Play"  # a replay in progress
+	launcher.replay_clipboard(fake_recorder)
+	assert replays == [("code of the clipboard", False)]
 
 
 ################################################################################################

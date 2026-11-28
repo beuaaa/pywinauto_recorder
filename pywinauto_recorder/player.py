@@ -1216,16 +1216,18 @@ def select_file(
 		send_keys(filename + "{ENTER}")
 
 
-def playback(str_code='', filename=''):
+def playback(str_code='', filename='', wait_for_enter=True):
 	"""
 	This function plays back a string of code or a Python file.
 
 	If the played back code raises an exception, the error is printed. Then, when the function is run in a console,
 	it waits for the Enter key so that the error can be read. It does not wait when nobody can press the key
-	(input redirected: scheduled task, continuous integration...).
+	(input redirected: scheduled task, continuous integration...), or when wait_for_enter is False.
 
 	:param str_code: The Python code to be played back
 	:param filename: The name of the file corresponding to the Python code to be played back
+	:param wait_for_enter: False to never wait for the Enter key after an error. "Start replaying clipboard" of the
+		tray menu gives False: Pywinauto Recorder keeps running, and its console keeps the error.
 	:return: True if the code is played back without error, False otherwise
 	"""
 	from ctypes import windll
@@ -1258,7 +1260,7 @@ def playback(str_code='', filename=''):
 		
 		for line in output[d_line:]:
 			print(line, file=sys.stderr, end='')
-		if sys.stdin is not None and sys.stdin.isatty():
+		if wait_for_enter and sys.stdin is not None and sys.stdin.isatty():
 			input("Press Enter to continue...")
 		return False
 

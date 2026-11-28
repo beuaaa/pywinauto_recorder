@@ -1240,17 +1240,22 @@ class Recorder(Thread):
 		"""
 		return self.last_element_event
 	
-	def playback(self, str_code='', filename=''):
+	def playback(self, str_code='', filename='', wait_for_enter=True):
 		"""
 		This function plays back a string of code or a Python file.
 		
 		:param str_code: The code to be played back
 		:param filename: The name of the file corresponding to the code to be played back
+		:param wait_for_enter: False to never wait for the Enter key after an error (see player.playback)
+		:return: True if the code was played back without error, False otherwise
 		"""
 		self.mode = "Play"
 		self.main_overlay.refresh()
-		playback(str_code, filename)
-		self.mode = "Stop"
+		try:
+			return playback(str_code, filename, wait_for_enter=wait_for_enter)
+		finally:
+			# Even after a replay interrupted with CTRL+C in the console, the 'play' icon is not displayed any more
+			self.mode = "Stop"
 	
 	def quit(self):
 		"""
